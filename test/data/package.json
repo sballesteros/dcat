@@ -1,0 +1,24 @@
+{
+  "name": "mydpkg",
+  "description": "my datapackage",
+  "version": "0.0.0",
+  "keywords": ["test", "datapackage"],
+
+  "resources": [
+    {
+      "name": "test",
+      "schema": {
+        "fields": [
+          {"name": "a", "type": "string"},
+          {"name": "b", "type": "integer"},
+          {"name": "c", "type": "number"}
+        ]
+      },
+      "data": [
+        {"a": "a", "b": 1, "c": 1.2},
+        {"a": "x", "b": 2, "c": 2.3},
+        {"a": "y", "b": 3, "c": 3.4}
+      ]
+    }
+  ]
+}

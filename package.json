@@ -1,0 +1,28 @@
+{
+  "name": "dpm-stan",
+  "version": "0.0.0",
+  "description": "free the npm registry from tabular data stored in datapackages",
+  "main": "index.js",
+  "scripts": {
+    "test": "make test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/standard-analytics/dpm-stan.git"
+  },
+  "keywords": [ 
+    "package",
+    "datapackage",
+    "npm"
+  ],
+  "author": "Sebastien Ballesteros",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/standard-analytics/spm/issues"
+  },
+  "homepage": "https://github.com/standard-analytics/spm",
+  "dependencies": {
+    "datapackage": "*",
+    "request": "~2.27.0"
+  }
+}

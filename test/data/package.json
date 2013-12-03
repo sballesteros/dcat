@@ -6,7 +6,7 @@
 
   "resources": [
     {
-      "name": "test",
+      "name": "inline",
       "schema": {
         "fields": [
           {"name": "a", "type": "string"},
@@ -19,6 +19,14 @@
         {"a": "x", "b": 2, "c": 2.3},
         {"a": "y", "b": 3, "c": 3.4}
       ]
+    },
+    {
+      "name": "csv1",
+      "path": "x1.csv"
+    },
+    {
+      "name": "csv2",
+      "path": "x2.csv"
     }
   ]
 }

@@ -1,57 +1,83 @@
 var path = require('path')
-  , request = require('request')
-  , datapackage = require('datapackage');
+  , Ignore = require("fstream-ignore")
+  , PassThrough = require("stream").PassThrough
+  , temp = require('temp')
+  , tar = require('tar')
+  , async = require('async')
+  , mime = require('mime')
+  , zlib = require('zlib')
+  , fs = require('fs')
+  , couchMultipartStream = require('couch-multipart-stream');
 
-/**
- * Note that we need cookie support (jar:true).
- */
-exports.publish = function(dpkgRoot, dpkg, callback){
+temp.track();
 
-  request('http://127.0.0.1:3000/publish/dpkg', {jar: true, json: dpkg, method: "POST"}, function(err, res, body){
+module.exports = function makeBodyStream(root, callback){
 
-    if(res.statusCode !== 206){
-      return callback(null, res.statusCode, body);
+  var hasCallbacked = false;
+  
+  fs.readFile(path.resolve(root, 'package.json'), function(err, doc){
+    if(err) return callback(err);
+
+    try{
+      doc = JSON.parse(doc);
+    } catch(e){
+      return callback(e);
     }
 
-    uploadResource(dpkgRoot, dpkg, body.resource, callback);
+    var dataPaths = doc.resources
+      .filter(function(x){return 'path' in x})
+      .map(function(x){return x.path});
+
+    //compress everything (not ignored) but the data and the package.json
+    var ignore = new Ignore({
+      path: root,
+      ignoreFiles: ['.gitignore', '.npmignore', '.dpmignore'].map(function(x){return path.resolve(root, x)})
+    });
+    ignore.addIgnoreRules(dataPaths.concat(['package.json', '.git']), 'custom-rules');
+
+    //write tarball in a temp dir    
+    var ws = ignore.pipe(tar.Pack()).pipe(zlib.createGzip()).pipe(temp.createWriteStream('stan-'));
+    ws.on('error', function(err){
+      hasCallbacked = true;
+      callback(err);
+    })
+    ws.on('finish', function(){
+      
+      dataPaths = dataPaths.map(function(p){return path.resolve(root, p);});
+      dataPaths.push(ws.path);
+      //get stats
+      async.map(dataPaths, fs.stat, function(err, stats){
+        if(err){
+          if(!hasCallbacked){
+            callback(err);
+          }
+          return;
+        }
+
+        //append _attachments to datapackage
+        doc._attachments = {
+          'dist.tar.gz': {follows: true, length: (stats.pop()).size, 'content_type': 'application/x-gtar', _stream: fs.createReadStream(dataPaths.pop())}
+        };
+
+        dataPaths.forEach(function(p, i){
+          doc._attachments[path.basename(p)] = {
+            follows: true,
+            length: stats[i].size,
+            'content_type': mime.lookup(p),
+            _stream: fs.createReadStream(p)
+          };
+        });
+
+
+        var bodyStream = couchMultipartStream(doc);
+        bodyStream._id = doc.name + '@' + doc.version;
+
+        callback(null, bodyStream);
+        
+      });
+
+    });
+
   });
 
 };
-
-function uploadResource(dpkgRoot, dpkg, resourceName, callback){
-  var s = datapackage.createReadStream(dpkgRoot, dpkg, resourceName, {ldjsonify:true});
-
-  var r = s.pipe(request('http://127.0.0.1:3000/publish/stream', 
-                         {
-                           jar: true,
-                           method: "POST",
-                           headers :{
-                             'content-type': 'application/x-ldjson'
-                           }
-                         }));
-  r.on('response', function(res){
-    var body = [];
-    res.on('data', function(chunk){
-      body.push(chunk);
-    })
-
-    res.on('end', function(){
-      body = Buffer.concat(body).toString();
-
-      if(res.statusCode === 206){
-        uploadResource(dpkgRoot, dpkg, body.resource, callback);
-      } else {
-        callback(null, res.statusCode, body);
-      }
-
-    });
-  });  
-};
-
-
-var dpkg = require(path.resolve('test', 'data', 'package.json'));
-var dpkgRoot = path.resolve('test', 'data');
-
-exports.publish(dpkgRoot, dpkg, function(err, status, body){
-  console.log(status, body);
-});

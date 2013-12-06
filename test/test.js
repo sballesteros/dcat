@@ -8,6 +8,7 @@ makeBodyStream('data', function(err, bodyStream){
     port: 5984,
     hostname: '127.0.0.1',
     method: 'PUT',
+    auth: 'seb:seb',
     path: '/stan/' + bodyStream._id,
     headers: bodyStream.headers
   };

@@ -1,83 +1,65 @@
-var path = require('path')
-  , Ignore = require("fstream-ignore")
-  , PassThrough = require("stream").PassThrough
-  , temp = require('temp')
-  , tar = require('tar')
-  , async = require('async')
-  , mime = require('mime')
-  , zlib = require('zlib')
-  , fs = require('fs')
-  , couchMultipartStream = require('couch-multipart-stream');
+var http = require('http')
+  , cookie = require('cookie');
 
-temp.track();
+var Dpm = module.exports = function(rc, root){
+  this.root = root || process.cwd();
 
-module.exports = function makeBodyStream(root, callback){
+  this.rc = rc;
+};
 
-  var hasCallbacked = false;
-  
-  fs.readFile(path.resolve(root, 'package.json'), function(err, doc){
-    if(err) return callback(err);
+['adduser', 'publish'].forEach(function(method){
+  Dpm.prototype[method] = require('./lib/' + method);
+});
 
-    try{
-      doc = JSON.parse(doc);
-    } catch(e){
-      return callback(e);
+/**
+ * get an auth token
+ */
+Dpm.prototype.auth = function(callback){
+
+  if('token' in this.rc){
+    return callback(null, this.rc.token);
+  }
+
+  var data = JSON.stringify({name: this.rc.name, password: this.rc.password});
+
+  var options = {
+    port: 5984,
+    hostname: '127.0.0.1',
+    method: 'POST',
+    path: '/_session',
+    headers: {
+      'Content-Type': 'application/json',
+      'Content-Length': Buffer.byteLength(data,'utf8')
     }
+  };
 
-    var dataPaths = doc.resources
-      .filter(function(x){return 'path' in x})
-      .map(function(x){return x.path});
+  http.request(options, function(res){
+    try {
+      var token = cookie.parse(res.headers['set-cookie'][0])['AuthSession'];
+    } catch(e){
+      return callback(new Error('no cookie for auth: ' + e.message));
+    }
+    res.resume();
 
-    //compress everything (not ignored) but the data and the package.json
-    var ignore = new Ignore({
-      path: root,
-      ignoreFiles: ['.gitignore', '.npmignore', '.dpmignore'].map(function(x){return path.resolve(root, x)})
-    });
-    ignore.addIgnoreRules(dataPaths.concat(['package.json', '.git']), 'custom-rules');
-
-    //write tarball in a temp dir    
-    var ws = ignore.pipe(tar.Pack()).pipe(zlib.createGzip()).pipe(temp.createWriteStream('stan-'));
-    ws.on('error', function(err){
-      hasCallbacked = true;
-      callback(err);
-    })
-    ws.on('finish', function(){
-      
-      dataPaths = dataPaths.map(function(p){return path.resolve(root, p);});
-      dataPaths.push(ws.path);
-      //get stats
-      async.map(dataPaths, fs.stat, function(err, stats){
-        if(err){
-          if(!hasCallbacked){
-            callback(err);
-          }
-          return;
-        }
-
-        //append _attachments to datapackage
-        doc._attachments = {
-          'dist.tar.gz': {follows: true, length: (stats.pop()).size, 'content_type': 'application/x-gtar', _stream: fs.createReadStream(dataPaths.pop())}
-        };
-
-        dataPaths.forEach(function(p, i){
-          doc._attachments[path.basename(p)] = {
-            follows: true,
-            length: stats[i].size,
-            'content_type': mime.lookup(p),
-            _stream: fs.createReadStream(p)
-          };
-        });
-
-
-        var bodyStream = couchMultipartStream(doc);
-        bodyStream._id = doc.name + '@' + doc.version;
-
-        callback(null, bodyStream);
-        
-      });
-
-    });
-
-  });
+    this.rc.token = token;
+    callback(null, token);
+  }.bind(this)).end(data);
 
 };
+
+
+var dpm = new Dpm(require('rc')('dpm', {port: 5984, hostname: '127.0.0.1'}), 'test/data');
+//dpm.auth(function(err, token){ 
+//
+//  dpm.publish(token, function(err, body){
+//    if(err) console.log(err.message, err.code);
+//    if(body) console.log(body);
+//  });
+//
+//});
+
+
+dpm.adduser(function(err, body){
+  if(err) console.log(err.message, err.code);
+  if(body) console.log(body);
+})

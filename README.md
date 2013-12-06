@@ -1,4 +1,7 @@
 dpm-stan
 ========
 
-A pre-publish script to free the npm registry from tabular data stored in datapackages.
+A client (```dpm```) for the [data registry](https://github.com/standard-analytics/data-registry).
+
+Work in progress...
+

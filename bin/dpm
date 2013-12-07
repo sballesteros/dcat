@@ -2,32 +2,101 @@
 
 var path = require('path')
   , fs = require('fs')
-  , Dpm = require('..');
+  , Dpm = require('..')
+  , optimist = require('optimist')
+  , prompt = require('prompt')
+  , semver = require('semver');
 
-var argv = require('optimist')
-  .boolean('f')
-  .alias('f', 'force')
-  .describe('f', 'just do it')
-  .default('f', false)
+var argv = optimist
+  .usage(
+    [
+      'Usage: dpm <command> [options] where command is:',
+      '  - install   <name>[@<version>] [options]',
+      '  - publish',
+      '  - unpublish <name>[@<version>] [options]',
+      '  - adduser',
+      '  - owner',
+      '  - search',
+    ].join('\n')
+  )
+  .alias('f', 'force').describe('f', 'just do it')
+  .alias('h', 'help').describe('h', 'print usage')
+  .alias('v', 'version').describe('v', 'print version number')
   .argv;
 
-var dpm = new Dpm(require('rc')('dpm', {port: 5984, hostname: '127.0.0.1'}), 'test/data');
+if(argv.h){
+  console.log(optimist.help());
+  process.exit(0);
+}
+
+if(argv.v){
+  console.log(require('../package.json').version);
+  process.exit(0);
+}
+
+var dpm = new Dpm(require('rc')('dpm', {port: 5984, hostname: '127.0.0.1'}), process.cwd());
 
 if(argv._[0] === 'install'){
 
-  var dest = process.cwd();
-
-  if(fs.existsSync(path.resolve(dest, 'package.json')) && !argv.force){
-    console.error('package.json already exists');
-    process.exit(1);
-  }
-
-  dpm.install({datapackage: 'mydpkg', version: '0.0.0'}, function(err, stream){
-    if(err) {
-      console.error(err.message, err.code);
-      process.exit(1);
+  (function(){
+    var what = _what(argv);
+    var dest = path.resolve(dpm.root, 'package.json');
+    if(fs.existsSync(dest) && !argv.force){
+      _fail(new Error('package.json already exists'));
     }
-    stream.pipe(fs.createWriteStream(path.resolve(dest, 'package.json')));
+
+    dpm.install(what, function(err, dpkg){
+      if(err) _fail(err);
+      fs.writeFileSync(dest, JSON.stringify(dpkg, null, 2));
+    });
+  })();
+
+} else if (argv._[0] === 'publish') {
+
+  dpm.auth(function(err, token){     
+    if(err) _fail(err);
+    dpm.publish(token, function(err, body){
+      if(err) _fail(err);
+    });    
   });
 
+} else if (argv._[0] === 'unpublish') {
+
+
+} else if (argv._[0] === 'adduser') {
+
+  
+
+} else if (argv._[0] === 'owner'){
+
+
+} else if (argv._[0] === 'search'){
+
+
+} else {
+  _fail(new Error('invalid command'));
 };
+
+
+
+function _what(argv){
+  var name = argv._[1];
+  if(!name) _fail(new Error('invalid usage'));
+
+  name = name.split('@');
+  var what = {datapackage: name[0]};
+  if(name.length === 2){
+    var version = semver.valid(name[1]);
+    if(!version){
+      _fail(new Error('invalid version see http://semver.org/'));
+    }
+    what.version = version;
+  }
+
+  return what;
+}
+
+function _fail(err){
+  console.error(err.message + (('code' in err) ? ' (' + err.code + ')': ''));
+  process.exit(1);  
+}

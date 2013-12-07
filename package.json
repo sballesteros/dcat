@@ -34,6 +34,8 @@
     "couch-multipart-stream": "0.0.0",
     "rc": "~0.3.2",
     "optimist": "~0.6.0",
-    "cookie": "~0.1.0"
+    "cookie": "~0.1.0",
+    "prompt": "~0.2.11",
+    "clone": "~0.1.11"
   }
 }

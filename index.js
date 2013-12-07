@@ -7,7 +7,7 @@ var Dpm = module.exports = function(rc, root){
   this.rc = rc;
 };
 
-['adduser', 'publish'].forEach(function(method){
+['adduser', 'addToMaintainer','publish'].forEach(function(method){
   Dpm.prototype[method] = require('./lib/' + method);
 });
 
@@ -47,19 +47,22 @@ Dpm.prototype.auth = function(callback){
 
 };
 
-
 var dpm = new Dpm(require('rc')('dpm', {port: 5984, hostname: '127.0.0.1'}), 'test/data');
-//dpm.auth(function(err, token){ 
-//
-//  dpm.publish(token, function(err, body){
-//    if(err) console.log(err.message, err.code);
-//    if(body) console.log(body);
-//  });
-//
-//});
+dpm.auth(function(err, token){ 
 
+  dpm.publish(token, function(err, body){
+    if(err) console.log(err.message, err.code);
+    if(body) console.log(body);
+  });
 
-dpm.adduser(function(err, body){
-  if(err) console.log(err.message, err.code);
-  if(body) console.log(body);
-})
+});
+
+//dpm.adduser(function(err, body){
+//  if(err) console.log(err.message, err.code);
+//  if(body) console.log(body);
+//})
+
+//dpm.addToMaintainer({granter: 'seb', granted: 'seb', dpkgName: 'mydpkg', _id: 'mydpkg@0.0.0' }, function(err, body){
+//  if(err) console.log(err.message, err.code);
+//  if(body) console.log(body);
+//})

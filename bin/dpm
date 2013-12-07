@@ -1,0 +1,33 @@
+#!/usr/bin/env node
+
+var path = require('path')
+  , fs = require('fs')
+  , Dpm = require('..');
+
+var argv = require('optimist')
+  .boolean('f')
+  .alias('f', 'force')
+  .describe('f', 'just do it')
+  .default('f', false)
+  .argv;
+
+var dpm = new Dpm(require('rc')('dpm', {port: 5984, hostname: '127.0.0.1'}), 'test/data');
+
+if(argv._[0] === 'install'){
+
+  var dest = process.cwd();
+
+  if(fs.existsSync(path.resolve(dest, 'package.json')) && !argv.force){
+    console.error('package.json already exists');
+    process.exit(1);
+  }
+
+  dpm.install({datapackage: 'mydpkg', version: '0.0.0'}, function(err, stream){
+    if(err) {
+      console.error(err.message, err.code);
+      process.exit(1);
+    }
+    stream.pipe(fs.createWriteStream(path.resolve(dest, 'package.json')));
+  });
+
+};

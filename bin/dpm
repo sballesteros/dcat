@@ -4,7 +4,9 @@ var path = require('path')
   , fs = require('fs')
   , Dpm = require('..')
   , optimist = require('optimist')
-  , prompt = require('prompt')
+  , read = require('read')
+  , async = require('async')
+  , validate = require('npm-user-validate')
   , semver = require('semver');
 
 var argv = optimist
@@ -53,11 +55,11 @@ if(argv._[0] === 'install'){
 
 } else if (argv._[0] === 'publish') {
 
-  dpm.auth(function(err, token){     
+  dpm.auth(function(err, token){
     if(err) _fail(err);
     dpm.publish(token, function(err, body){
       if(err) _fail(err);
-    });    
+    });
   });
 
 } else if (argv._[0] === 'unpublish') {
@@ -65,7 +67,64 @@ if(argv._[0] === 'install'){
 
 } else if (argv._[0] === 'adduser') {
 
-  
+  (function(){
+
+    function readStuff(stuff, cb){
+      var options = {prompt: stuff + ': '};
+      var vname;
+      if(stuff === 'password'){
+        vname = 'pw';
+        options.silent = true;
+        options.replace = '*';
+      } else {
+        vname = stuff;
+      }
+      read(options, function(err, result){
+        if(err || !result) {
+          console.error((err && err.message) || (prompt + ' cannot be empty'));
+          return readStuff(stuff, cb);
+        }
+        err = validate[vname](result);
+        if(err) {
+          console.error(err.message);
+          return readStuff(stuff, cb);
+        }
+        return cb(null, result);
+      });
+    };
+
+    async.series({
+      name: function(cb){
+        readStuff('username', cb);
+      },
+      email: function(cb){
+        readStuff('email', cb);
+      },
+      password: function(cb){
+        readStuff('password', cb);
+      }
+    }, function (err, prompted){
+      if(err) _fail(err);
+
+      for(var key in prompted){
+        dpm.rc[key] = prompted[key];
+      }
+
+      var $HOME = process.env.HOME || process.env.HOMEPATH || process.env.USERPROFILE;
+      try {
+        fs.writeFileSync(path.resolve($HOME, '.dpmrc'), JSON.stringify(dpm.rc, function(key, value){
+          if(key.charAt(0) === '_' || key.charAt(0) === '$' || key === 'config'){
+            return undefined;
+          }
+          return value;
+        }, 2));
+      } catch (e){
+        _fail(e);
+      }
+      dpm.adduser(_fail);
+    });
+
+  })();
 
 } else if (argv._[0] === 'owner'){
 
@@ -97,6 +156,8 @@ function _what(argv){
 }
 
 function _fail(err){
-  console.error(err.message + (('code' in err) ? ' (' + err.code + ')': ''));
-  process.exit(1);  
+  if(err){
+    console.error(err.message + (('code' in err) ? ' (' + err.code + ')': ''));
+    process.exit(1);
+  }
 }

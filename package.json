@@ -38,6 +38,7 @@
     "clone": "~0.1.11",
     "semver": "~2.2.1",
     "npm-user-validate": "0.0.3",
-    "read": "~1.0.5"
+    "read": "~1.0.5",
+    "colors": "~0.6.2"
   }
 }

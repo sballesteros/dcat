@@ -7,18 +7,22 @@ var path = require('path')
   , read = require('read')
   , async = require('async')
   , validate = require('npm-user-validate')
-  , semver = require('semver');
+  , semver = require('semver')
+  , colors = require('colors');
 
 var argv = optimist
   .usage(
     [
       'Usage: dpm <command> [options] where command is:',
-      '  - install   <name>[@<version>] [options]',
+      '  - install   <datapackage name>[@<version>] [options]',
       '  - publish',
-      '  - unpublish <name>[@<version>] [options]',
+      '  - unpublish <datapackage name>[@<version>] [options]',
       '  - adduser',
-      '  - owner',
-      '  - search',
+      '  - owner <subcommand> where subcommand is:',
+      '    - ls  <datapackage name>',
+      '    - add <user> <datapackage name>',
+      '    - rm  <user> <datapackage name>[@<version>]',
+      '  - search [search terms]',
     ].join('\n')
   )
   .alias('f', 'force').describe('f', 'just do it')
@@ -54,6 +58,9 @@ if(argv._[0] === 'install'){
   })();
 
 } else if (argv._[0] === 'publish') {
+  if(!fs.existsSync(path.resolve(dpm.root, 'package.json'))){
+    _fail(new Error('no package.json file in '+ dpm.root));
+  };
 
   dpm.auth(function(err, token){
     if(err) _fail(err);
@@ -128,6 +135,40 @@ if(argv._[0] === 'install'){
 
 } else if (argv._[0] === 'owner'){
 
+  var action = argv._[1];
+  if(!action) _fail(new Error('invalid usage'));
+
+  if(action === 'add'){
+    (function(){
+
+      var granted = argv._[2];
+      if(!granted) _fail(new Error('invalid usage'));
+
+      var dpkgName = argv._[3];
+      if(!dpkgName) _fail(new Error('invalid usage'));
+
+      dpm.addOwner({granter: dpm.rc.name, granted: granted, dpkgName: dpkgName}, _fail);
+
+    })();
+  } else if (action === 'ls'){
+
+    var dpkgName = argv._[2];
+    if(!dpkgName) _fail(new Error('invalid usage'));
+
+
+  } else if (action === 'rm') {
+
+    var banned = argv._[2];
+    if(!banned) _fail(new Error('invalid usage'));
+
+    var dpkgName = argv._[3];
+    if(!dpkgName) _fail(new Error('invalid usage'));
+
+
+  } else {
+    _fail(new Error('invalid usage'));
+  }
+
 
 } else if (argv._[0] === 'search'){
 
@@ -135,7 +176,6 @@ if(argv._[0] === 'install'){
 } else {
   _fail(new Error('invalid command'));
 };
-
 
 
 function _what(argv){
@@ -157,7 +197,7 @@ function _what(argv){
 
 function _fail(err){
   if(err){
-    console.error(err.message + (('code' in err) ? ' (' + err.code + ')': ''));
+    console.error('FAIL: '.red + err.message + (('code' in err) ? ' (' + err.code + ')': ''));
     process.exit(1);
   }
 }

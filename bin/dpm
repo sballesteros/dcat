@@ -43,7 +43,7 @@ if(argv.v){
   process.exit(0);
 }
 
-var dpm = new Dpm(require('rc')('dpm', {port: 5984, hostname: '127.0.0.1'}), process.cwd());
+var dpm = new Dpm(require('rc')('dpm', {port: 3000, hostname: '127.0.0.1'}), process.cwd());
 
 if(argv._[0] === 'install'){
 
@@ -65,15 +65,20 @@ if(argv._[0] === 'install'){
     _fail(new Error('no package.json file in '+ dpm.root));
   };
 
-  dpm.auth(function(err, token){
-    if(err) _fail(err);
-    dpm.publish(token, function(err, body){
-      if(err) _fail(err);
-    });
-  });
+  dpm.publish(_fail);
+
+//  dpm.auth(function(err, token){
+//    if(err) _fail(err);
+//    dpm.publish(token, _fail);
+//  });
 
 } else if (argv._[0] === 'unpublish') {
-  
+
+  (function(){
+    var dpkgId = argv._[1];
+    if(!dpkgId) _fail(new Error('invalid usage'));
+    dpm.unpublish(dpkgId, _fail);
+  })();
   
 } else if (argv._[0] === 'adduser') {
 
@@ -138,73 +143,82 @@ if(argv._[0] === 'install'){
 
 } else if (argv._[0] === 'owner'){
 
-  var action = argv._[1];
-  if(!action) _fail(new Error('invalid usage'));
-  var dpkgname;
+  (function(){
+    var action = argv._[1];
+    if(!action) _fail(new Error('invalid usage'));
+    var dpkgname;
 
-  if(action === 'add'){
-    var granted = argv._[2];
-    if(!granted) _fail(new Error('invalid usage'));
+    if(action === 'add'){
+      var granted = argv._[2];
+      if(!granted) _fail(new Error('invalid usage'));
 
-    dpkgName = argv._[3];
-    if(!dpkgName) _fail(new Error('invalid usage'));
+      dpkgName = argv._[3];
+      if(!dpkgName) _fail(new Error('invalid usage'));
 
-    dpm.addOwner({granter: dpm.rc.name, granted: granted, dpkgName: dpkgName}, _fail);
+      dpm.addOwner({username: granted, dpkgName: dpkgName}, _fail);
 
-  } else if (action === 'ls'){
+    } else if (action === 'ls'){
 
-    dpkgName = argv._[2];
-    if(!dpkgName) _fail(new Error('invalid usage'));
-    
-    dpm.lsOwner(dpkgName, function(err, maintainers){
-      if(err) _fail(err);
-      maintainers.forEach(function(m){
-        console.log(m.name, m.email);
+      dpkgName = argv._[2];
+      if(!dpkgName) _fail(new Error('invalid usage'));
+      
+      dpm.lsOwner(dpkgName, function(err, maintainers){
+        if(err) _fail(err);
+        maintainers.forEach(function(m){
+          console.log(m.name, m.email);
+        });
       });
-    });
 
-  } else if (action === 'rm') {
+    } else if (action === 'rm') {
 
-    var banned = argv._[2];
-    if(!banned) _fail(new Error('invalid usage'));
+      var banned = argv._[2];
+      if(!banned) _fail(new Error('invalid usage'));
 
-    dpkgName = argv._[3];
-    if(!dpkgName) _fail(new Error('invalid usage'));
+      dpkgName = argv._[3];
+      if(!dpkgName) _fail(new Error('invalid usage'));
 
-    dpm.rmOwner({granter: dpm.rc.name, banned: banned, dpkgName: dpkgName}, _fail);
+      dpm.rmOwner({username: banned, dpkgName: dpkgName}, _fail);
 
-  } else {
-    _fail(new Error('invalid usage'));
-  }
+    } else {
+      _fail(new Error('invalid usage'));
+    }
+  })();
+
 
 } else if (argv._[0] === 'search'){
 
-  var keys = argv._.slice(1);
-  var qs = (keys.length) ?  '?keys=' + JSON.stringify(keys): '';
+  (function(){
+    var keys = argv._.slice(1);
+    var qs = (keys.length) ?  '?keys=' + JSON.stringify(keys): '';
 
-  http.request({port: dpm.rc.port, hostname: dpm.rc.hostname, method: 'GET', path: '/registry/_design/registry/_rewrite/search' + qs}, function(res){
-    if(res.statusCode === 404){
-      res.setEncoding('utf8');
-      var data = '';
-      res.on('data', function(chunk){data += chunk});
-      res.on('end', function(){
-        _fail(new Error(JSON.parse(data).error));
-      });
-    } else {
-      res
-        .pipe(split(function(row){
-          if(row) {
-            row = JSON.parse(row);
-            return row.value._id.magenta + ' [' + row.key.cyan + ']: ' + row.value.description + '\n';
-          }
-        }))
-        .pipe(process.stdout);    
-    }}).end();
-      
+    http.request({port: dpm.rc.port, hostname: dpm.rc.hostname, method: 'GET', path: '/search' + qs}, function(res){
+      if(res.statusCode === 404){
+        res.setEncoding('utf8');
+        var data = '';
+        res.on('data', function(chunk){data += chunk});
+        res.on('end', function(){
+          _fail(new Error(JSON.parse(data).error));
+        });
+      } else {
+        res
+          .pipe(split(function(row){
+            if(row) {
+              row = JSON.parse(row);
+              return row.value._id.magenta + ' [' + row.key.cyan + ']: ' + row.value.description + '\n';
+            }
+          }))
+          .pipe(process.stdout);    
+      }}).end();
+  })();
+  
 } else if (argv._[0] === 'help'){
+
   console.log(optimist.help());
+
 } else {
+
   _fail(new Error('invalid command'));
+
 };
 
 

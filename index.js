@@ -13,6 +13,7 @@ var Dpm = module.exports = function(rc, root){
 });
 
 Dpm.prototype.addOwner = owner.add;
+Dpm.prototype.lsOwner = owner.ls;
 
 /**
  * get an auth token

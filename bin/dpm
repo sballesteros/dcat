@@ -137,33 +137,36 @@ if(argv._[0] === 'install'){
 
   var action = argv._[1];
   if(!action) _fail(new Error('invalid usage'));
+  var dpkgname;
 
   if(action === 'add'){
-    (function(){
-
       var granted = argv._[2];
       if(!granted) _fail(new Error('invalid usage'));
 
-      var dpkgName = argv._[3];
+      dpkgName = argv._[3];
       if(!dpkgName) _fail(new Error('invalid usage'));
 
       dpm.addOwner({granter: dpm.rc.name, granted: granted, dpkgName: dpkgName}, _fail);
 
-    })();
   } else if (action === 'ls'){
 
-    var dpkgName = argv._[2];
+    dpkgName = argv._[2];
     if(!dpkgName) _fail(new Error('invalid usage'));
-
+    
+    dpm.lsOwner(dpkgName, function(err, maintainers){
+      if(err) _fail(err);
+      maintainers.forEach(function(m){
+        console.log(m.name, m.email);
+      });
+    });
 
   } else if (action === 'rm') {
 
     var banned = argv._[2];
     if(!banned) _fail(new Error('invalid usage'));
 
-    var dpkgName = argv._[3];
+    dpkgName = argv._[3];
     if(!dpkgName) _fail(new Error('invalid usage'));
-
 
   } else {
     _fail(new Error('invalid usage'));

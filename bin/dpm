@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 var path = require('path')
+  , http = require('http')
   , fs = require('fs')
   , Dpm = require('..')
   , optimist = require('optimist')
@@ -8,6 +9,8 @@ var path = require('path')
   , async = require('async')
   , validate = require('npm-user-validate')
   , semver = require('semver')
+  , split = require('split')
+  , querystring = require('querystring')
   , colors = require('colors');
 
 var argv = optimist
@@ -70,8 +73,8 @@ if(argv._[0] === 'install'){
   });
 
 } else if (argv._[0] === 'unpublish') {
-
-
+  
+  
 } else if (argv._[0] === 'adduser') {
 
   (function(){
@@ -140,13 +143,13 @@ if(argv._[0] === 'install'){
   var dpkgname;
 
   if(action === 'add'){
-      var granted = argv._[2];
-      if(!granted) _fail(new Error('invalid usage'));
+    var granted = argv._[2];
+    if(!granted) _fail(new Error('invalid usage'));
 
-      dpkgName = argv._[3];
-      if(!dpkgName) _fail(new Error('invalid usage'));
+    dpkgName = argv._[3];
+    if(!dpkgName) _fail(new Error('invalid usage'));
 
-      dpm.addOwner({granter: dpm.rc.name, granted: granted, dpkgName: dpkgName}, _fail);
+    dpm.addOwner({granter: dpm.rc.name, granted: granted, dpkgName: dpkgName}, _fail);
 
   } else if (action === 'ls'){
 
@@ -168,14 +171,38 @@ if(argv._[0] === 'install'){
     dpkgName = argv._[3];
     if(!dpkgName) _fail(new Error('invalid usage'));
 
+    dpm.rmOwner({granter: dpm.rc.name, banned: banned, dpkgName: dpkgName}, _fail);
+
   } else {
     _fail(new Error('invalid usage'));
   }
 
-
 } else if (argv._[0] === 'search'){
 
+  var keys = argv._.slice(1);
+  var qs = (keys.length) ?  '?keys=' + JSON.stringify(keys): '';
 
+  http.request({port: dpm.rc.port, hostname: dpm.rc.hostname, method: 'GET', path: '/registry/_design/registry/_rewrite/search' + qs}, function(res){
+    if(res.statusCode === 404){
+      res.setEncoding('utf8');
+      var data = '';
+      res.on('data', function(chunk){data += chunk});
+      res.on('end', function(){
+        _fail(new Error(JSON.parse(data).error));
+      });
+    } else {
+      res
+        .pipe(split(function(row){
+          if(row) {
+            row = JSON.parse(row);
+            return row.value._id.magenta + ' [' + row.key.cyan + ']: ' + row.value.description + '\n';
+          }
+        }))
+        .pipe(process.stdout);    
+    }}).end();
+      
+} else if (argv._[0] === 'help'){
+  console.log(optimist.help());
 } else {
   _fail(new Error('invalid command'));
 };
@@ -196,11 +223,11 @@ function _what(argv){
   }
 
   return what;
-}
+};
 
 function _fail(err){
   if(err){
     console.error('FAIL: '.red + err.message + (('code' in err) ? ' (' + err.code + ')': ''));
     process.exit(1);
   }
-}
+};

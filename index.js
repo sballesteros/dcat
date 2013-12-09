@@ -12,8 +12,9 @@ var Dpm = module.exports = function(rc, root){
   Dpm.prototype[method] = require('./lib/' + method);
 });
 
-Dpm.prototype.addOwner = owner.add;
 Dpm.prototype.lsOwner = owner.ls;
+Dpm.prototype.addOwner = owner.add;
+Dpm.prototype.rmOwner = owner.rm;
 
 /**
  * get an auth token

@@ -1,52 +1,58 @@
 var http = require('http')
   , querystring = require('querystring')
   , cookie = require('cookie')
+  , EventEmitter = require('events').EventEmitter
+  , util = require('util')
   , request = require('request')
   , path = require('path')
   , mime = require('mime')
   , async = require('async')
   , fs = require('fs')
-  , _request = require('./lib/request')
   , publish = require('./lib/publish');
 
+
 var Dpm = module.exports = function(rc, root){
+  EventEmitter.call(this);
+
   this.root = root || process.cwd();
 
   this.rc = rc;
 };
 
+util.inherits(Dpm, EventEmitter);
 
 Dpm.prototype.publish = publish;
 
-Dpm.prototype.request = _request;
 
 Dpm.prototype.url = function(path, queryObj){
   return 'http://' + this.rc.hostname + ':' + this.rc.port + path + ( (queryObj) ? '?' + querystring.stringify(queryObj): '');
 }
 
+Dpm.prototype.auth = function(){
+  return {user: this.rc.name, pass: this.rc.password};
+}
+
+Dpm.prototype.log = function(methodCode, reqUrl){
+  this.emit('log', 'dpm'.grey + ' http '.green + methodCode.toString().magenta + ' ' + reqUrl);
+};
+
+
 Dpm.prototype.lsOwner = function(dpgkName, callback){
 
-  var options = {
-    port: this.rc.port,
-    hostname: this.rc.hostname,
-    method: 'GET',
-    path: '/owner/ls/' + dpkgName
-  };
+  var rurl = this.url('/owner/ls/' + dpkgName);
+  this.log('GET', rurl);
 
-  http.request(options, function(res){
-    var code = res.statusCode;
-    res.setEncoding('utf8');
-    var data = '';
-    res.on('data', function(chunk){ data += chunk; });
-    res.on('end', function(){      
-      if(code >= 400){
-        var err = new Error(data);
-        err.code = code;
-        callback(err);
-      }
-      callback(null, JSON.parse(data));
-    });    
-  }).end();
+  request(rurl, function(err, res, body){
+    if(err) return callback(err);
+    this.log(res.statusCode, rurl);
+
+    if(res.statusCode >= 400){
+      var err = new Error(body);
+      err.code = res.statusCode;
+      callback(err);
+    }
+    callback(null, JSON.parse(body));
+  }.bind(this));    
   
 };
 
@@ -54,14 +60,44 @@ Dpm.prototype.lsOwner = function(dpgkName, callback){
  * data: {username, dpkgName}
  */
 Dpm.prototype.addOwner = function(data, callback){
-  this.request('/owner/add', data, callback);
+  var rurl = this.url('/owner/add');
+  this.log('POST', rurl);
+  request.post({
+    url: rurl,
+    auth: this.auth(),
+    json: data
+  }, function(err, res, body){
+    if(err) return callback(err);
+    this.log(res.statusCode, rurl);
+    if(res.statusCode >= 400){
+      var err = new Error(JSON.stringify(body));
+      err.code = res.statusCode;
+      return callback(err);
+    }
+    callback(null, body);
+  }.bind(this));
 };
 
 /**
  * data: {username, dpkgName}
  */
 Dpm.prototype.rmOwner = function(data, callback){
-  this.request('/owner/rm', data, callback);
+  var rurl = this.url('/owner/rm');
+  this.log('POST', rurl);
+  request.post({
+    url: rurl,
+    auth: this.auth(),
+    json: data
+  }, function(err, res, body){
+    if(err) return callback(err);
+    this.log(res.statusCode, rurl);
+    if(res.statusCode >= 400){
+      var err = new Error(JSON.stringify(body));
+      err.code = res.statusCode;
+      return callback(err);
+    }
+    callback(null, body);
+  }.bind(this));
 };
 
 
@@ -71,7 +107,22 @@ Dpm.prototype.rmOwner = function(data, callback){
 Dpm.prototype.unpublish = function(dpkgId, callback){
   dpkgId = dpkgId.replace('@', '/');
 
-  this.request('/unpublish/'+ dpkgId, callback);
+  var rurl = this.url('/unpublish/'+ dpkgId);
+  this.log('DELETE', rurl);
+  request.del({
+    url: rurl,
+    auth: this.auth()
+  }, function(err, res, body){
+    if(err) return callback(err);
+    this.log(res.statusCode, rurl);
+    if(res.statusCode >= 400){
+      var err = new Error(body);
+      err.code = res.statusCode;
+      return callback(err);
+    }
+    callback(null, JSON.parse(body));
+  }.bind(this));
+
 };
 
 
@@ -84,9 +135,13 @@ Dpm.prototype.install = function(what, opts, callback){
     callback = opts;
     opts = {};
   }
+  var rurl = this.url('/install/' + what.datapackage + (('version' in what) ?  ('/' + what.version) : ''));
+  this.log('GET', rurl);
 
-  request(this.url('/install/' + what.datapackage + (('version' in what) ?  ('/' + what.version) : '')), function(err, res, dpkg){
+  request(rurl, function(err, res, dpkg){
+    if(err) return callback(err);
 
+    this.log(res.statusCode, rurl);
     if (res.statusCode >= 300){
       var err = new Error('fail');
       err.code = res.statusCode;
@@ -102,13 +157,17 @@ Dpm.prototype.install = function(what, opts, callback){
         if(err) return callback(err);
         async.each(dpkg.resources, function(r, cb){
           if('url' in r){
+            this.log('GET', r.url);
             var req = request(r.url);
             req.on('response', function(resp){            
               var hasCallbacked = false;
 
+              this.log(resp.statusCode, r.url);
+
               if(resp.statusCode >= 400){
                 resp.pipe(process.stdout);
               } else {
+                var filename =  r.name + '.' +mime.extension(resp.headers['content-type']);
                 resp
                   .on('error', function(err){
                     if(!hasCallbacked){
@@ -116,19 +175,23 @@ Dpm.prototype.install = function(what, opts, callback){
                       cb(err);
                     }
                   })
-                  .pipe(fs.createWriteStream(path.join(dataPath, r.name + '.' +mime.extension(resp.headers['content-type']))))
+                  .pipe(fs.createWriteStream(path.join(dataPath, filename)))
                   .on('finish', function(){
+                    //replace url by the path
+                    delete r.url;
+                    r.path = path.join('data', filename);
+
                     if(!hasCallbacked) cb(null);
                   });
               }              
-            });
+            }.bind(this));
           } else {
             cb(null);
           }                
-        }, function(err, _){
+        }.bind(this), function(err, _){
           callback(null, dpkg);        
         });
-      });
+      }.bind(this));
 
     } else {
       callback(null, dpkg);
@@ -141,52 +204,35 @@ Dpm.prototype.install = function(what, opts, callback){
 
 Dpm.prototype.adduser = function(callback){
 
-  var data = JSON.stringify({
-    name: this.rc.name,
-    password: this.rc.password,
-    email: this.rc.email
-  });
-  
-  var options = {
-    port: this.rc.port,
-    hostname: this.rc.hostname,
-    method: 'PUT',
-    path: '/adduser/' + this.rc.name,
-    headers: {
-      'Content-Type': 'application/json',
-      'Content-Length': Buffer.byteLength(data, 'utf8')
+  var rurl = this.url('/adduser/' + this.rc.name);
+  this.log('PUT', rurl);
+
+  request.put({
+    url: rurl, 
+    auth: this.auth(), 
+    json: {
+      name: this.rc.name,
+      password: this.rc.password,
+      email: this.rc.email
     }
-  };
-  
-  http.request(options, function(res){
-    var code = res.statusCode;
-    res.setEncoding('utf8');
-    var data = '';
-    res.on('data', function(chunk){
-      data += chunk;
-    });
-    res.on('end', function(){
-      var err;
+  }, function(err, res, body){
 
-      if(code === 201){
-        
-        callback(null, JSON.parse(data));
+    if(err) return callback(err);
 
-      } else if(code === 409){
+    this.log(res.statusCode, rurl);
 
-        err = new Error('username ' + this.rc.name + ' already exists');
-        err.code = code;
-        callback(err, res.headers);
-
-      } else {
-
-        err = new Error(data);
-        err.code = code;
-        callback(err, res.headers);
-
-      }
-    }.bind(this));        
-  }.bind(this)).end(data);
-
+    if(res.statusCode === 201){
+      callback(null, body);
+    } else if(res.statusCode === 409){
+      err = new Error('username ' + this.rc.name + ' already exists');
+      err.code = res.statusCode;
+      callback(err, res.headers);
+    } else {
+      err = new Error(JSON.stringify(body));
+      err.code = res.statusCode;
+      callback(err, res.headers);
+    }
+    
+  }.bind(this));
 
 };

@@ -7,6 +7,7 @@ var path = require('path')
   , optimist = require('optimist')
   , read = require('read')
   , async = require('async')
+  , rimraf = require('rimraf')
   , validate = require('npm-user-validate')
   , semver = require('semver')
   , split = require('split')
@@ -17,9 +18,9 @@ var argv = optimist
   .usage(
     [
       'Usage: dpm <command> [options] where command is:',
-      '  - install   <datapackage name>[@<version>] [options]',
+      '  - install   <datapackage name>[@<version>] [-f, --force] [-c, --cache]',
       '  - publish',
-      '  - unpublish <datapackage name>[@<version>] [options]',
+      '  - unpublish <datapackage name>[@<version>]',
       '  - adduser',
       '  - owner <subcommand> where subcommand is:',
       '    - ls  <datapackage name>',
@@ -29,6 +30,7 @@ var argv = optimist
     ].join('\n')
   )
   .alias('f', 'force').describe('f', 'just do it')
+  .alias('c', 'cache').describe('c', 'store the resources content on the disk in a data/ directory')
   .alias('h', 'help').describe('h', 'print usage')
   .alias('v', 'version').describe('v', 'print version number')
   .argv;
@@ -54,7 +56,15 @@ if(argv._[0] === 'install'){
       _fail(new Error('package.json already exists'));
     }
 
-    dpm.install(what, function(err, dpkg){
+    if(argv.cache && fs.existsSync(path.join(dpm.root, 'data'))){
+      if(argv.force){
+        rimraf.sync(path.join(dpm.root, 'data'));
+      } else {
+        _fail(new Error('data/ already exists'));
+      }
+    }
+
+    dpm.install(what, {cache: argv.cache}, function(err, dpkg){
       if(err) _fail(err);
       fs.writeFileSync(dest, JSON.stringify(dpkg, null, 2));
     });

@@ -40,6 +40,8 @@
     "npm-user-validate": "0.0.3",
     "read": "~1.0.5",
     "colors": "~0.6.2",
-    "split": "~0.2.10"
+    "split": "~0.2.10",
+    "request": "~2.29.0",
+    "rimraf": "~2.2.5"
   }
 }

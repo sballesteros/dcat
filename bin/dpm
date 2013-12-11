@@ -79,12 +79,10 @@ if(argv._[0] === 'install'){
     _fail(new Error('no package.json file in '+ dpm.root));
   };
 
-  dpm.publish(_fail);
-
-//  dpm.auth(function(err, token){
-//    if(err) _fail(err);
-//    dpm.publish(token, _fail);
-//  });
+  dpm.publish(function(err, id){
+    if(err) return _fail(err);
+    console.log('+ ' + id);
+  });
 
 } else if (argv._[0] === 'unpublish') {
 

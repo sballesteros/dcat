@@ -1,4 +1,5 @@
 var http = require('http')
+  , crypto = require('crypto')
   , querystring = require('querystring')
   , cookie = require('cookie')
   , EventEmitter = require('events').EventEmitter
@@ -33,7 +34,7 @@ Dpm.prototype.auth = function(){
 }
 
 Dpm.prototype.log = function(methodCode, reqUrl){
-  this.emit('log', 'dpm'.grey + ' http '.green + methodCode.toString().magenta + ' ' + reqUrl);
+  this.emit('log', 'dpm'.grey + ' http '.green + methodCode.toString().magenta + ' ' + reqUrl.replace(':80/', '/'));
 };
 
 
@@ -51,6 +52,7 @@ Dpm.prototype.lsOwner = function(dpgkName, callback){
       err.code = res.statusCode;
       callback(err);
     }
+
     callback(null, JSON.parse(body));
   }.bind(this));    
   
@@ -201,27 +203,35 @@ Dpm.prototype.install = function(what, opts, callback){
 
 };
 
-
 Dpm.prototype.adduser = function(callback){
 
   var rurl = this.url('/adduser/' + this.rc.name);
   this.log('PUT', rurl);
 
+  var data = {
+    name: this.rc.name,
+    email: this.rc.email
+  };
+
+  if(this.rc.sha){
+    var salt = crypto.randomBytes(30).toString('hex');
+    data.salt = salt;
+    data.password_sha = crypto.createHash("sha1").update(this.rc.password + salt).digest("hex");
+  } else {
+    data.password = this.rc.password;
+  }
+
   request.put({
     url: rurl, 
     auth: this.auth(), 
-    json: {
-      name: this.rc.name,
-      password: this.rc.password,
-      email: this.rc.email
-    }
+    json: data
   }, function(err, res, body){
 
     if(err) return callback(err);
 
     this.log(res.statusCode, rurl);
 
-    if(res.statusCode === 201){
+    if(res.statusCode < 400){
       callback(null, body);
     } else if(res.statusCode === 409){
       err = new Error('username ' + this.rc.name + ' already exists');

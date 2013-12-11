@@ -45,7 +45,8 @@ if(argv.v){
   process.exit(0);
 }
 
-var dpm = new Dpm(require('rc')('dpm', {port: 3000, hostname: '127.0.0.1'}), process.cwd());
+//if cloudant: use sha:true
+var dpm = new Dpm(require('rc')('dpm', {port: 80, hostname: 'registry.standardanalytics.io', sha:true}), process.cwd());
 
 dpm.on('log', console.log);
 

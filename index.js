@@ -52,7 +52,7 @@ Dpm.prototype.lsOwner = function(dpgkName, callback){
       err.code = res.statusCode;
       callback(err);
     }
-
+    
     callback(null, JSON.parse(body));
   }.bind(this));    
   
@@ -109,7 +109,7 @@ Dpm.prototype.rmOwner = function(data, callback){
 Dpm.prototype.unpublish = function(dpkgId, callback){
   dpkgId = dpkgId.replace('@', '/');
 
-  var rurl = this.url('/unpublish/'+ dpkgId);
+  var rurl = this.url('/'+ dpkgId);
   this.log('DELETE', rurl);
   request.del({
     url: rurl,
@@ -137,7 +137,7 @@ Dpm.prototype.install = function(what, opts, callback){
     callback = opts;
     opts = {};
   }
-  var rurl = this.url('/install/' + what.datapackage + (('version' in what) ?  ('/' + what.version) : ''));
+  var rurl = this.url('/' + what.datapackage + (('version' in what) ?  ('/' + what.version) : ''));
   this.log('GET', rurl);
 
   request(rurl, function(err, res, dpkg){
@@ -202,6 +202,8 @@ Dpm.prototype.install = function(what, opts, callback){
   }.bind(this));
 
 };
+
+
 
 Dpm.prototype.adduser = function(callback){
 

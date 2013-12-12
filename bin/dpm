@@ -176,6 +176,7 @@ if(argv._[0] === 'install'){
       
       dpm.lsOwner(dpkgName, function(err, maintainers){
         if(err) _fail(err);
+        if(!Array.isArray(maintainers)) _fail(new Error('no maintainers'));
         maintainers.forEach(function(m){
           console.log(m.name, m.email);
         });

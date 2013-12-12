@@ -221,6 +221,7 @@ if(argv._[0] === 'install'){
           .pipe(split(function(row){
             if(row) {
               row = JSON.parse(row);
+              if('error' in row) return row.error +'\n'; //no results;
               return row.value._id.underline + ' [' + row.key.cyan + ']: ' + row.value.description + '\n';
             }
           }))

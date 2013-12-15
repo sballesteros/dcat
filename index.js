@@ -133,6 +133,41 @@ Dpm.prototype.unpublish = function(dpkgId, callback){
 };
 
 
+Dpm.prototype.resolveDeps = function(dataDependencies, callback){
+
+  var deps = [];
+  dataDependencies = dataDependencies || {};
+  for (var name in dataDependencies){
+    deps.push({name: name, range: dataDependencies[name]});
+  }
+
+  async.map(deps, function(dep, cb){
+
+    var rurl = this.url('/versions/' + dep.name);
+    this.logHttp('GET', rurl);
+
+    request(rurl, function(err, res, versions){
+      if(err) return cb(err);
+
+      this.logHttp(res.statusCode, rurl);
+      if (res.statusCode >= 400){
+        var err = new Error('fail');
+        err.code = res.statusCode;
+        return cb(err);
+      }
+
+      versions = JSON.parse(versions);
+      var version = semver.maxSatisfying(versions, dep.range);
+
+      cb(null, dep.name + '@' + version);
+
+    }.bind(this));
+    
+  }.bind(this), callback);
+
+};
+
+
 Dpm.prototype.cat = function(dpkgId, opts, callback){
 
   if(arguments.length === 2){

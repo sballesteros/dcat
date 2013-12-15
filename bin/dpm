@@ -117,21 +117,26 @@ if (argv._[0] === 'cat') {
     }
 
     if(!dpkgIds.length){
-      for (var name in dpkg.dataDependencies){
-        dpkgIds.push(name + '@' + dpkg.dataDependencies[name]);
-      }
+      dpm.resolveDeps(dpkg.dataDependencies, function(err, dpkgIds){
+        if(err) _fail(err);
+        next(dpkgIds);
+      });
+    } else {
+      next(dpkgIds);
     }
 
-    dpm.install(dpkgIds, {cache: argv.cache, force: argv.force}, function(err, nameVersions){
-      if(err) _fail(err);
-      if(argv.save){
-        dpkg.dataDependencies = dpkg.dataDependencies || {};
-        nameVersions.forEach(function(x){
-          dpkg.dataDependencies[x.name] =  x.version;
-        });
-        fs.writeFileSync(path.join(dpm.root, 'package.json'), JSON.stringify(dpkg, null, 2));
-      }
-    });
+    function next(dpkgIds){
+      dpm.install(dpkgIds, {cache: argv.cache, force: argv.force}, function(err, nameVersions){
+        if(err) _fail(err);
+        if(argv.save){
+          dpkg.dataDependencies = dpkg.dataDependencies || {};
+          nameVersions.forEach(function(x){
+            dpkg.dataDependencies[x.name] =  x.version;
+          });
+          fs.writeFileSync(path.join(dpm.root, 'package.json'), JSON.stringify(dpkg, null, 2));
+        }
+      });
+    };
 
   })();
 

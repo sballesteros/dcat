@@ -18,18 +18,33 @@ var argv = optimist
   .usage(
     [
       'Usage: dpm <command> [options] where command is:',
-      '  - install   <datapackage name>[@<version>] [-f, --force] [-c, --cache]',
+      '  - cat       <datapackage name>[@<version>]',
+      '    Display package.json on stdout. If @<version> is not specified, the latest version is returned.'.grey,
+      '  - get      <datapackage name>[@<version>] [-f, --force] [-c, --cache]',
+      '    Download a data package into a directory (named after the data package name).'.grey,
+      '  - clone    <datapackage name>[@<version>] [-f, --force]',
+      '    Download a data package into a directory (named after the data package name) reproducing the directory structure present at publication time (including any files or folder not listed as resources (e.g scripts/ ...)).'.grey,
+      '  - install   <datapackage name 1>[@<version>] <datapackage name 2>[@<version>] ... [-c, --cache] [-s, --save]',
+      '    Installs a list of data packages, and any data packages that they depends on as dependencies of your current project (i.e in a directory named "data_modules")'.grey,
       '  - publish',
+      '    Publish the data package of the current working directory into the registry'.grey,
       '  - unpublish <datapackage name>[@<version>]',
+      '    Unpublish a datapackage from the registry. If no version is specified, all the versions will be removed'.grey,
       '  - adduser',
+      '    Register an user'.grey,
       '  - owner <subcommand> where subcommand is:',
       '    - ls  <datapackage name>',
+      '      List all the maintainers of the data package'.grey,
       '    - add <user> <datapackage name>',
+      '      Add an user to the data package maintainers'.grey,
       '    - rm  <user> <datapackage name>[@<version>]',
+      '      Remove an user from the data package maintainers'.grey,
       '  - search [search terms]',
+      '    Search data packages by keywords'.grey
     ].join('\n')
   )
   .alias('f', 'force').describe('f', 'just do it')
+  .alias('s', 'save').describe('s', 'data packages will appear in your dataDependencies')
   .alias('c', 'cache').describe('c', 'store the resources content on the disk in a data/ directory')
   .alias('h', 'help').describe('h', 'print usage')
   .alias('v', 'version').describe('v', 'print version number')
@@ -48,30 +63,76 @@ if(argv.v){
 //if cloudant: use sha:true
 var dpm = new Dpm(require('rc')('dpm', {port: 80, hostname: 'registry.standardanalytics.io', sha:true}), process.cwd());
 
-dpm.on('log', console.log);
+if(argv._[0]!== 'cat'){
+  dpm.on('log', console.log);
+}
 
-if(argv._[0] === 'install'){
+if (argv._[0] === 'cat') {
+  
+  (function(){
+    var dpkgId = argv._[1];
+    if(!dpkgId) _fail(new Error('invalid usage'));
+    dpm.cat(dpkgId, function(err, dpkg){
+      if(err) return _fail(err);
+      console.log(JSON.stringify(dpkg));
+    });
+  })();  
+
+} else if(argv._[0] === 'get'){
 
   (function(){
-    var what = _what(argv);
-    var dest = path.resolve(dpm.root, 'package.json');
-    if(fs.existsSync(dest) && !argv.force){
-      _fail(new Error('package.json already exists'));
-    }
+    var dpkgId = argv._[1];
+    if(!dpkgId) _fail(new Error('invalid usage'));    
 
-    if(argv.cache && fs.existsSync(path.join(dpm.root, 'data'))){
-      if(argv.force){
-        rimraf.sync(path.join(dpm.root, 'data'));
-      } else {
-        _fail(new Error('data/ already exists'));
+    dpm.get(dpkgId, {cache: argv.cache, force: argv.force}, function(err, dpkg){
+      if(err) _fail(err);
+      console.log(path.resolve(dpm.root, dpkg.name, 'package.json'));
+    });
+
+  })();
+
+} else if(argv._[0] === 'clone'){
+
+  (function(){
+    var dpkgId = argv._[1];
+    if(!dpkgId) _fail(new Error('invalid usage'));
+
+    dpm.clone(dpkgId, {force: argv.force}, function(err, dpkg){
+      if(err) _fail(err);
+    });
+
+  })();
+
+} else if(argv._[0] === 'install'){
+
+  (function(){
+    var dpkgIds = argv._.slice(1);
+    var dpkg;
+    if(!dpkgIds.length || argv.save){ //get deps for a package.json
+      try{
+        dpkg = JSON.parse(fs.readFileSync(path.join(dpm.root, 'package.json')));
+      } catch(e){
+        _fail(new Error('could not load '+ path.join(dpm.root, 'package.json')));
       }
     }
 
-    dpm.install(what, {cache: argv.cache}, function(err, dpkg){
+    if(!dpkgIds.length){
+      for (var name in dpkg.dataDependencies){
+        dpkgIds.push(name + '@' + dpkg.dataDependencies[name]);
+      }
+    }
+
+    dpm.install(dpkgIds, {cache: argv.cache, force: argv.force}, function(err, nameVersions){
       if(err) _fail(err);
-      fs.writeFileSync(dest, JSON.stringify(dpkg, null, 2));
-      console.log(dest);
+      if(argv.save){
+        dpkg.dataDependencies = dpkg.dataDependencies || {};
+        nameVersions.forEach(function(x){
+          dpkg.dataDependencies[x.name] =  x.version;
+        });
+        fs.writeFileSync(path.join(dpm.root, 'package.json'), JSON.stringify(dpkg, null, 2));
+      }
     });
+
   })();
 
 } else if (argv._[0] === 'publish') {
@@ -206,9 +267,9 @@ if(argv._[0] === 'install'){
 
     var rpath = '/search' + qs
     var rurl = dpm.url(rpath);
-    dpm.log('GET', rurl);
+    dpm.logHttp('GET', rurl);
     http.request({port: dpm.rc.port, hostname: dpm.rc.hostname, method: 'GET', path: rpath}, function(res){
-      dpm.log(res.statusCode, rurl);
+      dpm.logHttp(res.statusCode, rurl);
       if(res.statusCode === 404){
         res.setEncoding('utf8');
         var data = '';
@@ -239,23 +300,6 @@ if(argv._[0] === 'install'){
 
   _fail(new Error('invalid command'));
 
-};
-
-function _what(argv){
-  var name = argv._[1];
-  if(!name) _fail(new Error('invalid usage'));
-
-  name = name.split('@');
-  var what = {datapackage: name[0]};
-  if(name.length === 2){
-    var version = semver.valid(name[1]);
-    if(!version){
-      _fail(new Error('invalid version see http://semver.org/'));
-    }
-    what.version = version;
-  }
-
-  return what;
 };
 
 function _fail(err){

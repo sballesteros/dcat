@@ -116,6 +116,9 @@ returns:
 
     http://registry.standardanalytics.io/mydpkg/0.0.0/csv1
 
+Then you can consume the resources you want with the module
+[data-streams](https://github.com/standard-analytics/data-streams).
+
 
 On the opposite, you can also cache all the resources data (including
 external URLs) in a _standard_ directory structure, available for all

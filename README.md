@@ -14,7 +14,6 @@ Usage:
 ##CLI
 
     $ dpm --help
-    
     Usage: dpm <command> [options] where command is:
       - cat       <datapackage name>[@<version>]
       - get       <datapackage name>[@<version>] [-f, --force] [-c, --cache]
@@ -32,7 +31,7 @@ Usage:
 
 ### Publishing and getting data packages
 
-Given a data package :
+Given a [data package](http://dataprotocols.org/data-packages/):
 
     $ cat package.json
     
@@ -120,8 +119,7 @@ returns:
 
 
 You can also cache all the resources data in a _standard_ directory
-structure, available for all the data packagesx stored on the
-registry.
+structure, available for all the data packages stored on the registry.
 
     $ dpm get mydpkg --cache
     dpm http GET http://registry.standardanalytics.io/mydpkg

@@ -1,7 +1,8 @@
 dpm-stan
 ========
 
-Like npm but for [data packages](http://dataprotocols.org/data-packages/)! 
+Like [npm](https://npmjs.org/) but for
+[data packages](http://dataprotocols.org/data-packages/)!
 
 [![NPM](https://nodei.co/npm/dpm-stan.png)](https://nodei.co/npm/dpm-stan/)
 
@@ -223,7 +224,7 @@ Registry
 
 By default, ```dpm``` uses our CouchDB powered
 [data registry](https://github.com/standard-analytics/data-registry)
-hosted on [cloudant](https://sballesteros.cloudant.com/registry).
+hosted on [cloudant](https://sballesteros.cloudant.com).
 
 License
 =======

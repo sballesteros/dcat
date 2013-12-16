@@ -1,7 +1,7 @@
 dpm-stan
 ========
 
-A client ```dpm``` for our CouchDB powered
+A client (```dpm```) for our CouchDB powered
 [data registry](https://github.com/standard-analytics/data-registry)
 of [data packages](http://dataprotocols.org/data-packages/).
 
@@ -111,14 +111,17 @@ been replaced by and URL.
       └── package.json
 
 For instance (using [jsontool](https://npmjs.org/package/jsontool))
-    $  cat mydpkg/package.json | json resources | json -c 'this.name === "csv1"' | json 0.url
+
+    $ cat mydpkg/package.json | json resources | json -c 'this.name === "csv1"' | json 0.url
 
 returns:
 
     http://registry.standardanalytics.io/mydpkg/0.0.0/csv1
 
 
-You can also cache all the resources data in a _standard_ directory structure, available for all the data package stored on the registry.
+You can also cache all the resources data in a _standard_ directory
+structure, available for all the data packagesx stored on the
+registry.
 
     $ dpm get mydpkg --cache
     dpm http GET http://registry.standardanalytics.io/mydpkg
@@ -193,11 +196,13 @@ Combined with the --cache option, you get:
         └── csv2.csv
 
 
-```dpm``` aims to bring all the goodness of the ```npm``` workflow for
-your data needs. Run ```dpm --help``` to see the available options.
+```dpm``` aims to bring all the goodness of the
+[npm](https://npmjs.org/) workflow for your data needs. Run ```dpm
+--help``` to see the available options.
 
 
 ## Using dpm programaticaly
+
 
 You can also use ```dpm``` programaticaly.
 
@@ -211,10 +216,10 @@ See ```bin/dpm``` for examples.
 
 
 ```dpm``` use the ```dataDependencies``` property of
-```package.json``` and store the dependencies in a data_modules/
-directory so it can be used as a
+```package.json``` and store the dependencies in a ```data_modules/```
+directory so it can be used safely, without conflict as a
 [post-install script](https://npmjs.org/doc/misc/npm-scripts.html) of
-[npm](https://npmjs.org/)
+[npm](https://npmjs.org/).
 
 
 License

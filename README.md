@@ -1,9 +1,7 @@
 dpm-stan
 ========
 
-A client (```dpm```) for our CouchDB powered
-[data registry](https://github.com/standard-analytics/data-registry)
-of [data packages](http://dataprotocols.org/data-packages/).
+Like npm but for [data packages](http://dataprotocols.org/data-packages/)! 
 
 [![NPM](https://nodei.co/npm/dpm-stan.png)](https://nodei.co/npm/dpm-stan/)
 
@@ -218,6 +216,14 @@ See ```bin/dpm``` for examples.
 directory so it can be used safely, without conflict as a
 [post-install script](https://npmjs.org/doc/misc/npm-scripts.html) of
 [npm](https://npmjs.org/).
+
+
+Registry
+========
+
+By default, ```dpm``` use our CouchDB powered
+[data registry](https://github.com/standard-analytics/data-registry)
+hosted on [cloudant](https://cloudant.com/).
 
 
 License

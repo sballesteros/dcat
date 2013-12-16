@@ -221,10 +221,9 @@ directory so it can be used safely, without conflict as a
 Registry
 ========
 
-By default, ```dpm``` use our CouchDB powered
+By default, ```dpm``` uses our CouchDB powered
 [data registry](https://github.com/standard-analytics/data-registry)
-hosted on [cloudant](https://cloudant.com/).
-
+hosted on [cloudant](https://sballesteros.cloudant.com/registry).
 
 License
 =======

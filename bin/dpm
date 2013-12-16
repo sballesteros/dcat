@@ -12,6 +12,8 @@ var path = require('path')
   , semver = require('semver')
   , split = require('split')
   , querystring = require('querystring')
+  , tree = require('../lib/tree')
+  , readdirpSync = require('fs-readdir-recursive')
   , colors = require('colors');
 
 var argv = optimist
@@ -86,7 +88,7 @@ if (argv._[0] === 'cat') {
 
     dpm.get(dpkgId, {cache: argv.cache, force: argv.force}, function(err, dpkg){
       if(err) _fail(err);
-      console.log(path.resolve(dpm.root, dpkg.name, 'package.json'));
+      console.log(tree.dpkg(dpkg));
     });
 
   })();
@@ -99,6 +101,16 @@ if (argv._[0] === 'cat') {
 
     dpm.clone(dpkgId, {force: argv.force}, function(err, dpkg){
       if(err) _fail(err);
+
+      var paths = readdirpSync(dpm.root)
+        .filter(function(p){
+          return p.split(path.sep)[0] === dpkg.name;
+        })
+        .map(function(p){return '.' + path.sep + p;});
+      
+      if(paths.length){
+        console.log(tree.clone(paths));
+      }
     });
 
   })();
@@ -126,15 +138,16 @@ if (argv._[0] === 'cat') {
     }
 
     function next(dpkgIds){
-      dpm.install(dpkgIds, {cache: argv.cache, force: argv.force}, function(err, nameVersions){
+      dpm.install(dpkgIds, {cache: argv.cache, force: argv.force}, function(err, dpkgs){
         if(err) _fail(err);
         if(argv.save){
           dpkg.dataDependencies = dpkg.dataDependencies || {};
-          nameVersions.forEach(function(x){
+          dpkgs.forEach(function(x){
             dpkg.dataDependencies[x.name] =  x.version;
           });
           fs.writeFileSync(path.join(dpm.root, 'package.json'), JSON.stringify(dpkg, null, 2));
         }
+        console.log(tree.deps(dpkgs));
       });
     };
 

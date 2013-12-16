@@ -14,6 +14,8 @@ var http = require('http')
   , fs = require('fs')
   , zlib = require('zlib')
   , tar = require('tar')
+  , once = require('once')
+  , concat = require('concat-stream')
   , publish = require('./lib/publish');
 
 
@@ -261,6 +263,7 @@ Dpm.prototype._cache = function(dpkg, opts, callback){
   }
   
   async.each(resources, function(r, cb){
+    cb = once(cb);
 
     var root;
     if(opts.clone){
@@ -271,28 +274,27 @@ Dpm.prototype._cache = function(dpkg, opts, callback){
 
     mkdirp(root, function(err){
 
-      if(err) return callback(err);
+      if(err) return cb(err);
 
       this.logHttp('GET', r.url);
-      var req = request(r.url);
-      req.on('response', function(resp){            
-        var hasCallbacked = false;
 
+      var req = request(r.url);
+      req.on('error', cb);
+      req.on('response', function(resp){            
         this.logHttp(resp.statusCode, r.url);
 
         if(resp.statusCode >= 400){
-          resp.pipe(process.stdout);
+          resp.pipe(concat(function(body){
+            var err = new Error(body.toString);
+            err.code = resp.statusCode;
+            cb(err);
+          }));
         } else {
 
           var filename = (opts.clone)? path.basename(r.path) : r.name + '.' +mime.extension(resp.headers['content-type']);
 
           resp
-            .on('error', function(err){
-              if(!hasCallbacked){
-                hasCallbacked = true;
-                cb(err);
-              }
-            })
+            .on('error', cb)
             .pipe(fs.createWriteStream(path.join(root, filename)))
             .on('finish', function(){
               if(!opts.clone){
@@ -300,7 +302,7 @@ Dpm.prototype._cache = function(dpkg, opts, callback){
               }
               delete r.url;
               
-              if(!hasCallbacked) cb(null);
+              cb(null);
             });
         }
       }.bind(this));
@@ -322,12 +324,16 @@ Dpm.prototype._cache = function(dpkg, opts, callback){
 
 Dpm.prototype.clone = function(dpkgId, opts, callback){
 
+  callback = once(callback);
+
   if(arguments.length === 2){
     callback = opts;
     opts = {};
   }
 
   this.cat(dpkgId, {clone:true}, function(err, dpkg){
+
+    if(err) return callback(err);
 
     var root = path.join(this.root, dpkg.name);
     _createDir(root, opts, function(err){
@@ -339,35 +345,28 @@ Dpm.prototype.clone = function(dpkgId, opts, callback){
       this.logHttp('GET', rurl);
 
       var req = request(rurl);
+      req.on('error', callback);
       req.on('response', function(resp){            
-        var hasCallbacked = false;
 
         this.logHttp(resp.statusCode, rurl);
 
         if(resp.statusCode >= 400){
-          resp.pipe(process.stdout);
+          resp.pipe(concat(function(body){
+            var err = new Error(body.toString);
+            err.code = resp.statusCode;
+            callback(err);
+          }));
         } else {
 
           resp
-            .on('error', function(err){
-              if(!hasCallbacked){
-                hasCallbacked = true;
-                callback(err);
-              }
-            })
+            .on('error', callback)
             .pipe(zlib.createGunzip())
             .pipe(new tar.Extract({
               path: root,
               strip: 1
             }))
             .on('end', function(){
-
-              this._cache(dpkg, {clone: true, force: opts.force, root: root}, function(err, dpkg){              
-                if(!hasCallbacked){
-                  callback(err, dpkg);
-                }
-              });
-
+              this._cache(dpkg, {clone: true, force: opts.force, root: root}, callback);
             }.bind(this));
 
         }
@@ -393,7 +392,7 @@ Dpm.prototype.install = function(dpkgIds, opts, callback){
 
     this.get(dpkgId, {cache: opts.cache, root: root, force: opts.force}, function(err, dpkg){
       if(err) return cb(err);
-      cb(null, {name: dpkg.name, version:dpkg.version});
+      cb(null, dpkg);
     });
     
   }.bind(this), callback);

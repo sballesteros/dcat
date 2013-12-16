@@ -117,8 +117,9 @@ returns:
     http://registry.standardanalytics.io/mydpkg/0.0.0/csv1
 
 
-You can also cache all the resources data in a _standard_ directory
-structure, available for all the data packages stored on the registry.
+On the opposite, you can also cache all the resources data (including
+external URLs) in a _standard_ directory structure, available for all
+the data packages stored on the registry.
 
     $ dpm get mydpkg --cache
     dpm http GET http://registry.standardanalytics.io/mydpkg

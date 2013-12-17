@@ -1,7 +1,7 @@
 {
-  "name": "dpm-stan",
-  "version": "0.1.1",
-  "description": "A client for data package registry",
+  "name": "dpm2",
+  "version": "0.0.0",
+  "description": "Like npm but for data packages!",
   "main": "index.js",
   "bin": {
     "dpm": "bin/dpm"
@@ -12,7 +12,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git://github.com/standard-analytics/dpm-stan.git"
+    "url": "git://github.com/standard-analytics/dpm2.git"
   },
   "keywords": [
     "package",
@@ -25,9 +25,9 @@
   "author": "Sebastien Ballesteros",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/standard-analytics/dpm-stan/issues"
+    "url": "https://github.com/standard-analytics/dpm2/issues"
   },
-  "homepage": "https://github.com/standard-analytics/dpm-stan",
+  "homepage": "https://github.com/standard-analytics/dpm2",
   "dependencies": {
     "temp": "~0.6.0",
     "fstream-ignore": "0.0.7",

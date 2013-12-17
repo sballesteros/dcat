@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 var path = require('path')
-  , http = require('http')
+  , request = require('request')
   , fs = require('fs')
   , Dpm = require('..')
   , optimist = require('optimist')
@@ -286,7 +286,7 @@ if (argv._[0] === 'cat') {
     var rpath = '/search' + qs
     var rurl = dpm.url(rpath);
     dpm.logHttp('GET', rurl);
-    http.request({port: dpm.rc.port, hostname: dpm.rc.hostname, method: 'GET', path: rpath}, function(res){
+    request(rurl).on('response', function(res){
       dpm.logHttp(res.statusCode, rurl);
       if(res.statusCode === 404){
         res.setEncoding('utf8');

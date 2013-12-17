@@ -1,5 +1,4 @@
-var http = require('http')
-  , crypto = require('crypto')
+var crypto = require('crypto')
   , semver = require('semver')
   , querystring = require('querystring')
   , cookie = require('cookie')
@@ -277,7 +276,6 @@ Dpm.prototype._cache = function(dpkg, opts, callback){
       if(err) return cb(err);
 
       this.logHttp('GET', r.url);
-
       var req = request(r.url);
       req.on('error', cb);
       req.on('response', function(resp){            

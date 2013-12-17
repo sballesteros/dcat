@@ -1,10 +1,10 @@
-dpm-stan
-========
+dpm2
+====
 
 Like [npm](https://npmjs.org/) but for
 [data packages](http://dataprotocols.org/data-packages/)!
 
-[![NPM](https://nodei.co/npm/dpm-stan.png)](https://nodei.co/npm/dpm-stan/)
+[![NPM](https://nodei.co/npm/dpm2.png)](https://nodei.co/npm/dpm2/)
 
 
 Usage:
@@ -207,7 +207,7 @@ Combined with the --cache option, you get:
 
 You can also use ```dpm``` programaticaly.
 
-    var Dpm = require('dpm-stan');
+    var Dpm = require('dpm2);
     var dpm = new Dpm(conf);
 
 See ```bin/dpm``` for examples.
@@ -229,6 +229,12 @@ Registry
 By default, ```dpm``` uses our CouchDB powered
 [data registry](https://github.com/standard-analytics/data-registry)
 hosted on [cloudant](https://sballesteros.cloudant.com).
+
+Why dpm2 ?
+==========
+
+There is already a ```dpm``` being developed [here](https://github.com/okfn/dpm/) but it leverages
+```npm``` and the npm registry.
 
 License
 =======

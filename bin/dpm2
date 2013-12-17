@@ -19,7 +19,7 @@ var path = require('path')
 var argv = optimist
   .usage(
     [
-      'Usage: dpm <command> [options] where command is:',
+      'Usage: dpm2 <command> [options] where command is:',
       '  - cat       <datapackage name>[@<version>]',
       '    Display package.json on stdout. If @<version> is not specified, the latest version is returned.'.grey,
       '  - get      <datapackage name>[@<version>] [-f, --force] [-c, --cache]',
@@ -63,7 +63,7 @@ if(argv.v){
 }
 
 //if cloudant: use sha:true
-var dpm = new Dpm(require('rc')('dpm', {protocol: 'https', port: 443, hostname: 'registry.standardanalytics.io', strictSSL: false, sha:true}), process.cwd());
+var dpm = new Dpm(require('rc')('dpm2', {protocol: 'https', port: 443, hostname: 'registry.standardanalytics.io', strictSSL: false, sha:true}), process.cwd());
 
 if(argv._[0]!== 'cat'){
   dpm.on('log', console.log);
@@ -218,7 +218,7 @@ if (argv._[0] === 'cat') {
 
       var $HOME = process.env.HOME || process.env.HOMEPATH || process.env.USERPROFILE;
       try {
-        fs.writeFileSync(path.resolve($HOME, '.dpmrc'), JSON.stringify(dpm.rc, function(key, value){
+        fs.writeFileSync(path.resolve($HOME, '.dpm2rc'), JSON.stringify(dpm.rc, function(key, value){
           if(key.charAt(0) === '_' || key.charAt(0) === '$' || key === 'config'){
             return undefined;
           }

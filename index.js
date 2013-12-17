@@ -71,7 +71,7 @@ Dpm.prototype.rOptsAuth = function(url, extras){
 
 
 Dpm.prototype.logHttp = function(methodCode, reqUrl){
-  this.emit('log', 'dpm'.grey + ' http '.green + methodCode.toString().magenta + ' ' + reqUrl.replace(/:80\/|:443\//, '/'));
+  this.emit('log', 'dpm2'.grey + ' http '.green + methodCode.toString().magenta + ' ' + reqUrl.replace(/:80\/|:443\//, '/'));
 };
 
 

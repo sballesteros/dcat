@@ -12,8 +12,8 @@ Usage:
 
 ##CLI
 
-    $ dpm --help
-    Usage: dpm <command> [options] where command is:
+    $ dpm2 --help
+    Usage: dpm2 <command> [options] where command is:
       - cat       <datapackage name>[@<version>]
       - get       <datapackage name>[@<version>] [-f, --force] [-c, --cache]
       - clone     <datapackage name>[@<version>] [-f, --force]
@@ -73,22 +73,22 @@ stored on the disk as
 
 we can:
 
-    $ dpm publish
-    dpm http PUT https://registry.standardanalytics.io/mydpkg/0.0.0
-    dpm http 201 https://registry.standardanalytics.io/mydpkg/0.0.0
+    $ dpm2 publish
+    dpm2 http PUT https://registry.standardanalytics.io/mydpkg/0.0.0
+    dpm2 http 201 https://registry.standardanalytics.io/mydpkg/0.0.0
     + mydpkg@0.0.0
 
 and reclone it:
 
-    $ dpm clone mydpkg
-    dpm http GET https://registry.standardanalytics.io/mydpkg?clone=true
-    dpm http 200 https://registry.standardanalytics.io/mydpkg?clone=true
-    dpm http GET https://registry.standardanalytics.io/mydpkg/0.0.0/debug
-    dpm http 200 https://registry.standardanalytics.io/mydpkg/0.0.0/debug
-    dpm http GET https://registry.standardanalytics.io/mydpkg/0.0.0/csv1
-    dpm http GET https://registry.standardanalytics.io/mydpkg/0.0.0/csv2
-    dpm http 200 https://registry.standardanalytics.io/mydpkg/0.0.0/csv1
-    dpm http 200 https://registry.standardanalytics.io/mydpkg/0.0.0/csv2
+    $ dpm2 clone mydpkg
+    dpm2 http GET https://registry.standardanalytics.io/mydpkg?clone=true
+    dpm2 http 200 https://registry.standardanalytics.io/mydpkg?clone=true
+    dpm2 http GET https://registry.standardanalytics.io/mydpkg/0.0.0/debug
+    dpm2 http 200 https://registry.standardanalytics.io/mydpkg/0.0.0/debug
+    dpm2 http GET https://registry.standardanalytics.io/mydpkg/0.0.0/csv1
+    dpm2 http GET https://registry.standardanalytics.io/mydpkg/0.0.0/csv2
+    dpm2 http 200 https://registry.standardanalytics.io/mydpkg/0.0.0/csv1
+    dpm2 http 200 https://registry.standardanalytics.io/mydpkg/0.0.0/csv2
     .
     └─┬ mydpkg
       ├── package.json
@@ -101,9 +101,9 @@ But to save space or maybe because you just need 1 resource, you can
 also simply ask to get a package.json where all the resource data have
 been replaced by and URL.
 
-    $ dpm get mydpkg
-    dpm http GET https://registry.standardanalytics.io/mydpkg
-    dpm http 200 https://registry.standardanalytics.io/mydpkg
+    $ dpm2 get mydpkg
+    dpm2 http GET https://registry.standardanalytics.io/mydpkg
+    dpm2 http 200 https://registry.standardanalytics.io/mydpkg
     .
     └─┬ mydpkg
       └── package.json
@@ -124,15 +124,15 @@ On the opposite, you can also cache all the resources data (including
 external URLs) in a _standard_ directory structure, available for all
 the data packages stored on the registry.
 
-    $ dpm get mydpkg --cache
-    dpm http GET https://registry.standardanalytics.io/mydpkg
-    dpm http 200 https://registry.standardanalytics.io/mydpkg
-    dpm http GET https://registry.standardanalytics.io/mydpkg/0.0.0/inline
-    dpm http GET https://registry.standardanalytics.io/mydpkg/0.0.0/csv2
-    dpm http GET https://registry.standardanalytics.io/mydpkg/0.0.0/csv1
-    dpm http 200 https://registry.standardanalytics.io/mydpkg/0.0.0/inline
-    dpm http 200 https://registry.standardanalytics.io/mydpkg/0.0.0/csv1
-    dpm http 200 https://registry.standardanalytics.io/mydpkg/0.0.0/csv2
+    $ dpm2 get mydpkg --cache
+    dpm2 http GET https://registry.standardanalytics.io/mydpkg
+    dpm2 http 200 https://registry.standardanalytics.io/mydpkg
+    dpm2 http GET https://registry.standardanalytics.io/mydpkg/0.0.0/inline
+    dpm2 http GET https://registry.standardanalytics.io/mydpkg/0.0.0/csv2
+    dpm2 http GET https://registry.standardanalytics.io/mydpkg/0.0.0/csv1
+    dpm2 http 200 https://registry.standardanalytics.io/mydpkg/0.0.0/inline
+    dpm2 http 200 https://registry.standardanalytics.io/mydpkg/0.0.0/csv1
+    dpm2 http 200 https://registry.standardanalytics.io/mydpkg/0.0.0/csv2
     .
     └─┬ mydpkg
       ├── package.json
@@ -164,11 +164,11 @@ Given a package.json with
 
 one can run
 
-    $ dpm install
-    dpm http GET https://registry.standardanalytics.io/versions/mydpkg
-    dpm http 200 https://registry.standardanalytics.io/versions/mydpkg
-    dpm http GET https://registry.standardanalytics.io/mydpkg/0.0.0
-    dpm http 200 https://registry.standardanalytics.io/mydpkg/0.0.0
+    $ dpm2 install
+    dpm2 http GET https://registry.standardanalytics.io/versions/mydpkg
+    dpm2 http 200 https://registry.standardanalytics.io/versions/mydpkg
+    dpm2 http GET https://registry.standardanalytics.io/mydpkg/0.0.0
+    dpm2 http 200 https://registry.standardanalytics.io/mydpkg/0.0.0
     .
     ├── data_modules
     └─┬ mydpkg
@@ -176,17 +176,17 @@ one can run
 
 Combined with the --cache option, you get:
 
-    $ dpm install --cache
-    dpm http GET https://registry.standardanalytics.io/versions/mydpkg
-    dpm http 200 https://registry.standardanalytics.io/versions/mydpkg
-    dpm http GET https://registry.standardanalytics.io/mydpkg/0.0.0
-    dpm http 200 https://registry.standardanalytics.io/mydpkg/0.0.0
-    dpm http GET https://registry.standardanalytics.io/mydpkg/0.0.0/inline
-    dpm http GET https://registry.standardanalytics.io/mydpkg/0.0.0/csv2
-    dpm http GET https://registry.standardanalytics.io/mydpkg/0.0.0/csv1
-    dpm http 200 https://registry.standardanalytics.io/mydpkg/0.0.0/inline
-    dpm http 200 https://registry.standardanalytics.io/mydpkg/0.0.0/csv1
-    dpm http 200 https://registry.standardanalytics.io/mydpkg/0.0.0/csv2
+    $ dpm2 install --cache
+    dpm2 http GET https://registry.standardanalytics.io/versions/mydpkg
+    dpm2 http 200 https://registry.standardanalytics.io/versions/mydpkg
+    dpm2 http GET https://registry.standardanalytics.io/mydpkg/0.0.0
+    dpm2 http 200 https://registry.standardanalytics.io/mydpkg/0.0.0
+    dpm2 http GET https://registry.standardanalytics.io/mydpkg/0.0.0/inline
+    dpm2 http GET https://registry.standardanalytics.io/mydpkg/0.0.0/csv2
+    dpm2 http GET https://registry.standardanalytics.io/mydpkg/0.0.0/csv1
+    dpm2 http 200 https://registry.standardanalytics.io/mydpkg/0.0.0/inline
+    dpm2 http 200 https://registry.standardanalytics.io/mydpkg/0.0.0/csv1
+    dpm2 http 200 https://registry.standardanalytics.io/mydpkg/0.0.0/csv2
     .
     ├── data_modules
     └─┬ mydpkg
@@ -197,26 +197,26 @@ Combined with the --cache option, you get:
         └── csv2.csv
 
 
-```dpm``` aims to bring all the goodness of the
-[npm](https://npmjs.org/) workflow for your data needs. Run ```dpm
+```dpm2``` aims to bring all the goodness of the
+[npm](https://npmjs.org/) workflow for your data needs. Run ```dpm2
 --help``` to see the available options.
 
 
-## Using dpm programaticaly
+## Using dpm2 programaticaly
 
 
-You can also use ```dpm``` programaticaly.
+You can also use ```dpm2``` programaticaly.
 
     var Dpm = require('dpm2);
     var dpm = new Dpm(conf);
 
-See ```bin/dpm``` for examples.
+See ```bin/dpm2``` for examples.
 
 
-## Using dpm with npm
+## Using dpm2 with npm
 
 
-```dpm``` use the ```dataDependencies``` property of
+```dpm2``` use the ```dataDependencies``` property of
 ```package.json``` and store the dependencies in a ```data_modules/```
 directory so it can be used safely, without conflict as a
 [post-install script](https://npmjs.org/doc/misc/npm-scripts.html) of
@@ -226,15 +226,15 @@ directory so it can be used safely, without conflict as a
 Registry
 ========
 
-By default, ```dpm``` uses our CouchDB powered
+By default, ```dpm2``` uses our CouchDB powered
 [data registry](https://github.com/standard-analytics/data-registry)
 hosted on [cloudant](https://sballesteros.cloudant.com).
 
-Why dpm2 ?
-==========
+Why dpm2 and not simple dpm ?
+=============================
 
 There is already a ```dpm``` being developed [here](https://github.com/okfn/dpm/) but it leverages
-```npm``` and the npm registry.
+```npm``` and the [npm registry](https://github.com/isaacs/npmjs.org).
 
 License
 =======

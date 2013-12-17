@@ -1,10 +1,10 @@
 {
   "name": "dpm2",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Like npm but for data packages!",
   "main": "index.js",
   "bin": {
-    "dpm": "bin/dpm"
+    "dpm2": "bin/dpm2"
   },
   "preferGlobal": true,
   "scripts": {

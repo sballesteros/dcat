@@ -31,13 +31,44 @@ util.inherits(Dpm, EventEmitter);
 Dpm.prototype.publish = publish;
 
 
+//TODO: remove
 Dpm.prototype.url = function(path, queryObj){
-  return 'http://' + this.rc.hostname + ':' + this.rc.port + path + ( (queryObj) ? '?' + querystring.stringify(queryObj): '');
-}
+  return this.rc.protocol + '://'  + this.rc.hostname + ':' + this.rc.port + path + ( (queryObj) ? '?' + querystring.stringify(queryObj): '');
+};
 
 Dpm.prototype.auth = function(){
   return {user: this.rc.name, pass: this.rc.password};
-}
+};
+
+
+/**
+ * create an option object for request
+ */
+Dpm.prototype.rOpts = function(url, extras){
+  extras = extras || {};
+
+  var opts = {
+    url: url,
+    strictSSL: false
+  }
+
+  for(var key in extras){
+    opts[key] = extras[key];
+  }
+
+  return opts;
+};
+
+/**
+ * create an option object for request **with** basic auth
+ */
+Dpm.prototype.rOptsAuth = function(url, extras){
+  var opts = this.rOpts(url, extras);
+  opts.auth = this.auth();
+
+  return opts;
+};
+
 
 Dpm.prototype.logHttp = function(methodCode, reqUrl){
   this.emit('log', 'dpm'.grey + ' http '.green + methodCode.toString().magenta + ' ' + reqUrl.replace(':80/', '/'));
@@ -49,7 +80,7 @@ Dpm.prototype.lsOwner = function(dpgkName, callback){
   var rurl = this.url('/owner/ls/' + dpkgName);
   this.logHttp('GET', rurl);
 
-  request(rurl, function(err, res, body){
+  request(this.rOpts(rurl), function(err, res, body){
     if(err) return callback(err);
     this.logHttp(res.statusCode, rurl);
 
@@ -70,11 +101,7 @@ Dpm.prototype.lsOwner = function(dpgkName, callback){
 Dpm.prototype.addOwner = function(data, callback){
   var rurl = this.url('/owner/add');
   this.logHttp('POST', rurl);
-  request.post({
-    url: rurl,
-    auth: this.auth(),
-    json: data
-  }, function(err, res, body){
+  request.post(this.rOptsAuth(rurl, {json: data}), function(err, res, body){
     if(err) return callback(err);
     this.logHttp(res.statusCode, rurl);
     if(res.statusCode >= 400){
@@ -92,11 +119,7 @@ Dpm.prototype.addOwner = function(data, callback){
 Dpm.prototype.rmOwner = function(data, callback){
   var rurl = this.url('/owner/rm');
   this.logHttp('POST', rurl);
-  request.post({
-    url: rurl,
-    auth: this.auth(),
-    json: data
-  }, function(err, res, body){
+  request.post(this.rOptsAuth(rurl, {json: data}), function(err, res, body){
     if(err) return callback(err);
     this.logHttp(res.statusCode, rurl);
     if(res.statusCode >= 400){
@@ -117,10 +140,7 @@ Dpm.prototype.unpublish = function(dpkgId, callback){
 
   var rurl = this.url('/'+ dpkgId);
   this.logHttp('DELETE', rurl);
-  request.del({
-    url: rurl,
-    auth: this.auth()
-  }, function(err, res, body){
+  request.del(this.rOptsAuth(rurl), function(err, res, body){
     if(err) return callback(err);
     this.logHttp(res.statusCode, rurl);
     if(res.statusCode >= 400){
@@ -147,7 +167,7 @@ Dpm.prototype.resolveDeps = function(dataDependencies, callback){
     var rurl = this.url('/versions/' + dep.name);
     this.logHttp('GET', rurl);
 
-    request(rurl, function(err, res, versions){
+    request(this.rOpts(rurl), function(err, res, versions){
       if(err) return cb(err);
 
       this.logHttp(res.statusCode, rurl);
@@ -187,7 +207,7 @@ Dpm.prototype.cat = function(dpkgId, opts, callback){
   var rurl = this.url('/' + dpkgId.replace('@', '/'), (opts.clone) ? {clone:true} : undefined);
   this.logHttp('GET', rurl);
 
-  request(rurl, function(err, res, dpkg){
+  request(this.rOpts(rurl), function(err, res, dpkg){
     if(err) return callback(err);
 
     this.logHttp(res.statusCode, rurl);
@@ -276,7 +296,7 @@ Dpm.prototype._cache = function(dpkg, opts, callback){
       if(err) return cb(err);
 
       this.logHttp('GET', r.url);
-      var req = request(r.url);
+      var req = request(this.rOpts(r.url));
       req.on('error', cb);
       req.on('response', function(resp){            
         this.logHttp(resp.statusCode, r.url);
@@ -292,7 +312,6 @@ Dpm.prototype._cache = function(dpkg, opts, callback){
           var filename = (opts.clone)? path.basename(r.path) : r.name + '.' +mime.extension(resp.headers['content-type']);
 
           resp
-            .on('error', cb)
             .pipe(fs.createWriteStream(path.join(root, filename)))
             .on('finish', function(){
               if(!opts.clone){
@@ -342,7 +361,7 @@ Dpm.prototype.clone = function(dpkgId, opts, callback){
       var rurl = this.url('/' + dpkg.name + '/' + dpkg.version + '/debug');
       this.logHttp('GET', rurl);
 
-      var req = request(rurl);
+      var req = request(this.rOpts(rurl));
       req.on('error', callback);
       req.on('response', function(resp){            
 
@@ -357,7 +376,6 @@ Dpm.prototype.clone = function(dpkgId, opts, callback){
         } else {
 
           resp
-            .on('error', callback)
             .pipe(zlib.createGunzip())
             .pipe(new tar.Extract({
               path: root,
@@ -416,11 +434,7 @@ Dpm.prototype.adduser = function(callback){
     data.password = this.rc.password;
   }
 
-  request.put({
-    url: rurl, 
-    auth: this.auth(), 
-    json: data
-  }, function(err, res, body){
+  request.put(this.rOptsAuth(rurl, {json: data}), function(err, res, body){
 
     if(err) return callback(err);
 

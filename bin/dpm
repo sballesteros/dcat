@@ -63,7 +63,7 @@ if(argv.v){
 }
 
 //if cloudant: use sha:true
-var dpm = new Dpm(require('rc')('dpm', {port: 80, hostname: 'registry.standardanalytics.io', sha:true}), process.cwd());
+var dpm = new Dpm(require('rc')('dpm', {protocol: 'https', port: 443, hostname: 'registry.standardanalytics.io', strictSSL: false, sha:true}), process.cwd());
 
 if(argv._[0]!== 'cat'){
   dpm.on('log', console.log);
@@ -283,10 +283,12 @@ if (argv._[0] === 'cat') {
     var keys = argv._.slice(1);
     var qs = (keys.length) ?  '?keys=' + JSON.stringify(keys): '';
 
+    var $HOME = process.env.HOME || process.env.HOMEPATH || process.env.USERPROFILE;
+
     var rpath = '/search' + qs
     var rurl = dpm.url(rpath);
     dpm.logHttp('GET', rurl);
-    request(rurl).on('response', function(res){
+    request(dpm.rOpts(rurl)).on('response', function(res){
       dpm.logHttp(res.statusCode, rurl);
       if(res.statusCode === 404){
         res.setEncoding('utf8');

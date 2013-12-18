@@ -211,13 +211,48 @@ Dpm.prototype.cat = function(dpkgId, opts, callback){
     if(err) return callback(err);
 
     this.logHttp(res.statusCode, rurl);
-    if (res.statusCode >= 300){
+    if (res.statusCode >= 400){
       var err = new Error('fail');
       err.code = res.statusCode;
       return callback(err);
     }
+    
+    var dpkg = JSON.parse(dpkg)
+    if(opts.clone){
+      return callback(null, dpkg);
+    }
 
-    callback(null, JSON.parse(dpkg));
+    //for all the resources with a require, get the meta data of the
+    //resources (schema, format...)
+    var requires = dpkg.resources.filter(function(x){return 'require' in x;});
+    async.each(requires, function(r, cb){
+
+      request(r.url + '?meta=true', function(err, resp, rmetadata){
+        if(err) return cb(err);
+        if(resp.statusCode === 200){
+          rmetadata = JSON.parse(rmetadata);
+          for (var key in rmetadata){
+            if( !(key in r) ){
+              r[key] = rmetadata[key];
+            }
+          }
+
+          if( ('fields' in r.require) && ('schema' in r) && ('fields' in r.schema)){
+            r.schema.fields = r.schema.fields.filter(function(field){
+              return r.require.fields.indexOf(field.name) !== -1;
+            });
+          }
+
+          cb(null);
+        } else {
+          return cb(new Error(resp.statusCode));
+        }
+      });
+
+    }, function(err){
+      if(err) return callback(err);
+      callback(null, dpkg);
+    });
 
   }.bind(this));
 

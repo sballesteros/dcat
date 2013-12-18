@@ -116,6 +116,10 @@ returns:
 
     https://registry.standardanalytics.io/mydpkg/0.0.0/csv1
 
+Note that in case of resources using the ```require``` property (as
+opposed to ```data```, ```path``` or ```url```), the metadata of the
+resource (```schema```, ```format```, ...) have been retrieved.
+
 Then you can consume the resources you want with the module
 [data-streams](https://github.com/standard-analytics/data-streams).
 

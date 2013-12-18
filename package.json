@@ -1,6 +1,6 @@
 {
   "name": "dpm2",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Like npm but for data packages!",
   "main": "index.js",
   "bin": {

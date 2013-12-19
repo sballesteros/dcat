@@ -1,6 +1,6 @@
 {
   "name": "dpm2",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Like npm but for data packages!",
   "main": "index.js",
   "bin": {
@@ -8,7 +8,7 @@
   },
   "preferGlobal": true,
   "scripts": {
-    "test": "make test"
+    "test": "node_modules/.bin/mocha"
   },
   "repository": {
     "type": "git",
@@ -52,5 +52,10 @@
     "archy": "0.0.2",
     "flat": "~1.0.0",
     "fs-readdir-recursive": "0.0.1"
+  },
+  "devDependencies": {
+    "mocha": "~1.15.1",
+    "nano": "~4.2.1",
+    "lodash.difference": "~2.4.1"
   }
 }

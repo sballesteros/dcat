@@ -75,7 +75,7 @@ Dpm.prototype.logHttp = function(methodCode, reqUrl){
 };
 
 
-Dpm.prototype.lsOwner = function(dpgkName, callback){
+Dpm.prototype.lsOwner = function(dpkgName, callback){
 
   var rurl = this.url('/owner/ls/' + dpkgName);
   this.logHttp('GET', rurl);
@@ -164,7 +164,7 @@ Dpm.prototype.resolveDeps = function(dataDependencies, callback){
 
   async.map(deps, function(dep, cb){
 
-    var rurl = this.url('/versions/' + dep.name);
+    var rurl = this.url('/' + dep.name);
     this.logHttp('GET', rurl);
 
     request(this.rOpts(rurl), function(err, res, versions){
@@ -197,19 +197,24 @@ Dpm.prototype.cat = function(dpkgId, opts, callback){
   }
 
   var splt = dpkgId.split('@');
+  var name = splt[0]
+    ,version;
+
+
   if(splt.length === 2){
-    var version = semver.valid(splt[1]);
+    version = semver.valid(splt[1]);
     if(!version){
       return callback(new Error('invalid version '+ dpkgId.red +' see http://semver.org/'));
     }
+  } else {
+    version = 'latest'
   }
 
-  var rurl = this.url('/' + dpkgId.replace('@', '/'), (opts.clone) ? {clone:true} : undefined);
+  var rurl = this.url('/' + name + '/' + version, (opts.clone) ? {clone:true} : undefined);
   this.logHttp('GET', rurl);
 
   request(this.rOpts(rurl), function(err, res, dpkg){
     if(err) return callback(err);
-
     this.logHttp(res.statusCode, rurl);
     if (res.statusCode >= 400){
       var err = new Error('fail');
@@ -226,7 +231,6 @@ Dpm.prototype.cat = function(dpkgId, opts, callback){
     //resources (schema, format...)
     var requires = dpkg.resources.filter(function(x){return 'require' in x;});
     async.each(requires, function(r, cb){
-
       request(r.url + '?meta=true', function(err, resp, rmetadata){
         if(err) return cb(err);
         if(resp.statusCode === 200){
@@ -236,7 +240,7 @@ Dpm.prototype.cat = function(dpkgId, opts, callback){
               r[key] = rmetadata[key];
             }
           }
-
+          
           if( ('fields' in r.require) && ('schema' in r) && ('fields' in r.schema)){
             r.schema.fields = r.schema.fields.filter(function(field){
               return r.require.fields.indexOf(field.name) !== -1;

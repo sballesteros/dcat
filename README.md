@@ -208,13 +208,18 @@ Combined with the --cache option, you get:
 
 ## Using dpm2 programaticaly
 
-
 You can also use ```dpm2``` programaticaly.
 
     var Dpm = require('dpm2);
     var dpm = new Dpm(conf);
+    
+    dpm.install(['mydpkg@0.0.0', 'mydata@1.0.0'], {cache: true}, function(err, dpkgs){
+      //done!
+    });
+    dpm.on('log', console.log); //if you like stuff on stdout
 
-See ```bin/dpm2``` for examples.
+
+See ```bin/dpm2``` for examples
 
 
 ## Using dpm2 with npm
@@ -234,11 +239,12 @@ By default, ```dpm2``` uses our CouchDB powered
 [data registry](https://github.com/standard-analytics/data-registry)
 hosted on [cloudant](https://sballesteros.cloudant.com).
 
-Why dpm2 and not simple dpm ?
-=============================
+Why is it called dpm2 and not simply dpm ?
+==========================================
 
 There is already a ```dpm``` being developed [here](https://github.com/okfn/dpm/) but it leverages
 ```npm``` and the [npm registry](https://github.com/isaacs/npmjs.org).
+
 
 License
 =======

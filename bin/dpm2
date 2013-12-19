@@ -14,6 +14,7 @@ var path = require('path')
   , querystring = require('querystring')
   , tree = require('../lib/tree')
   , readdirpSync = require('fs-readdir-recursive')
+  , os = require('os')
   , colors = require('colors');
 
 var argv = optimist
@@ -43,7 +44,7 @@ var argv = optimist
       '      Remove a user from the data package maintainers'.grey,
       '  - search [search terms]',
       '    Search data packages by keywords'.grey
-    ].join('\n')
+    ].join(os.EOL)
   )
   .alias('f', 'force').describe('f', 'just do it')
   .alias('s', 'save').describe('s', 'data packages will appear in your dataDependencies')
@@ -302,8 +303,8 @@ if (argv._[0] === 'cat') {
           .pipe(split(function(row){
             if(row) {
               row = JSON.parse(row);
-              if('error' in row) return row.error +'\n'; //no results;
-              return row.value._id.underline + ' [' + row.key.cyan + ']: ' + row.value.description + '\n';
+              if('error' in row) return row.error + os.EOL; //no results;
+              return row.value._id.underline + ' [' + row.key.cyan + ']: ' + row.value.description + os.EOL;
             }
           }))
           .pipe(process.stdout);    

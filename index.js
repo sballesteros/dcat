@@ -502,10 +502,9 @@ Dpm.prototype.adduser = function(callback){
 
 
 /**
- * add resources to dpkg from paths expressed as globs (*.csv, ...)
- * TODO: check that all path are within this.root if not ??? (maybe copy the file first or throw error ???)
+ * from paths expressed as globs (*.csv, ...) to resources
  */
-Dpm.prototype.addPaths = function(globs, dpkg, callback){
+Dpm.prototype.paths2resources = function(globs, callback){
 
   async.map(globs, function(pattern, cb){
     glob(path.resolve(this.root, pattern), {matchBase: true}, cb);
@@ -524,6 +523,11 @@ Dpm.prototype.addPaths = function(globs, dpkg, callback){
         path: path.relative(this.root, p)
       };
 
+      //check that all path are within this.root if not throw error
+      if(resource.path.indexOf('..') !== -1){
+        return cb(new Error('only data files within ' + this.root + ' can be added (' + resource.path +')'));
+      }
+
       if(resource.format === 'csv'){
 
         jtsInfer(fs.createReadStream(resource.path), function(err, schema){
@@ -536,10 +540,7 @@ Dpm.prototype.addPaths = function(globs, dpkg, callback){
         cb(null, resource);
       }
 
-    }.bind(this), function(err, resources){
-      if(err) return callback(err);
-      callback(null, _addResources(dpkg, resources));
-    });
+    }.bind(this), callback);
 
   }.bind(this));
   
@@ -547,9 +548,9 @@ Dpm.prototype.addPaths = function(globs, dpkg, callback){
 
 
 /**
- * add resources to dpkg from urls
+ * from urls to resources
  */
-Dpm.prototype.addUrls = function(urls, dpkg, callback){
+Dpm.prototype.urls2resources = function(urls, callback){
   urls = uniq(urls);
 
   async.map(urls, function(myurl, cb){
@@ -594,17 +595,15 @@ Dpm.prototype.addUrls = function(urls, dpkg, callback){
 
     });
 
-  }, function(err, resources){
-
-    if(err) return callback(err);
-    callback(null, _addResources(dpkg, resources));
-
-  });
+  }, callback);
   
 };
 
-
-function _addResources(dpkg, resources){
+/**
+ * add resources to dpkg.resources by taking care of removing previous
+ * resources with conflicting names
+ */
+Dpm.prototype.addResources = function(dpkg, resources){
 
   if(!('resources' in dpkg)){
     dpkg.resources = [];
@@ -612,11 +611,13 @@ function _addResources(dpkg, resources){
 
   var names = resources.map(function(r) {return r.name;});
   dpkg.resources = dpkg.resources
-    .filter(function(r){ return names.indexOf(r.name) === -1; }) //remove previous resources with conficting names
+    .filter(function(r){ return names.indexOf(r.name) === -1; })
     .concat(resources);
 
   return dpkg;  
+
 };
+
 
 
 function _createDir(dirPath, opts, callback){

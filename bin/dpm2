@@ -82,11 +82,13 @@ if (argv._[0] === 'init') {
     var pkg = datapackage(dpm.root);
 
     pkg.init({defaults: argv.defaults}, function(err, dpkg){
-      var resources = argv._.slice(1);
-      dpm.addPaths(resources.filter(function(x){return !isUrl(x);}), dpkg, function(err, dpkg){
+      var inputs = argv._.slice(1);
+      dpm.paths2resources(inputs.filter(function(x){return !isUrl(x);}), function(err, resourcesFromPaths){
         if(err) _fail(err);
-        dpm.addUrls(resources.filter(function(x){return isUrl(x);}), dpkg, function(err, dpkg){
+        dpm.urls2resources(inputs.filter(function(x){return isUrl(x);}), function(err, resourcesFromUrls){
           if(err) _fail(err);
+          dpkg = dpm.addResources(dpkg, resourcesFromPaths.concat(resourcesFromUrls));
+
           console.log(util.inspect(dpkg, {depth:null}));
           pkg.write(dpkg);
         });

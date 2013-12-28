@@ -1,5 +1,9 @@
 var crypto = require('crypto')
+  , url = require('url')
   , semver = require('semver')
+  , uniq = require('lodash.uniq')
+  , flatten = require('lodash.flatten')
+  , glob = require('glob')
   , querystring = require('querystring')
   , cookie = require('cookie')
   , EventEmitter = require('events').EventEmitter
@@ -15,7 +19,8 @@ var crypto = require('crypto')
   , tar = require('tar')
   , once = require('once')
   , concat = require('concat-stream')
-  , publish = require('./lib/publish');
+  , publish = require('./lib/publish')
+  , jtsInfer = require('jts-infer');
 
 
 var Dpm = module.exports = function(rc, root){
@@ -44,11 +49,11 @@ Dpm.prototype.auth = function(){
 /**
  * create an option object for request
  */
-Dpm.prototype.rOpts = function(url, extras){
+Dpm.prototype.rOpts = function(myurl, extras){
   extras = extras || {};
 
   var opts = {
-    url: url,
+    url: myurl,
     strictSSL: false
   }
 
@@ -62,8 +67,8 @@ Dpm.prototype.rOpts = function(url, extras){
 /**
  * create an option object for request **with** basic auth
  */
-Dpm.prototype.rOptsAuth = function(url, extras){
-  var opts = this.rOpts(url, extras);
+Dpm.prototype.rOptsAuth = function(myurl, extras){
+  var opts = this.rOpts(myurl, extras);
   opts.auth = this.auth();
 
   return opts;
@@ -493,6 +498,124 @@ Dpm.prototype.adduser = function(callback){
     
   }.bind(this));
 
+};
+
+
+/**
+ * add resources to dpkg from paths expressed as globs (*.csv, ...)
+ * TODO: check that all path are within this.root if not ??? (maybe copy the file first or throw error ???)
+ */
+Dpm.prototype.addPaths = function(globs, dpkg, callback){
+
+  async.map(globs, function(pattern, cb){
+    glob(path.resolve(this.root, pattern), {matchBase: true}, cb);
+  }.bind(this), function(err, paths){    
+    if(err) return cb(err);
+
+    paths = uniq(flatten(paths));
+    
+    async.map(paths, function(p, cb){
+      var ext = path.extname(p);
+      
+      var resource = {
+        name: path.basename(p, ext),
+        format: ext.substring(1),
+        mediatype: mime.lookup(ext),
+        path: path.relative(this.root, p)
+      };
+
+      if(resource.format === 'csv'){
+
+        jtsInfer(fs.createReadStream(resource.path), function(err, schema){
+          if(err) return cb(err);
+          resource.schema = schema;
+          cb(null, resource);
+        });
+
+      } else {
+        cb(null, resource);
+      }
+
+    }.bind(this), function(err, resources){
+      if(err) return callback(err);
+      callback(null, _addResources(dpkg, resources));
+    });
+
+  }.bind(this));
+  
+};
+
+
+/**
+ * add resources to dpkg from urls
+ */
+Dpm.prototype.addUrls = function(urls, dpkg, callback){
+  urls = uniq(urls);
+
+  async.map(urls, function(myurl, cb){
+
+    cb = once(cb);
+
+    request.head(myurl, function(err, res){
+      if(err) return cb(err);
+
+      if(res.statusCode >= 300){
+        return cb(new Error('could not process ' + myurl + ' code (' + res.statusCode + ')'));
+      }
+
+      var mypath = url.parse(myurl).pathname;
+
+      var resource = {
+        name: path.basename(mypath, path.extname(mypath)),
+        mediatype: res.headers['content-type'],
+        format: mime.extension(res.headers['content-type']),
+        url: myurl
+      };
+
+      if(resource.format === 'csv'){
+        var req = request(myurl); 
+        req.on('error', cb);
+        req.on('response', function(res){
+          if (res.statusCode >= 300){
+            return cb(new Error('could not process ' + myurl + ' code (' + res.statusCode + ')'));
+          } 
+
+          jtsInfer(req, function(err, schema){
+            if(err) return cb(err);
+            resource.schema = schema;
+            cb(null, resource);
+          });
+          
+        });
+
+      } else {
+        cb(null, resource);
+      }
+
+    });
+
+  }, function(err, resources){
+
+    if(err) return callback(err);
+    callback(null, _addResources(dpkg, resources));
+
+  });
+  
+};
+
+
+function _addResources(dpkg, resources){
+
+  if(!('resources' in dpkg)){
+    dpkg.resources = [];
+  }
+
+  var names = resources.map(function(r) {return r.name;});
+  dpkg.resources = dpkg.resources
+    .filter(function(r){ return names.indexOf(r.name) === -1; }) //remove previous resources with conficting names
+    .concat(resources);
+
+  return dpkg;  
 };
 
 

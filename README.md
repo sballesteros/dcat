@@ -14,6 +14,7 @@ Usage:
 
     $ dpm2 --help
     Usage: dpm2 <command> [options] where command is:
+      - init [globs (*.csv, ...)] [urls] [-d, --defaults]
       - cat       <datapackage name>[@<version>]
       - get       <datapackage name>[@<version>] [-f, --force] [-c, --cache]
       - clone     <datapackage name>[@<version>] [-f, --force]

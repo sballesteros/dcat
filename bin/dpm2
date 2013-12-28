@@ -1,6 +1,9 @@
 #!/usr/bin/env node
 
 var path = require('path')
+  , datapackage = require('datapackage-json')
+  , util = require('util')
+  , isUrl = require('is-url')
   , request = require('request')
   , fs = require('fs')
   , Dpm = require('..')
@@ -21,6 +24,7 @@ var argv = optimist
   .usage(
     [
       'Usage: dpm2 <command> [options] where command is:',
+      '  - init [globs] [urls] [-d, --defaults] Interactively create a package.json file and add the files listed as globs (*.csv ... and urls) as resources',
       '  - cat       <datapackage name>[@<version>]',
       '    Display package.json on stdout. If @<version> is not specified, the latest version is returned.'.grey,
       '  - get      <datapackage name>[@<version>] [-f, --force] [-c, --cache]',
@@ -47,6 +51,7 @@ var argv = optimist
     ].join(os.EOL)
   )
   .alias('f', 'force').describe('f', 'just do it')
+  .alias('d', 'defaults').describe('d', ' bypass the promzard prompt')
   .alias('s', 'save').describe('s', 'data packages will appear in your dataDependencies')
   .alias('c', 'cache').describe('c', 'store the resources content on the disk in a data/ directory')
   .alias('h', 'help').describe('h', 'print usage')
@@ -66,11 +71,32 @@ if(argv.v){
 //if cloudant: use sha:true
 var dpm = new Dpm(require('rc')('dpm2', {protocol: 'https', port: 443, hostname: 'registry.standardanalytics.io', strictSSL: false, sha:true}), process.cwd());
 
-if(argv._[0]!== 'cat'){
+if(argv._[0] !== 'cat'){
   dpm.on('log', console.log);
 }
 
-if (argv._[0] === 'cat') {
+if (argv._[0] === 'init') {
+
+  (function(){
+
+    var pkg = datapackage(dpm.root);
+
+    pkg.init({defaults: argv.defaults}, function(err, dpkg){
+      var resources = argv._.slice(1);
+      dpm.addPaths(resources.filter(function(x){return !isUrl(x);}), dpkg, function(err, dpkg){
+        if(err) _fail(err);
+        dpm.addUrls(resources.filter(function(x){return isUrl(x);}), dpkg, function(err, dpkg){
+          if(err) _fail(err);
+          console.log(util.inspect(dpkg, {depth:null}));
+          pkg.write(dpkg);
+        });
+      });
+
+    });
+    
+  })();
+
+} else if (argv._[0] === 'cat') {
   
   (function(){
     var dpkgId = argv._[1];

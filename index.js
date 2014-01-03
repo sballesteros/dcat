@@ -23,7 +23,7 @@ var crypto = require('crypto')
   , jtsInfer = require('jts-infer');
 
 
-var Dpm = module.exports = function(rc, root){
+var Ldpm = module.exports = function(rc, root){
   EventEmitter.call(this);
 
   this.root = root || process.cwd();
@@ -31,25 +31,24 @@ var Dpm = module.exports = function(rc, root){
   this.rc = rc;
 };
 
-util.inherits(Dpm, EventEmitter);
+util.inherits(Ldpm, EventEmitter);
 
-Dpm.prototype.publish = publish;
+Ldpm.prototype.publish = publish;
 
 
-//TODO: remove
-Dpm.prototype.url = function(path, queryObj){
+Ldpm.prototype.url = function(path, queryObj){
   return this.rc.protocol + '://'  + this.rc.hostname + ':' + this.rc.port + path + ( (queryObj) ? '?' + querystring.stringify(queryObj): '');
 };
 
-Dpm.prototype.auth = function(){
+Ldpm.prototype.auth = function(){
   return {user: this.rc.name, pass: this.rc.password};
 };
 
 
 /**
- * create an option object for request
+ * create an option object for mikeal/request
  */
-Dpm.prototype.rOpts = function(myurl, extras){
+Ldpm.prototype.rOpts = function(myurl, extras){
   extras = extras || {};
 
   var opts = {
@@ -65,9 +64,9 @@ Dpm.prototype.rOpts = function(myurl, extras){
 };
 
 /**
- * create an option object for request **with** basic auth
+ * create an option object for mikeal/request **with** basic auth
  */
-Dpm.prototype.rOptsAuth = function(myurl, extras){
+Ldpm.prototype.rOptsAuth = function(myurl, extras){
   var opts = this.rOpts(myurl, extras);
   opts.auth = this.auth();
 
@@ -75,12 +74,12 @@ Dpm.prototype.rOptsAuth = function(myurl, extras){
 };
 
 
-Dpm.prototype.logHttp = function(methodCode, reqUrl){
-  this.emit('log', 'dpm2'.grey + ' http '.green + methodCode.toString().magenta + ' ' + reqUrl.replace(/:80\/|:443\//, '/'));
+Ldpm.prototype.logHttp = function(methodCode, reqUrl){
+  this.emit('log', 'ldpm'.grey + ' http '.green + methodCode.toString().magenta + ' ' + reqUrl.replace(/:80\/|:443\//, '/'));
 };
 
 
-Dpm.prototype.lsOwner = function(dpkgName, callback){
+Ldpm.prototype.lsOwner = function(dpkgName, callback){
 
   var rurl = this.url('/owner/ls/' + dpkgName);
   this.logHttp('GET', rurl);
@@ -103,7 +102,7 @@ Dpm.prototype.lsOwner = function(dpkgName, callback){
 /**
  * data: {username, dpkgName}
  */
-Dpm.prototype.addOwner = function(data, callback){
+Ldpm.prototype.addOwner = function(data, callback){
   var rurl = this.url('/owner/add');
   this.logHttp('POST', rurl);
   request.post(this.rOptsAuth(rurl, {json: data}), function(err, res, body){
@@ -121,7 +120,7 @@ Dpm.prototype.addOwner = function(data, callback){
 /**
  * data: {username, dpkgName}
  */
-Dpm.prototype.rmOwner = function(data, callback){
+Ldpm.prototype.rmOwner = function(data, callback){
   var rurl = this.url('/owner/rm');
   this.logHttp('POST', rurl);
   request.post(this.rOptsAuth(rurl, {json: data}), function(err, res, body){
@@ -140,7 +139,7 @@ Dpm.prototype.rmOwner = function(data, callback){
 /**
  * data: {dpkgName[@version]}
  */
-Dpm.prototype.unpublish = function(dpkgId, callback){
+Ldpm.prototype.unpublish = function(dpkgId, callback){
   dpkgId = dpkgId.replace('@', '/');
 
   var rurl = this.url('/'+ dpkgId);
@@ -159,7 +158,7 @@ Dpm.prototype.unpublish = function(dpkgId, callback){
 };
 
 
-Dpm.prototype.resolveDeps = function(dataDependencies, callback){
+Ldpm.prototype.resolveDeps = function(dataDependencies, callback){
 
   var deps = [];
   dataDependencies = dataDependencies || {};
@@ -194,28 +193,55 @@ Dpm.prototype.resolveDeps = function(dataDependencies, callback){
 };
 
 
-Dpm.prototype.cat = function(dpkgId, opts, callback){
+Ldpm.prototype.cat = function(dpkgId, opts, callback){
 
   if(arguments.length === 2){
     callback = opts;
     opts = {};
   }
 
-  var splt = dpkgId.split('@');
-  var name = splt[0]
-    ,version;
+  var rurl, fromUrl;
 
+  //TODO handle username/reponame for github
 
-  if(splt.length === 2){
-    version = semver.valid(splt[1]);
-    if(!version){
-      return callback(new Error('invalid version '+ dpkgId.red +' see http://semver.org/'));
+  if(dpkgId.indexOf('://')!==-1){
+    rurl = isUrl(dpkgId) ? dpkgId : githubUrlFromGit(dpkgId);
+
+    if(!rurl){
+      return callback(new Error('invalid dpkgId: dpkgId as to be name[@version] or an URL'));
     }
+   
+    //we have an URL, handle github cases (if not gist).
+    //TODO: gist case right now we assune that we have the raw URL for gists.
+
+    var ghNotRaw = 'https://github.com';
+    if(url.indexOf(ghNotRaw) !== -1){
+      url = url.replace(ghNotRaw, 'https://raw.github.com');
+    }
+    
+
+    fromUrl = true;
+    
   } else {
-    version = 'latest'
+
+    var splt = dpkgId.split('@');
+    var name = splt[0]
+      , version;
+
+    if(splt.length === 2){
+      version = semver.valid(splt[1]);
+      if(!version){
+        return callback(new Error('invalid version '+ dpkgId.red +' see http://semver.org/'));
+      }
+    } else {
+      version = 'latest'
+    }
+
+    fromUrl = false;
+
+    rurl = this.url('/' + name + '/' + version, (opts.clone) ? {clone:true} : undefined);
   }
 
-  var rurl = this.url('/' + name + '/' + version, (opts.clone) ? {clone:true} : undefined);
   this.logHttp('GET', rurl);
 
   request(this.rOpts(rurl), function(err, res, dpkg){
@@ -273,7 +299,7 @@ Dpm.prototype.cat = function(dpkgId, opts, callback){
 
 
 
-Dpm.prototype.get = function(dpkgId, opts, callback){
+Ldpm.prototype.get = function(dpkgId, opts, callback){
 
   if(arguments.length === 2){
     callback = opts;
@@ -312,7 +338,7 @@ Dpm.prototype.get = function(dpkgId, opts, callback){
 };
 
 
-Dpm.prototype._cache = function(dpkg, opts, callback){
+Ldpm.prototype._cache = function(dpkg, opts, callback){
 
   if(arguments.length === 2){
     callback = opts;
@@ -383,7 +409,7 @@ Dpm.prototype._cache = function(dpkg, opts, callback){
 };
 
 
-Dpm.prototype.clone = function(dpkgId, opts, callback){
+Ldpm.prototype.clone = function(dpkgId, opts, callback){
 
   callback = once(callback);
 
@@ -439,7 +465,7 @@ Dpm.prototype.clone = function(dpkgId, opts, callback){
 };
 
 
-Dpm.prototype.install = function(dpkgIds, opts, callback){
+Ldpm.prototype.install = function(dpkgIds, opts, callback){
 
   if(arguments.length === 2){
     callback = opts;
@@ -460,7 +486,7 @@ Dpm.prototype.install = function(dpkgIds, opts, callback){
 };
 
 
-Dpm.prototype.adduser = function(callback){
+Ldpm.prototype.adduser = function(callback){
 
   var rurl = this.url('/adduser/' + this.rc.name);
   this.logHttp('PUT', rurl);
@@ -504,7 +530,7 @@ Dpm.prototype.adduser = function(callback){
 /**
  * from paths expressed as globs (*.csv, ...) to resources
  */
-Dpm.prototype.paths2resources = function(globs, callback){
+Ldpm.prototype.paths2resources = function(globs, callback){
 
   async.map(globs, function(pattern, cb){
     glob(path.resolve(this.root, pattern), {matchBase: true}, cb);
@@ -550,7 +576,7 @@ Dpm.prototype.paths2resources = function(globs, callback){
 /**
  * from urls to resources
  */
-Dpm.prototype.urls2resources = function(urls, callback){
+Ldpm.prototype.urls2resources = function(urls, callback){
   urls = uniq(urls);
 
   async.map(urls, function(myurl, cb){
@@ -603,7 +629,7 @@ Dpm.prototype.urls2resources = function(urls, callback){
  * add resources to dpkg.resources by taking care of removing previous
  * resources with conflicting names
  */
-Dpm.prototype.addResources = function(dpkg, resources){
+Ldpm.prototype.addResources = function(dpkg, resources){
 
   if(!('resources' in dpkg)){
     dpkg.resources = [];

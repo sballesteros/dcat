@@ -1,10 +1,10 @@
 {
-  "name": "dpm2",
-  "version": "0.4.0",
-  "description": "Like npm but for data packages!",
+  "name": "ldpm",
+  "version": "0.0.0",
+  "description": "linked data package manager",
   "main": "index.js",
   "bin": {
-    "dpm2": "bin/dpm2"
+    "ldpm": "bin/ldpm"
   },
   "preferGlobal": true,
   "scripts": {
@@ -12,10 +12,12 @@
   },
   "repository": {
     "type": "git",
-    "url": "git://github.com/standard-analytics/dpm2.git"
+    "url": "git://github.com/standard-analytics/ldpm.git"
   },
   "keywords": [
     "package",
+    "hyperdata",
+    "linked-data",
     "datapackage",
     "client",
     "data",
@@ -25,9 +27,9 @@
   "author": "Sebastien Ballesteros",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/standard-analytics/dpm2/issues"
+    "url": "https://github.com/standard-analytics/ldpm/issues"
   },
-  "homepage": "https://github.com/standard-analytics/dpm2",
+  "homepage": "https://github.com/standard-analytics/ldpm",
   "dependencies": {
     "temp": "~0.6.0",
     "fstream-ignore": "0.0.7",
@@ -57,12 +59,11 @@
     "lodash.uniq": "~2.4.1",
     "lodash.flatten": "~2.4.1",
     "is-url": "~0.1.0",
-    "jts-infer": "0.0.0"
+    "jts-infer": "0.0.0",
+    "github-url-from-git": "~1.1.1"
   },
   "devDependencies": {
     "mocha": "~1.15.1",
-    "nano": "~4.2.1",
     "lodash.difference": "~2.4.1"
-  },
-  "dataDependencies": {}
+  }
 }

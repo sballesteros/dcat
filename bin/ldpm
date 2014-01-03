@@ -6,7 +6,7 @@ var path = require('path')
   , isUrl = require('is-url')
   , request = require('request')
   , fs = require('fs')
-  , Dpm = require('..')
+  , Ldpm = require('..')
   , optimist = require('optimist')
   , read = require('read')
   , async = require('async')
@@ -23,7 +23,7 @@ var path = require('path')
 var argv = optimist
   .usage(
     [
-      'Usage: dpm2 <command> [options] where command is:',
+      'Usage: ldpm <command> [options] where command is:',
       '  - init [globs] [urls] [-d, --defaults] Interactively create a package.json file and add the files listed as globs (*.csv ... and urls) as resources',
       '  - cat       <datapackage name>[@<version>]',
       '    Display package.json on stdout. If @<version> is not specified, the latest version is returned.'.grey,
@@ -47,7 +47,9 @@ var argv = optimist
       '    - rm  <user> <datapackage name>[@<version>]',
       '      Remove a user from the data package maintainers'.grey,
       '  - search [search terms]',
-      '    Search data packages by keywords'.grey
+      '    Search data packages by keywords'.grey,
+      '  - help [command]',
+      '    Get help on command'.grey
     ].join(os.EOL)
   )
   .alias('f', 'force').describe('f', 'just do it')
@@ -69,25 +71,25 @@ if(argv.v){
 }
 
 //if cloudant: use sha:true
-var dpm = new Dpm(require('rc')('dpm2', {protocol: 'https', port: 443, hostname: 'registry.standardanalytics.io', strictSSL: false, sha:true}), process.cwd());
+var ldpm = new Ldpm(require('rc')('ldpm', {protocol: 'https', port: 443, hostname: 'registry.standardanalytics.io', strictSSL: false, sha:true}), process.cwd());
 
 if(argv._[0] !== 'cat'){
-  dpm.on('log', console.log);
+  ldpm.on('log', console.log);
 }
 
 if (argv._[0] === 'init') {
 
   (function(){
 
-    var pkg = datapackage(dpm.root);
+    var pkg = datapackage(ldpm.root);
 
     pkg.init({defaults: argv.defaults}, function(err, dpkg){
       var inputs = argv._.slice(1);
-      dpm.paths2resources(inputs.filter(function(x){return !isUrl(x);}), function(err, resourcesFromPaths){
+      ldpm.paths2resources(inputs.filter(function(x){return !isUrl(x);}), function(err, resourcesFromPaths){
         if(err) _fail(err);
-        dpm.urls2resources(inputs.filter(function(x){return isUrl(x);}), function(err, resourcesFromUrls){
+        ldpm.urls2resources(inputs.filter(function(x){return isUrl(x);}), function(err, resourcesFromUrls){
           if(err) _fail(err);
-          dpkg = dpm.addResources(dpkg, resourcesFromPaths.concat(resourcesFromUrls));
+          dpkg = ldpm.addResources(dpkg, resourcesFromPaths.concat(resourcesFromUrls));
 
           console.log(util.inspect(dpkg, {depth:null}));
           pkg.write(dpkg);
@@ -103,7 +105,7 @@ if (argv._[0] === 'init') {
   (function(){
     var dpkgId = argv._[1];
     if(!dpkgId) _fail(new Error('invalid usage'));
-    dpm.cat(dpkgId, function(err, dpkg){
+    ldpm.cat(dpkgId, function(err, dpkg){
       if(err) return _fail(err);
       console.log(JSON.stringify(dpkg));
     });
@@ -115,7 +117,7 @@ if (argv._[0] === 'init') {
     var dpkgId = argv._[1];
     if(!dpkgId) _fail(new Error('invalid usage'));    
 
-    dpm.get(dpkgId, {cache: argv.cache, force: argv.force}, function(err, dpkg){
+    ldpm.get(dpkgId, {cache: argv.cache, force: argv.force}, function(err, dpkg){
       if(err) _fail(err);
       console.log(tree.dpkg(dpkg));
     });
@@ -128,10 +130,10 @@ if (argv._[0] === 'init') {
     var dpkgId = argv._[1];
     if(!dpkgId) _fail(new Error('invalid usage'));
 
-    dpm.clone(dpkgId, {force: argv.force}, function(err, dpkg){
+    ldpm.clone(dpkgId, {force: argv.force}, function(err, dpkg){
       if(err) _fail(err);
 
-      var paths = readdirpSync(dpm.root)
+      var paths = readdirpSync(ldpm.root)
         .filter(function(p){
           return p.split(path.sep)[0] === dpkg.name;
         })
@@ -151,14 +153,14 @@ if (argv._[0] === 'init') {
     var dpkg;
     if(!dpkgIds.length || argv.save){ //get deps for a package.json
       try{
-        dpkg = JSON.parse(fs.readFileSync(path.join(dpm.root, 'package.json')));
+        dpkg = JSON.parse(fs.readFileSync(path.join(ldpm.root, 'package.json')));
       } catch(e){
-        _fail(new Error('could not load '+ path.join(dpm.root, 'package.json')));
+        _fail(new Error('could not load '+ path.join(ldpm.root, 'package.json')));
       }
     }
 
     if(!dpkgIds.length){
-      dpm.resolveDeps(dpkg.dataDependencies, function(err, dpkgIds){
+      ldpm.resolveDeps(dpkg.dataDependencies, function(err, dpkgIds){
         if(err) _fail(err);
         next(dpkgIds);
       });
@@ -167,14 +169,14 @@ if (argv._[0] === 'init') {
     }
 
     function next(dpkgIds){
-      dpm.install(dpkgIds, {cache: argv.cache, force: argv.force}, function(err, dpkgs){
+      ldpm.install(dpkgIds, {cache: argv.cache, force: argv.force}, function(err, dpkgs){
         if(err) _fail(err);
         if(argv.save){
           dpkg.dataDependencies = dpkg.dataDependencies || {};
           dpkgs.forEach(function(x){
             dpkg.dataDependencies[x.name] =  x.version;
           });
-          fs.writeFileSync(path.join(dpm.root, 'package.json'), JSON.stringify(dpkg, null, 2));
+          fs.writeFileSync(path.join(ldpm.root, 'package.json'), JSON.stringify(dpkg, null, 2));
         }
         console.log(tree.deps(dpkgs));
       });
@@ -183,11 +185,11 @@ if (argv._[0] === 'init') {
   })();
 
 } else if (argv._[0] === 'publish') {
-  if(!fs.existsSync(path.resolve(dpm.root, 'package.json'))){
-    _fail(new Error('no package.json file in '+ dpm.root));
+  if(!fs.existsSync(path.resolve(ldpm.root, 'package.json'))){
+    _fail(new Error('no package.json file in '+ ldpm.root));
   };
 
-  dpm.publish(function(err, id){
+  ldpm.publish(function(err, id){
     if(err) return _fail(err);
     console.log('+ ' + id);
   });
@@ -197,7 +199,7 @@ if (argv._[0] === 'init') {
   (function(){
     var dpkgId = argv._[1];
     if(!dpkgId) _fail(new Error('invalid usage'));
-    dpm.unpublish(dpkgId, _fail);
+    ldpm.unpublish(dpkgId, _fail);
   })();
   
 } else if (argv._[0] === 'adduser') {
@@ -242,12 +244,12 @@ if (argv._[0] === 'init') {
       if(err) _fail(err);
 
       for(var key in prompted){
-        dpm.rc[key] = prompted[key];
+        ldpm.rc[key] = prompted[key];
       }
 
       var $HOME = process.env.HOME || process.env.HOMEPATH || process.env.USERPROFILE;
       try {
-        fs.writeFileSync(path.resolve($HOME, '.dpm2rc'), JSON.stringify(dpm.rc, function(key, value){
+        fs.writeFileSync(path.resolve($HOME, '.ldpmrc'), JSON.stringify(ldpm.rc, function(key, value){
           if(key.charAt(0) === '_' || key.charAt(0) === '$' || key === 'config'){
             return undefined;
           }
@@ -256,7 +258,7 @@ if (argv._[0] === 'init') {
       } catch (e){
         _fail(e);
       }
-      dpm.adduser(_fail);
+      ldpm.adduser(_fail);
     });
 
   })();
@@ -275,14 +277,14 @@ if (argv._[0] === 'init') {
       dpkgName = argv._[3];
       if(!dpkgName) _fail(new Error('invalid usage'));
 
-      dpm.addOwner({username: granted, dpkgName: dpkgName}, _fail);
+      ldpm.addOwner({username: granted, dpkgName: dpkgName}, _fail);
 
     } else if (action === 'ls'){
 
       dpkgName = argv._[2];
       if(!dpkgName) _fail(new Error('invalid usage'));
       
-      dpm.lsOwner(dpkgName, function(err, maintainers){
+      ldpm.lsOwner(dpkgName, function(err, maintainers){
         if(err) _fail(err);
         if(!Array.isArray(maintainers)) _fail(new Error('no maintainers'));
         maintainers.forEach(function(m){
@@ -298,7 +300,7 @@ if (argv._[0] === 'init') {
       dpkgName = argv._[3];
       if(!dpkgName) _fail(new Error('invalid usage'));
 
-      dpm.rmOwner({username: banned, dpkgName: dpkgName}, _fail);
+      ldpm.rmOwner({username: banned, dpkgName: dpkgName}, _fail);
 
     } else {
       _fail(new Error('invalid usage'));
@@ -315,10 +317,10 @@ if (argv._[0] === 'init') {
     var $HOME = process.env.HOME || process.env.HOMEPATH || process.env.USERPROFILE;
 
     var rpath = '/search' + qs
-    var rurl = dpm.url(rpath);
-    dpm.logHttp('GET', rurl);
-    request(dpm.rOpts(rurl)).on('response', function(res){
-      dpm.logHttp(res.statusCode, rurl);
+    var rurl = ldpm.url(rpath);
+    ldpm.logHttp('GET', rurl);
+    request(ldpm.rOpts(rurl)).on('response', function(res){
+      ldpm.logHttp(res.statusCode, rurl);
       if(res.statusCode === 404){
         res.setEncoding('utf8');
         var data = '';
@@ -343,7 +345,12 @@ if (argv._[0] === 'init') {
   
 } else if (argv._[0] === 'help'){
 
-  console.log(optimist.help());
+  var cmd = argv._[1];
+  if(cmd && ['init', 'cat', 'clone', 'get', 'install'].indexOf(cmd) !== -1){
+    console.log(fs.readFileSync(path.join(path.dirname(__dirname), 'doc', 'command-' + cmd + '.md'), 'utf8'));
+  } else {
+    console.log(optimist.help());
+  }
 
 } else {
 
@@ -353,7 +360,7 @@ if (argv._[0] === 'init') {
 
 function _fail(err){
   if(err){
-    console.error('dpm'.grey +  ' ERR! '.red + err.message + (('code' in err) ? ' (' + err.code + ')': ''));
+    console.error('ldpm'.grey +  ' ERR! '.red + err.message + (('code' in err) ? ' (' + err.code + ')': ''));
     process.exit(1);
   }
 };

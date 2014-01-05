@@ -13,13 +13,12 @@ temp.track();
 
 var root = path.dirname(__filename);
 
-
 describe('ldpm', function(){
 
   var conf = {
     protocol: 'http',
-    port: 80,
-    hostname: 'registry.standardanalytics.io',
+    port: 3000, //80,
+    hostname: '127.0.0.1', //'registry.standardanalytics.io',
     strictSSL: false,
     sha:true,
     name: "user_a",

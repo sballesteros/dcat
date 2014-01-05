@@ -1,5 +1,6 @@
 var crypto = require('crypto')
   , url = require('url')
+  , isUrl = require('is-url')
   , semver = require('semver')
   , uniq = require('lodash.uniq')
   , flatten = require('lodash.flatten')
@@ -200,28 +201,9 @@ Ldpm.prototype.cat = function(dpkgId, opts, callback){
     opts = {};
   }
 
-  var rurl, fromUrl;
-
-  //TODO handle username/reponame for github
-
-  if(dpkgId.indexOf('://')!==-1){
-    rurl = isUrl(dpkgId) ? dpkgId : githubUrlFromGit(dpkgId);
-
-    if(!rurl){
-      return callback(new Error('invalid dpkgId: dpkgId as to be name[@version] or an URL'));
-    }
-   
-    //we have an URL, handle github cases (if not gist).
-    //TODO: gist case right now we assune that we have the raw URL for gists.
-
-    var ghNotRaw = 'https://github.com';
-    if(url.indexOf(ghNotRaw) !== -1){
-      url = url.replace(ghNotRaw, 'https://raw.github.com');
-    }
-    
-
-    fromUrl = true;
-    
+  var rurl;
+  if(isUrl(dpkgId)){
+    rurl = dpkgId;    
   } else {
 
     var splt = dpkgId.split('@');
@@ -237,8 +219,6 @@ Ldpm.prototype.cat = function(dpkgId, opts, callback){
       version = 'latest'
     }
 
-    fromUrl = false;
-
     rurl = this.url('/' + name + '/' + version, (opts.clone) ? {clone:true} : undefined);
   }
 
@@ -253,41 +233,13 @@ Ldpm.prototype.cat = function(dpkgId, opts, callback){
       return callback(err);
     }
     
-    var dpkg = JSON.parse(dpkg)
-    if(opts.clone){
-      return callback(null, dpkg);
+    try{
+      var dpkg = JSON.parse(dpkg)
+    } catch(e){
+      return callback(e);      
     }
 
-    //for all the resources with a require, get the meta data of the
-    //resources (schema, format...)
-    var requires = dpkg.resources.filter(function(x){return 'require' in x;});
-    async.each(requires, function(r, cb){
-      request(r.url + '?meta=true', function(err, resp, rmetadata){
-        if(err) return cb(err);
-        if(resp.statusCode === 200){
-          rmetadata = JSON.parse(rmetadata);
-          for (var key in rmetadata){
-            if( !(key in r) ){
-              r[key] = rmetadata[key];
-            }
-          }
-          
-          if( ('fields' in r.require) && ('schema' in r) && ('fields' in r.schema)){
-            r.schema.fields = r.schema.fields.filter(function(field){
-              return r.require.fields.indexOf(field.name) !== -1;
-            });
-          }
-
-          cb(null);
-        } else {
-          return cb(new Error(resp.statusCode));
-        }
-      });
-
-    }, function(err){
-      if(err) return callback(err);
-      callback(null, dpkg);
-    });
+    return callback(null, dpkg);
 
   }.bind(this));
 

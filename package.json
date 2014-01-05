@@ -22,6 +22,7 @@
     "client",
     "data",
     "registry",
+    "jsonld",
     "npm"
   ],
   "author": "Sebastien Ballesteros",
@@ -60,7 +61,8 @@
     "lodash.flatten": "~2.4.1",
     "is-url": "~0.1.0",
     "jts-infer": "0.0.0",
-    "github-url-from-git": "~1.1.1"
+    "datapackage-jsonld": "0.1.0",
+    "jsonld": "~0.1.25"
   },
   "devDependencies": {
     "mocha": "~1.15.1",

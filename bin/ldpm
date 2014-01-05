@@ -109,7 +109,7 @@ if (argv._[0] === 'init') {
       if(err) return _fail(err);
       console.log(JSON.stringify(dpkg));
     });
-  })();  
+  })();
 
 } else if(argv._[0] === 'get'){
 

@@ -16,14 +16,14 @@
   },
   "keywords": [
     "package",
+    "publishing",
     "hyperdata",
     "linked-data",
     "datapackage",
     "client",
     "data",
     "registry",
-    "jsonld",
-    "npm"
+    "JSON-LD"
   ],
   "author": "Sebastien Ballesteros",
   "license": "MIT",

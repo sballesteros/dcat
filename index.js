@@ -20,8 +20,15 @@ var crypto = require('crypto')
   , tar = require('tar')
   , once = require('once')
   , concat = require('concat-stream')
+  , jsonld = require('jsonld')
+  , clone = require('clone')
   , publish = require('./lib/publish')
   , jtsInfer = require('jts-infer');
+
+mime.define({
+  'application/ld+json': ['jsonld'],
+  'application/x-ldjson': ['ldjson', 'ldj']
+});
 
 
 var Ldpm = module.exports = function(rc, root){
@@ -35,7 +42,6 @@ var Ldpm = module.exports = function(rc, root){
 util.inherits(Ldpm, EventEmitter);
 
 Ldpm.prototype.publish = publish;
-
 
 Ldpm.prototype.url = function(path, queryObj){
   return this.rc.protocol + '://'  + this.rc.hostname + ':' + this.rc.port + path + ( (queryObj) ? '?' + querystring.stringify(queryObj): '');
@@ -158,42 +164,6 @@ Ldpm.prototype.unpublish = function(dpkgId, callback){
 
 };
 
-
-Ldpm.prototype.resolveDeps = function(dataDependencies, callback){
-
-  var deps = [];
-  dataDependencies = dataDependencies || {};
-  for (var name in dataDependencies){
-    deps.push({name: name, range: dataDependencies[name]});
-  }
-
-  async.map(deps, function(dep, cb){
-
-    var rurl = this.url('/' + dep.name);
-    this.logHttp('GET', rurl);
-
-    request(this.rOpts(rurl), function(err, res, versions){
-      if(err) return cb(err);
-
-      this.logHttp(res.statusCode, rurl);
-      if (res.statusCode >= 400){
-        var err = new Error('fail');
-        err.code = res.statusCode;
-        return cb(err);
-      }
-
-      versions = JSON.parse(versions);
-      var version = semver.maxSatisfying(versions, dep.range);
-
-      cb(null, dep.name + '@' + version);
-
-    }.bind(this));
-    
-  }.bind(this), callback);
-
-};
-
-
 Ldpm.prototype.cat = function(dpkgId, opts, callback){
 
   if(arguments.length === 2){
@@ -205,10 +175,9 @@ Ldpm.prototype.cat = function(dpkgId, opts, callback){
   if(isUrl(dpkgId)){
     rurl = dpkgId;    
   } else {
-
     var splt = dpkgId.split('@');
     var name = splt[0]
-      , version;
+    , version;
 
     if(splt.length === 2){
       version = semver.valid(splt[1]);
@@ -225,7 +194,9 @@ Ldpm.prototype.cat = function(dpkgId, opts, callback){
   this.logHttp('GET', rurl);
 
   request(this.rOpts(rurl), function(err, res, dpkg){
+
     if(err) return callback(err);
+
     this.logHttp(res.statusCode, rurl);
     if (res.statusCode >= 400){
       var err = new Error('fail');
@@ -234,134 +205,151 @@ Ldpm.prototype.cat = function(dpkgId, opts, callback){
     }
     
     try{
-      var dpkg = JSON.parse(dpkg)
+      var dpkg = JSON.parse(dpkg);
     } catch(e){
-      return callback(e);      
+      return callback(e);
     }
 
-    return callback(null, dpkg);
+    //JSON-LD get @context from Link Header
+    var contextUrl;
+    if(res.headers.link){
+      var links =  jsonld.parseLinkHeader(res.headers.link);
+      if('http://www.w3.org/ns/json-ld#context' in links){
+        contextUrl = links['http://www.w3.org/ns/json-ld#context'].target;
+      };
+    }
+    if(!contextUrl){
+      return callback(null, dpkg);
+    }
 
+    this.logHttp('GET', contextUrl);
+    request(contextUrl, function(err, res, context){
+      if(err) return callback(err);
+      this.logHttp(res.statusCode, contextUrl);
+      if (res.statusCode >= 400){
+        var err = new Error('fail');
+        err.code = res.statusCode;
+        return callback(err);
+      }
+
+      try{
+        context = JSON.parse(context);
+      } catch(e){
+        return callback(e);
+      }
+
+      if(opts.expand){
+        jsonld.expand(dpkg, {expandContext: context}, callback);
+      } else { 
+        dpkg['@context'] = contextUrl;
+        return callback(null, dpkg, context);
+      }
+
+    }.bind(this));
+    
   }.bind(this));
 
 };
 
 
+/**
+ * Install a list of dpkgIds and their dependencies
+ * callback(err)
+ */
+Ldpm.prototype.install = function(dpkgIds, opts, callback){
+  
+  async.map(dpkgIds, function(dpkgId, cb){
+    this._install(dpkgId, opts, function(err, dpkg, context, root){
+      if(err) return cb(err);
+      opts = clone(opts);
+      opts.root = root;
+      this._installDep(dpkg, opts, context, function(err){
+        return cb(err, dpkg);
+      });     
+    }.bind(this));
+
+  }.bind(this), callback);
+
+};
 
 
-
-
-
-Ldpm.prototype.get = function(dpkgId, opts, callback){
-
-  if(arguments.length === 2){
-    callback = opts;
-    opts = {};
-  }
-
-  opts.root = opts.root || this.root; 
-  opts.root = path.join(opts.root, dpkgId.split('@')[0]);
+/**
+ * Install a dpkg (without dataDependencies)
+ */
+Ldpm.prototype._install = function(dpkgId, opts, callback){
 
   async.waterfall([
-    function(cb){
-      _createDir(opts.root, opts, function(err){
-        cb(err);//make sure arrity of cb is 1
-      });
-    },
-    function(cb){
 
-      this.cat(dpkgId, function(err, dpkg){
+    function(cb){
+      this[(opts.all) ? '_getAll' : '_get'](dpkgId, opts, function(err, dpkg, context, root){
         if(err) return cb(err);
-        var dest = path.join(opts.root, 'package.json');
-
-        if(opts.cache){
-          this._cache(dpkg, opts, cb);
-        } else {
-          fs.writeFile(dest, JSON.stringify(dpkg, null, 2), function(err){
-            if(err) return cb(err);
-            cb(null, dpkg);
-          });
-        }
         
-      }.bind(this));
+        if(!opts.cache){
+          cb(err, dpkg, context, root);
+        } else {        
+          this._cache(dpkg, context, root, cb);
+        }
+
+      }.bind(this));    
+    }.bind(this),
+
+    function(dpkg, context, root, cb){
       
+      var dest = path.join(root, 'package.json');
+      fs.writeFile(dest, JSON.stringify(dpkg, null, 2), function(err){
+        if(err) return cb(err);
+        cb(null, dpkg, context, root);
+      });
+
     }.bind(this)
+    
   ], callback);
   
 };
 
 
-Ldpm.prototype._cache = function(dpkg, opts, callback){
+/**
+ * Install dataDependencies
+ */
+Ldpm.prototype._installDep = function(dpkg, opts, context, callback){
+  
+  var deps = dpkg.dataDependencies || [];  
+  opts = clone(opts);
+  delete opts.top;
+
+  async.each(deps.map(function(iri){return _expandIri(iri, context['@base']);}), function(dpkgId, cb){
+    this._install(dpkgId, opts, cb);    
+  }.bind(this), callback);
+
+};
+
+
+/**
+ * get package.json and create empty directory that will receive package.json
+ */
+Ldpm.prototype._get = function(dpkgId, opts, callback){
 
   if(arguments.length === 2){
     callback = opts;
     opts = {};
   }
-  opts.root = opts.root || this.root;
-
-  var resources = dpkg.resources.filter(function(r){return 'url' in r;});
-  if(opts.clone) {
-    resources = resources.filter(function(r){return 'path' in r;});
-  }
   
-  async.each(resources, function(r, cb){
-    cb = once(cb);
-
-    var root;
-    if(opts.clone){
-      root = path.resolve(opts.root, path.dirname(r.path));
-    } else {
-      root = path.resolve(opts.root, 'data');
-    }
-
-    mkdirp(root, function(err){
-
-      if(err) return cb(err);
-
-      this.logHttp('GET', r.url);
-      var req = request(this.rOpts(r.url));
-      req.on('error', cb);
-      req.on('response', function(resp){            
-        this.logHttp(resp.statusCode, r.url);
-
-        if(resp.statusCode >= 400){
-          resp.pipe(concat(function(body){
-            var err = new Error(body.toString);
-            err.code = resp.statusCode;
-            cb(err);
-          }));
-        } else {
-
-          var filename = (opts.clone)? path.basename(r.path) : r.name + '.' +mime.extension(resp.headers['content-type']);
-
-          resp
-            .pipe(fs.createWriteStream(path.join(root, filename)))
-            .on('finish', function(){
-              if(!opts.clone){
-                r.path = path.join('data', filename);
-              }
-              delete r.url;
-              
-              cb(null);
-            });
-        }
-      }.bind(this));
-
-    }.bind(this));
-
-  }.bind(this), function(err){
-
+  this.cat(dpkgId, opts, function(err, dpkg, context){
     if(err) return callback(err);
-    fs.writeFile(path.join(opts.root, 'package.json'), JSON.stringify(dpkg, null, 2), function(err){
-      if(err) return callback(err);
-      callback(null, dpkg);
+
+    var root = (opts.top) ? path.join(opts.root || this.root, dpkg.name) : path.join(opts.root || this.root, 'datapackages', dpkg.name);
+    _createDir(root, opts, function(err){
+      callback(err, dpkg, context, root);
     });
 
-  });
-
+  }.bind(this));  
 };
 
 
-Ldpm.prototype.clone = function(dpkgId, opts, callback){
+/**
+ * get package.json and create a directory populated by (dist_.tar.gz)
+ */
+Ldpm.prototype._getAll = function(dpkgId, opts, callback){
 
   callback = once(callback);
 
@@ -370,17 +358,17 @@ Ldpm.prototype.clone = function(dpkgId, opts, callback){
     opts = {};
   }
 
-  this.cat(dpkgId, {clone:true}, function(err, dpkg){
+  this.cat(dpkgId, opts, function(err, dpkg, context){
 
     if(err) return callback(err);
 
-    var root = path.join(this.root, dpkg.name);
+    var root = (opts.top) ? path.join(opts.root || this.root, 'datapackages', dpkg.name) : path.join(opts.root || this.root, dpkg.name);
     _createDir(root, opts, function(err){
       if(err) {
         return callback(err);
       }
 
-      var rurl = this.url('/' + dpkg.name + '/' + dpkg.version + '/debug');
+      var rurl = this.url('/' + dpkg.name + '/' + dpkg.version + '/dist_.tar.gz');
       this.logHttp('GET', rurl);
 
       var req = request(this.rOpts(rurl));
@@ -404,8 +392,8 @@ Ldpm.prototype.clone = function(dpkgId, opts, callback){
               strip: 1
             }))
             .on('end', function(){
-              this._cache(dpkg, {clone: true, force: opts.force, root: root}, callback);
-            }.bind(this));
+              callback(null, dpkg, context, root);
+            });
 
         }
       }.bind(this));    
@@ -416,24 +404,51 @@ Ldpm.prototype.clone = function(dpkgId, opts, callback){
   
 };
 
+/**
+ * cache all the dataset at their path (when it exists or in .data)
+ */
+Ldpm.prototype._cache = function(dpkg, context, root, callback){
 
-Ldpm.prototype.install = function(dpkgIds, opts, callback){
-
-  if(arguments.length === 2){
-    callback = opts;
-    opts = {};
-  }
+  var toCache = dpkg.dataset.filter(function(r){return !('data' in r);});
   
-  async.map(dpkgIds, function(dpkgId, cb){
+  async.each(toCache, function(r, cb){
+    cb = once(cb);
 
-    var root = path.join(this.root, 'data_modules');    
-
-    this.get(dpkgId, {cache: opts.cache, root: root, force: opts.force}, function(err, dpkg){
-      if(err) return cb(err);
-      cb(null, dpkg);
-    });
+    var dirname  = ('path' in r) ? path.dirname(r.path) : '.data';
     
-  }.bind(this), callback);
+    mkdirp(path.resolve(root, dirname), function(err) {
+
+      if(err) return cb(err);
+      var iri = _expandIri(r.distribution.contentUrl || r.distribution.isBasedOnUrl, context['@base']);
+
+      this.logHttp('GET', iri );
+      var req = request(this.rOpts(iri));
+      req.on('error', cb);
+      req.on('response', function(resp){            
+        this.logHttp(resp.statusCode, iri);
+
+        if(resp.statusCode >= 400){
+          resp.pipe(concat(function(body){
+            var err = new Error(body.toString);
+            err.code = resp.statusCode;
+            cb(err);
+          }));
+        } else {
+
+          var filename = ('contentUrl' in r.distribution) ? path.basename(r.distribution.contentUrl) : r.name + '.' +mime.extension(resp.headers['content-type']);
+
+          resp
+            .pipe(fs.createWriteStream(path.resolve(root, dirname, filename)))
+            .on('finish', cb); //TODO add path to dpkg ??? Would say no as we should not modify it ?
+
+        }
+      }.bind(this));
+
+    }.bind(this));
+
+  }.bind(this), function(err){
+    callback(err, dpkg, context, root);
+  });
 
 };
 
@@ -596,6 +611,13 @@ Ldpm.prototype.addResources = function(dpkg, resources){
 
 };
 
+
+function _expandIri(iri, base){
+  if(!isUrl(iri)){
+    return url.resolve(base, iri);
+  }
+  return iri;
+};
 
 
 function _createDir(dirPath, opts, callback){

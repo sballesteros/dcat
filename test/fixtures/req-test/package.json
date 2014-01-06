@@ -1,12 +1,11 @@
 {
-  "@context": "http://standardanalytics.io/contexts/datapackage.json",
   "name": "req-test",
   "description": "a test for dataDependencies",
   "dataDependencies": ["mydpkg-test/0.0.0"],
   "version": "0.0.0",
   "keywords": ["test", "datapackage"],
 
-  "resources": [
+  "dataset": [
     {
       "name": "azerty",
       "url": "mydpkg-test/0.0.0/csv1",     

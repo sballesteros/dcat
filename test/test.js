@@ -16,9 +16,9 @@ var root = path.dirname(__filename);
 describe('ldpm', function(){
 
   var conf = {
-    protocol: 'http',
-    port: 3000, //80,
-    hostname: '127.0.0.1', //'registry.standardanalytics.io',
+    protocol: 'https',
+    port: 443,
+    hostname: 'registry.standardanalytics.io',
     strictSSL: false,
     sha:true,
     name: "user_a",

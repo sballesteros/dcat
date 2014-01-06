@@ -392,6 +392,8 @@ Ldpm.prototype._getAll = function(dpkgId, opts, callback){
               strip: 1
             }))
             .on('end', function(){
+              //TODO write README.md (if exists)
+
               callback(null, dpkg, context, root);
             });
 

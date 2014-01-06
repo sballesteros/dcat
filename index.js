@@ -285,7 +285,7 @@ Ldpm.prototype._install = function(dpkgId, opts, callback){
         if(err) return cb(err);
         
         if(!opts.cache){
-          cb(err, dpkg, context, root);
+          cb(null, dpkg, context, root);
         } else {        
           this._cache(dpkg, context, root, cb);
         }
@@ -362,7 +362,7 @@ Ldpm.prototype._getAll = function(dpkgId, opts, callback){
 
     if(err) return callback(err);
 
-    var root = (opts.top) ? path.join(opts.root || this.root, 'datapackages', dpkg.name) : path.join(opts.root || this.root, dpkg.name);
+    var root = (opts.top) ? path.join(opts.root || this.root, dpkg.name) : path.join(opts.root || this.root, 'datapackages', dpkg.name);
     _createDir(root, opts, function(err){
       if(err) {
         return callback(err);
@@ -410,6 +410,7 @@ Ldpm.prototype._getAll = function(dpkgId, opts, callback){
 Ldpm.prototype._cache = function(dpkg, context, root, callback){
 
   var toCache = dpkg.dataset.filter(function(r){return !('data' in r);});
+
   
   async.each(toCache, function(r, cb){
     cb = once(cb);
@@ -429,7 +430,7 @@ Ldpm.prototype._cache = function(dpkg, context, root, callback){
 
         if(resp.statusCode >= 400){
           resp.pipe(concat(function(body){
-            var err = new Error(body.toString);
+            var err = new Error(body.toString());
             err.code = resp.statusCode;
             cb(err);
           }));

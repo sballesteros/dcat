@@ -246,7 +246,7 @@ describe('ldpm', function(){
     
   });
 
-  describe.skip('files', function(){
+  describe('files', function(){
     var ldpm1, ldpm2;
     before(function(done){
       ldpm1 = new Ldpm(conf, path.join(root, 'fixtures', 'req-test'));
@@ -260,67 +260,50 @@ describe('ldpm', function(){
       });
     });
 
-    it('should get req-test@0.0.0', function(done){
-      temp.mkdir('test-ldpm2-', function(err, dirPath) {
+    it('should install req-test@0.0.0 (and its dependencies) at the top level and cache data', function(done){
+      temp.mkdir('test-ldpm-', function(err, dirPath) {
         var ldpm = new Ldpm(conf, dirPath);
-        ldpm.get('req-test@0.0.0', function(err){
-          fs.readdir(path.join(dirPath, 'req-test'), function(err, files){
-            assert.deepEqual(files, ['package.json']);
-            done();
-          });
-        });
-      });    
-    });
-
-    it('should get req-test@0.0.0 and cache data including the data of the require', function(done){
-      temp.mkdir('test-ldpm2-', function(err, dirPath) {
-        var ldpm = new Ldpm(conf, dirPath);
-        ldpm.get('req-test@0.0.0', {cache: true}, function(err){
+        ldpm.install(['req-test@0.0.0'], {top: true, cache: true}, function(err){
           var files = readdirpSync(path.join(dirPath, 'req-test'));
-          assert(files.length && difference(files, [path.join('data', 'azerty.csv'), 'package.json']).length === 0);
-          done();
-        });
-      });
-    });
 
-    it('should clone mydpkg-test', function(done){
-      temp.mkdir('test-ldpm2-', function(err, dirPath) {
-        var ldpm = new Ldpm(conf, dirPath);
-        ldpm.clone('mydpkg-test@0.0.0', function(err){
-          var files = readdirpSync(path.join(dirPath, 'mydpkg-test'));
-          assert(files.length && difference(files, ['package.json', path.join('scripts', 'test.r'),'x1.csv','x2.csv']).length === 0);                 
-          done();
-        });
-      });
-    });
-
-    it('should install req-test and mydpkg-test', function(done){
-      temp.mkdir('test-ldpm2-', function(err, dirPath) {
-        var ldpm = new Ldpm(conf, dirPath);
-        ldpm.install(['mydpkg-test@0.0.0', 'req-test@0.0.0'], function(err){
-          var files = readdirpSync(path.join(dirPath));
-          assert(files.length && difference(files, [ path.join('data_modules',  'mydpkg-test', 'package.json'), path.join('data_modules',  'req-test', 'package.json') ]).length === 0);
-          done();
-        });
-      });
-    });
-
-    it('should install req-test and mydpkg-test and cache the deps', function(done){
-      temp.mkdir('test-ldpm2-', function(err, dirPath) {
-        var ldpm = new Ldpm(conf, dirPath);
-        ldpm.install(['mydpkg-test@0.0.0', 'req-test@0.0.0'], {cache:true}, function(err){
-          var files = readdirpSync(path.join(dirPath));
-
-          var expf = [
-            path.join('data_modules', 'mydpkg-test', 'data', 'csv1.csv'),
-            path.join('data_modules', 'mydpkg-test', 'data', 'csv2.csv'),
-            path.join('data_modules', 'mydpkg-test', 'data', 'inline.json'),
-            path.join('data_modules', 'mydpkg-test', 'package.json'),
-            path.join('data_modules', 'req-test', 'data', 'azerty.csv'),
-            path.join('data_modules', 'req-test', 'package.json')
+          var expected = [ 
+            path.join('datapackages', 'mydpkg-test', 'package.json'), 
+            path.join('datapackages', 'mydpkg-test', 'x1.csv'), 
+            path.join('datapackages', 'mydpkg-test', 'x2.csv'),
+            'package.json' 
           ];
 
-          assert(files.length && difference(files, expf).length === 0);
+          assert(files.length && difference(files, expected).length === 0);
+          done();
+        });
+      });
+    });
+
+    it('should install req-test@0.0.0 (and its dependencies) and cache data', function(done){
+      temp.mkdir('test-ldpm-', function(err, dirPath) {
+        var ldpm = new Ldpm(conf, dirPath);
+        ldpm.install(['req-test@0.0.0'], {cache: true}, function(err){
+          var files = readdirpSync(path.join(dirPath, 'datapackages'));
+
+          var expected = [ 
+            path.join('req-test', 'datapackages', 'mydpkg-test', 'package.json'), 
+            path.join('req-test', 'datapackages', 'mydpkg-test', 'x1.csv'), 
+            path.join('req-test', 'datapackages', 'mydpkg-test', 'x2.csv'),
+            path.join('req-test', 'package.json')
+          ];
+
+          assert(files.length && difference(files, expected).length === 0);
+          done();
+        });
+      });
+    });
+
+    it('should install mydpkg-test at the top level with all the script files', function(done){
+      temp.mkdir('test-ldpm-', function(err, dirPath) {
+        var ldpm = new Ldpm(conf, dirPath);
+        ldpm.install(['mydpkg-test@0.0.0'], { top: true, all:true }, function(err, dpkgs){
+          var files = readdirpSync(path.join(dirPath, 'mydpkg-test'));
+          assert(files.length && difference(files, ['package.json', path.join('scripts', 'test.r')]).length === 0);
           done();
         });
       });

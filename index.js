@@ -175,9 +175,9 @@ Ldpm.prototype.cat = function(dpkgId, opts, callback){
   if(isUrl(dpkgId)){
     rurl = dpkgId;    
   } else {
-    var splt = dpkgId.split('@');
+    var splt = dpkgId.split( (dpkgId.indexOf('@') !==-1) ? '@': '/');
     var name = splt[0]
-    , version;
+      , version;
 
     if(splt.length === 2){
       version = semver.valid(splt[1]);

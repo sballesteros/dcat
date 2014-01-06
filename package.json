@@ -61,7 +61,7 @@
     "lodash.flatten": "~2.4.1",
     "is-url": "~0.1.0",
     "jts-infer": "0.0.0",
-    "datapackage-jsonld": "0.1.0",
+    "datapackage-jsonld": "0.1.1",
     "jsonld": "~0.1.25"
   },
   "devDependencies": {

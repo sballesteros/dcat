@@ -1,14 +1,14 @@
 {
   "name": "req-test",
-  "description": "a test for dataDependencies",
-  "dataDependencies": ["mydpkg-test/0.0.0"],
+  "description": "a test for data dependencies",
+  "isBasedOnUrl": ["mydpkg-test/0.0.0"],
   "version": "0.0.0",
   "keywords": ["test", "datapackage"],
 
   "dataset": [
     {
       "name": "azerty",
-      "url": "mydpkg-test/0.0.0/csv1",     
+      "url": "mydpkg-test/0.0.0/csv1",
       "fields": ["a"]
     }
   ]

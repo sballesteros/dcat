@@ -14,11 +14,12 @@ temp.track();
 var root = path.dirname(__filename);
 
 describe('ldpm', function(){
+  this.timeout(4000);
 
   var conf = {
-    protocol: 'https',
-    port: 443,
-    hostname: 'registry.standardanalytics.io',
+    protocol: 'http',
+    port: 3000,
+    hostname: 'localhost',
     strictSSL: false,
     sha:true,
     name: "user_a",
@@ -179,14 +180,14 @@ describe('ldpm', function(){
       '@id': 'req-test/0.0.0',
       '@type': 'DataCatalog',
       name: 'req-test',
-      description: 'a test for dataDependencies',
-      dataDependencies: [ 'mydpkg-test/0.0.0' ],
+      description: 'a test for data dependencies',
+      isBasedOnUrl: [ 'mydpkg-test/0.0.0' ],
       version: '0.0.0',
       keywords: [ 'test', 'datapackage' ],
       dataset:[
         { 
           '@id': 'req-test/0.0.0/azerty',
-          '@type': 'DataSet',
+          '@type': 'Dataset',
           name: 'azerty',
           url: 'mydpkg-test/0.0.0/csv1',
           fields: [ 'a' ],
@@ -301,7 +302,7 @@ describe('ldpm', function(){
     it('should install mydpkg-test at the top level with all the script files', function(done){
       temp.mkdir('test-ldpm-', function(err, dirPath) {
         var ldpm = new Ldpm(conf, dirPath);
-        ldpm.install(['mydpkg-test@0.0.0'], { top: true, all:true }, function(err, dpkgs){
+        ldpm.install(['mydpkg-test@0.0.0'], { top: true, all:true }, function(err, dpkgs){          
           var files = readdirpSync(path.join(dirPath, 'mydpkg-test'));
           assert(files.length && difference(files, ['package.json', path.join('scripts', 'test.r')]).length === 0);
           done();

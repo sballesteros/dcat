@@ -193,7 +193,10 @@ Ldpm.prototype.cat = function(dpkgId, opts, callback){
 
   this.logHttp('GET', rurl);
 
-  request(this.rOpts(rurl), function(err, res, dpkg){
+  var headers = (opts.expand) ? { headers: {'Accept': 'application/ld+json;profile="http://www.w3.org/ns/json-ld#expanded"'} }:
+  { headers: {'Accept': 'application/ld+json;profile="http://www.w3.org/ns/json-ld#compacted"'} };
+
+  request(this.rOpts(rurl, headers), function(err, res, dpkg){
 
     if(err) return callback(err);
 
@@ -217,9 +220,13 @@ Ldpm.prototype.cat = function(dpkgId, opts, callback){
       if('http://www.w3.org/ns/json-ld#context' in links){
         contextUrl = links['http://www.w3.org/ns/json-ld#context'].target;
       };
+    } else if(isUrl(dpkg['@context'])){
+      contextUrl = dpkg['@context'];
     }
+
     if(!contextUrl){
-      return callback(null, dpkg);
+      //TODO better handle context free case...
+      return callback(null, dpkg, (dpkg['@context']) ? {'@context': dpkg['@context']}: undefined);
     }
 
     this.logHttp('GET', contextUrl);
@@ -232,16 +239,19 @@ Ldpm.prototype.cat = function(dpkgId, opts, callback){
         return callback(err);
       }
 
-      try{
+      try {
         context = JSON.parse(context);
       } catch(e){
         return callback(e);
       }
 
       if(opts.expand){
-        jsonld.expand(dpkg, {expandContext: context}, callback);
+        jsonld.expand(dpkg, {expandContext: context}, function(err, dpkgExpanded){
+          return callback(err, dpkgExpanded, context);
+        });
       } else { 
         dpkg['@context'] = contextUrl;
+
         return callback(null, dpkg, context);
       }
 
@@ -282,6 +292,7 @@ Ldpm.prototype._install = function(dpkgId, opts, callback){
 
     function(cb){
       this[(opts.all) ? '_getAll' : '_get'](dpkgId, opts, function(err, dpkg, context, root){
+
         if(err) return cb(err);
         
         if(!opts.cache){
@@ -313,11 +324,11 @@ Ldpm.prototype._install = function(dpkgId, opts, callback){
  */
 Ldpm.prototype._installDep = function(dpkg, opts, context, callback){
   
-  var deps = dpkg.dataDependencies || [];  
+  var deps = dpkg.isBasedOnUrl || [];  
   opts = clone(opts);
   delete opts.top;
 
-  async.each(deps.map(function(iri){return _expandIri(iri, context['@base']);}), function(dpkgId, cb){
+  async.each(deps.map(function(iri){return _expandIri(iri, context['@context']['@base']);}), function(dpkgId, cb){
     this._install(dpkgId, opts, cb);    
   }.bind(this), callback);
 
@@ -368,7 +379,8 @@ Ldpm.prototype._getAll = function(dpkgId, opts, callback){
         return callback(err);
       }
 
-      var rurl = this.url('/' + dpkg.name + '/' + dpkg.version + '/dist_.tar.gz');
+      //TODO make that non implicit
+      var rurl = this.url('/' + dpkg.name + '/' + dpkg.version + '/dist_/dist_.tar.gz');
       this.logHttp('GET', rurl);
 
       var req = request(this.rOpts(rurl));
@@ -422,7 +434,8 @@ Ldpm.prototype._cache = function(dpkg, context, root, callback){
     mkdirp(path.resolve(root, dirname), function(err) {
 
       if(err) return cb(err);
-      var iri = _expandIri(r.distribution.contentUrl || r.distribution.isBasedOnUrl, context['@base']);
+
+      var iri = _expandIri(r.distribution.contentUrl || r.distribution.isBasedOnUrl, context['@context']['@base']);
 
       this.logHttp('GET', iri );
       var req = request(this.rOpts(iri));

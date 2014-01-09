@@ -41,7 +41,7 @@ You can also use ```ldpm``` programaticaly.
     var Ldpm = require('ldpm);
     var ldpm = new Ldpm(conf);
     
-    ldpm.install(['mydpkg@0.0.0', 'mydata@1.0.0'], {cache: true}, function(err, dpkgs){
+    ldpm.install(['mydpkg/0.0.0', 'mydata/1.0.0', 'http://example.com/mydata'], {cache: true}, function(err, dpkgs){
       //done!
     });
     ldpm.on('log', console.log); //if you like stuff on stdout

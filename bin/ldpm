@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 
 var path = require('path')
-  , datapackage = require('datapackage-json')
   , util = require('util')
   , isUrl = require('is-url')
   , request = require('request')
@@ -12,7 +11,7 @@ var path = require('path')
   , read = require('read')
   , async = require('async')
   , rimraf = require('rimraf')
-  , validate = require('npm-user-validate')
+  , validateUser = require('npm-user-validate')
   , semver = require('semver')
   , split = require('split')
   , querystring = require('querystring')
@@ -181,7 +180,7 @@ if (argv._[0] === 'init') {
           console.error((err && err.message) || (prompt + ' cannot be empty'));
           return readStuff(stuff, cb);
         }
-        err = validate[vname](result);
+        err = validateUser[vname](result);
         if(err) {
           console.error(err.message);
           return readStuff(stuff, cb);

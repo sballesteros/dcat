@@ -379,8 +379,11 @@ Ldpm.prototype._getAll = function(dpkgId, opts, callback){
         return callback(err);
       }
 
-      //TODO make that non implicit
-      var rurl = this.url('/' + dpkg.name + '/' + dpkg.version + '/dist_/dist_.tar.gz');
+      if(!dpkg.encoding || !(dpkg.encoding && dpkg.encoding.contentUrl)){
+        return callback(new Error('--all cannot be satisfied'));
+      }
+
+      var rurl = _expandIri(dpkg.encoding.contentUrl, context['@context']['@base']);
       this.logHttp('GET', rurl);
 
       var req = request(this.rOpts(rurl));

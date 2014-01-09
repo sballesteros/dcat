@@ -184,6 +184,14 @@ describe('ldpm', function(){
       isBasedOnUrl: [ 'mydpkg-test/0.0.0' ],
       version: '0.0.0',
       keywords: [ 'test', 'datapackage' ],
+      encoding: 
+      {
+        contentUrl: 'req-test/0.0.0/dist_/dist_.tar.gz',
+        contentSize: 29,
+        encodingFormat: 'gtar',
+        hashAlgorithm: 'md5',
+        hashValue: '31f6566d35ccd604be46ed5b1f813cdf' 
+      },
       dataset:[
         { 
           '@id': 'req-test/0.0.0/azerty',

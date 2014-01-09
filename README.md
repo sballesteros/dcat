@@ -1,3 +1,4 @@
+[![Stories in Ready](https://badge.waffle.io/standard-analytics/ldpm.png?label=ready)](https://waffle.io/standard-analytics/ldpm)
 ldpm
 ====
 

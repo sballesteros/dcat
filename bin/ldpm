@@ -25,9 +25,9 @@ var argv = optimist
   .usage(
     [
       'Usage: ldpm <command> [options] where command is:',
-//      '  * init [globs] [urls] [-d, --defaults] Interactively create a datapackage.json file and add the files listed as globs (*.csv ... and urls) as dataset',
+      '  - init [globs] [urls] [-d, --defaults] Interactively create a datapackage.json file and add the files listed as globs (*.csv ... and urls) as dataset',
       '  - cat       <datapackage name>[@<version>] [-e, --expand]',
-      '  - install   <datapackage name 1>[@<version>] <datapackage name 2>[@<version>] ... [-t, --top] [-a, --all] [-c, --cache] [-s, --save]',
+      '  - install   <datapackage name 1>[@<version>] <datapackage name 2>[@<version>] <datapackage url> ... [-t, --top] [-a, --all] [-c, --cache] [-s, --save]',
       '  - publish',
       '  - unpublish <datapackage name>[@<version>]',
       '  - adduser',
@@ -39,7 +39,7 @@ var argv = optimist
       '  - help [command]',
     ].join(os.EOL)
   )
-  .alias('f', 'force').describe('f', 'just do it')
+  .alias('f', 'force').describe('f', 'overwrite previous if exists')
   .alias('d', 'defaults').describe('d', 'bypass the promzard prompt')
   .alias('t', 'top').describe('t', 'install in the current working directory (and not within datapackages/)')
   .alias('a', 'all').describe('a', 'install all the files present in the directory at publication time')
@@ -63,30 +63,122 @@ if(argv.v){
 //if cloudant: use sha:true
 var ldpm = new Ldpm(require('rc')('ldpm', {protocol: 'https', port: 443, hostname: 'registry.standardanalytics.io', strictSSL: false, sha:true}), process.cwd());
 
-//if(argv._[0] !== 'cat'){
+if(argv._[0] !== 'cat'){
   ldpm.on('log', console.log);
-//}
+}
 
 if (argv._[0] === 'init') {
 
   (function(){
 
-//    var pkg = datapackage(ldpm.root);
-    //
-//    pkg.init({defaults: argv.defaults}, function(err, dpkg){
-//      var inputs = argv._.slice(1);
-//      ldpm.paths2resources(inputs.filter(function(x){return !isUrl(x);}), function(err, resourcesFromPaths){
-//        if(err) _fail(err);
-//        ldpm.urls2resources(inputs.filter(function(x){return isUrl(x);}), function(err, resourcesFromUrls){
-//          if(err) _fail(err);
-//          dpkg = ldpm.addResources(dpkg, resourcesFromPaths.concat(resourcesFromUrls));
-//
-//          console.log(util.inspect(dpkg, {depth:null}));
-//          pkg.write(dpkg);
-//        });
-//      });
-//
-//    });
+    //taken from https://github.com/maxogden/datapackage-json/blob/master/prompt.js
+    var description;
+    try {
+      var src = fs.readFileSync('README.md', 'utf8');
+      description = src.split('\n').filter(function (line) {
+        return /\s+/.test(line) && !line.trim().match(/^#/)
+        ;
+      })[0]
+        .trim()
+        .replace(/^./, function (c) { return c.toLowerCase() })
+        .replace(/\.$/, '')
+      ;
+    }
+    catch (e) {
+    }
+    
+    //taken from https://github.com/maxogden/datapackage-json/blob/master/prompt.js
+    try { var gconf = fs.readFileSync('.git/config').toString() }
+    catch (e) { gconf = null }
+    if (gconf) {
+      gconf = gconf.split(/\r?\n/)
+      var i = gconf.indexOf('[remote "origin"]')
+      if (i !== -1) {
+        var codeRepository = gconf[i + 1]
+        if (!codeRepository.match(/^\s*url =/)) codeRepository = gconf[i + 2]
+        if (!codeRepository.match(/^\s*url =/)) codeRepository = null
+        else codeRepository = codeRepository.replace(/^\s*url = /, '')
+      }
+      if (codeRepository && codeRepository.match(/^git@github.com:/))
+        codeRepository = codeRepository.replace(/^git@github.com:/, 'git://github.com/')
+    }
+
+    var prompt
+    if(argv.defaults){
+      prompt = [
+        function(cb){
+          var defaults = {
+            license: 'CC0-1.0',
+            authorName: ldpm.rc.name,
+            authorEmail: ldpm.rc.email,
+            description: description,
+            codeRepository: codeRepository
+          }; 
+          cb(null, defaults);
+        }
+      ];
+    } else {
+      prompt = {
+        name: function(cb){
+          read({prompt: 'data package name: '}, function(err, prompted, _){cb(err, prompted);});
+        },
+        authorName: function(cb){
+          read({ prompt: 'your name: ', default: ldpm.rc.name }, function(err, prompted, _){cb(err, prompted);});
+        },
+        authorEmail: function(cb){
+          read({ prompt: 'your email: ', default: ldpm.rc.email }, function(err, prompted, _){cb(err, prompted);});
+        },
+        keywords: function(cb){
+          read({prompt: 'keywords: '}, function(err, prompted, _){cb(err, prompted.split(/[\s,]+/));});
+        },
+        description: function(cb){
+          read({ prompt: 'data package description: ', default: description }, function(err, prompted, _){cb(err, prompted);});        
+        },
+        codeRepository: function(cb){
+          read({ prompt: 'code repository URL: ', default: codeRepository }, function(err, prompted, _){cb(err, prompted);});
+        },
+        license: function(cb){
+          read({ prompt: 'license: ', default: 'CC0-1.0' }, function(err, prompted, _){cb(err, prompted);});
+        }
+      };
+    }
+
+    async.series(prompt, function (err, prompted){
+      if(err) _fail(err);
+      prompted = Array.isArray(prompted) ? prompted[0]: prompted;
+
+      var dpkg = {};
+      [ 'name', 'description', 'keywords' ,'license' ].forEach(function(key){
+        if(prompted[key]){
+          dpkg[key] = prompted[key];
+        }
+      });
+
+      if(prompted.authorName || prompted.authorEmail){
+        dpkg.author = {};
+        if (prompted.authorName) dpkg.author.name = prompted.authorName;
+        if (prompted.authorEmail) dpkg.author.email = prompted.authorEmail;
+      }
+
+      if(prompted.codeRepository){
+        dpkg.repository = [{codeRepository: prompted.codeRepository}];
+      }
+
+      var inputs = argv._.slice(1);
+      ldpm.paths2datasets(inputs.filter(function(x){return !isUrl(x);}), function(err, resourcesFromPaths){
+        if(err) _fail(err);
+        ldpm.urls2datasets(inputs.filter(function(x){return isUrl(x);}), function(err, resourcesFromUrls){
+          if(err) _fail(err);
+          dpkg = ldpm.addDatasets(dpkg, resourcesFromPaths.concat(resourcesFromUrls));
+
+          console.log(dpkg);
+
+          fs.writeFileSync(path.resolve(ldpm.root, 'datapackage.json'), JSON.stringify(dpkg, null, 2));
+
+        });
+      });
+
+    });
     
   })();
 

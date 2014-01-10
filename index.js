@@ -523,7 +523,7 @@ Ldpm.prototype.adduser = function(callback){
 /**
  * from paths expressed as globs (*.csv, ...) to resources
  */
-Ldpm.prototype.paths2resources = function(globs, callback){
+Ldpm.prototype.paths2datasets = function(globs, callback){
 
   async.map(globs, function(pattern, cb){
     glob(path.resolve(this.root, pattern), {matchBase: true}, cb);
@@ -535,28 +535,27 @@ Ldpm.prototype.paths2resources = function(globs, callback){
     async.map(paths, function(p, cb){
       var ext = path.extname(p);
       
-      var resource = {
+      var dataset = {
         name: path.basename(p, ext),
-        format: ext.substring(1),
-        mediatype: mime.lookup(ext),
+        encoding: {encodingFormat: ext.substring(1)},
         path: path.relative(this.root, p)
       };
 
       //check that all path are within this.root if not throw error
-      if(resource.path.indexOf('..') !== -1){
-        return cb(new Error('only data files within ' + this.root + ' can be added (' + resource.path +')'));
+      if(dataset.path.indexOf('..') !== -1){
+        return cb(new Error('only data files within ' + this.root + ' can be added (' + dataset.path +')'));
       }
 
-      if(resource.format === 'csv'){
+      if(dataset.encoding.encodingFormat === 'csv'){
 
-        jtsInfer(fs.createReadStream(resource.path), function(err, schema){
+        jtsInfer(fs.createReadStream(dataset.path), function(err, schema){
           if(err) return cb(err);
-          resource.schema = schema;
-          cb(null, resource);
+          dataset.schema = schema;
+          cb(null, dataset);
         });
 
       } else {
-        cb(null, resource);
+        cb(null, dataset);
       }
 
     }.bind(this), callback);
@@ -569,7 +568,7 @@ Ldpm.prototype.paths2resources = function(globs, callback){
 /**
  * from urls to resources
  */
-Ldpm.prototype.urls2resources = function(urls, callback){
+Ldpm.prototype.urls2datasets = function(urls, callback){
   urls = uniq(urls);
 
   async.map(urls, function(myurl, cb){
@@ -585,14 +584,13 @@ Ldpm.prototype.urls2resources = function(urls, callback){
 
       var mypath = url.parse(myurl).pathname;
 
-      var resource = {
+      var dataset = {
         name: path.basename(mypath, path.extname(mypath)),
-        mediatype: res.headers['content-type'],
-        format: mime.extension(res.headers['content-type']),
+        encoding: {encodingFormat: mime.extension(res.headers['content-type'])},
         url: myurl
       };
 
-      if(resource.format === 'csv'){
+      if(dataset.format === 'csv'){
         var req = request(myurl); 
         req.on('error', cb);
         req.on('response', function(res){
@@ -602,14 +600,14 @@ Ldpm.prototype.urls2resources = function(urls, callback){
 
           jtsInfer(req, function(err, schema){
             if(err) return cb(err);
-            resource.schema = schema;
-            cb(null, resource);
+            dataset.schema = schema;
+            cb(null, dataset);
           });
           
         });
 
       } else {
-        cb(null, resource);
+        cb(null, dataset);
       }
 
     });
@@ -619,19 +617,19 @@ Ldpm.prototype.urls2resources = function(urls, callback){
 };
 
 /**
- * add resources to dpkg.resources by taking care of removing previous
- * resources with conflicting names
+ * add datasets to dpkg.dataset by taking care of removing previous
+ * datasets with conflicting names
  */
-Ldpm.prototype.addResources = function(dpkg, resources){
+Ldpm.prototype.addDatasets = function(dpkg, datasets){
 
-  if(!('resources' in dpkg)){
-    dpkg.resources = [];
+  if(!('dataset' in dpkg)){
+    dpkg.dataset = [];
   }
 
-  var names = resources.map(function(r) {return r.name;});
-  dpkg.resources = dpkg.resources
+  var names = datasets.map(function(r) {return r.name;});
+  dpkg.dataset = dpkg.dataset
     .filter(function(r){ return names.indexOf(r.name) === -1; })
-    .concat(resources);
+    .concat(datasets);
 
   return dpkg;  
 

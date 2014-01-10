@@ -1,8 +1,7 @@
-[![Stories in Ready](https://badge.waffle.io/standard-analytics/ldpm.png?label=ready)](https://waffle.io/standard-analytics/ldpm)
 ldpm
 ====
 
-Linked Data Package Manager.
+Linked Data Package Manager. [![Stories in Ready](https://badge.waffle.io/standard-analytics/ldpm.png?label=ready)](https://waffle.io/standard-analytics/ldpm)
 
 [![NPM](https://nodei.co/npm/ldpm.png)](https://nodei.co/npm/ldpm/)
 
@@ -12,8 +11,9 @@ Usage:
 ##CLI
 
     Usage: ldpm <command> [options] where command is:
+      - init [globs] [urls] [-d, --defaults] Interactively create a datapackage.json file and add the files listed as globs (*.csv ... and urls) as dataset
       - cat       <datapackage name>[@<version>] [-e, --expand]
-      - install   <datapackage name 1>[@<version>] <datapackage name 2>[@<version>] ... [-t, --top] [-a, --all] [-c, --cache] [-s, --save]
+      - install   <datapackage name 1>[@<version>] <datapackage name 2>[@<version>] <datapackage url> ... [-t, --top] [-a, --all] [-c, --cache] [-s, --save]
       - publish
       - unpublish <datapackage name>[@<version>]
       - adduser
@@ -25,8 +25,9 @@ Usage:
       - help [command]
     
     Options:
-      -f, --force     just do it
-      -t, --top       install in the current working directory (and not within datapackages/) 
+      -f, --force     overwrite previous if exists
+      -d, --defaults  bypass the promzard prompt
+      -t, --top       install in the current working directory (and not within datapackages/)
       -a, --all       install all the files present in the directory at publication time
       -e, --expand    expand the JSON-LD document
       -s, --save      data packages will appear in your dataDependencies

@@ -7,6 +7,7 @@ var util = require('util')
   , Ldpm = require('..')
   , readdirpSync = require('fs-readdir-recursive')
   , difference = require('lodash.difference')
+  , exec = require('child_process').exec
   , path = require('path');
 
 temp.track();
@@ -52,6 +53,32 @@ describe('ldpm', function(){
     });
   };
 
+  describe('init', function(){
+
+    it('should create a datapackage.json with default values', function(done){
+      var expected = {
+        "license": "CC0-1.0",
+        "description": "my datapackage description",
+        "dataset": [
+          {
+            "name": "x1",
+            "encoding": { "encodingFormat": "csv" },
+            "path": "x1.csv",
+            "schema": { "fields": [ { "name": "a", "type": "integer" }, { "name": "b", "type": "integer" } ] }
+          }
+        ]
+      };
+      
+      exec(path.join(path.dirname(root), 'bin', 'ldpm') + ' init *.csv --defaults', {cwd: path.join(root, 'fixtures', 'init-test') }, function(err, stdout, stderr){
+        var dpkg = JSON.parse(fs.readFileSync(path.join(root, 'fixtures', 'init-test', 'datapackage.json'), 'utf8'));        
+
+        delete dpkg.author;
+        assert.deepEqual(dpkg, expected);
+        done();
+      });
+    });
+
+  });
 
   describe('publish', function(){
     var ldpm1, ldpm2;
@@ -88,7 +115,7 @@ describe('ldpm', function(){
 
   });
 
-
+           
   describe('unpublish', function(){
     var ldpm1;
 

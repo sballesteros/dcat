@@ -61,7 +61,7 @@ hosted on [cloudant](https://sballesteros.cloudant.com).
 Roadmap
 =======
 
-    package.json -> datapackage.json -> datapackage.jsonld -> any webpage with schema.org markup -> linked data FTW !
+package.json -> [datapackage](http://dataprotocols.org/data-packages/).json -> datapackage.[jsonld](http://json-ld.org) -> any webpage with [schema.org](http://schema.org) markup -> linked data FTW !
 
 
 License

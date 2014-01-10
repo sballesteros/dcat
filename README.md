@@ -58,6 +58,12 @@ By default, ```ldpm``` uses [Standard Analytics IO](http://standardanalytics.io)
 [data registry](https://github.com/standard-analytics/linked-data-registry)
 hosted on [cloudant](https://sballesteros.cloudant.com).
 
+Roadmap
+=======
+
+
+    package.json -> datapackage.json -> datapackage.jsonld -> http (any webpage) -> linked data FTW !
+
 
 License
 =======

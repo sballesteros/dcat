@@ -14,7 +14,7 @@ temp.track();
 var root = path.dirname(__filename);
 
 describe('ldpm', function(){
-  this.timeout(4000);
+  this.timeout(8000);
 
   var conf = {
     protocol: 'http',
@@ -184,6 +184,10 @@ describe('ldpm', function(){
       isBasedOnUrl: [ 'mydpkg-test/0.0.0' ],
       version: '0.0.0',
       keywords: [ 'test', 'datapackage' ],
+      about: {
+        name: "README.md",
+        url: "req-test/0.0.0/about/README.md"
+      },
       encoding: 
       {
         contentUrl: 'req-test/0.0.0/dist_/dist_.tar.gz',

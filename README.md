@@ -2,7 +2,7 @@
 ldpm
 ====
 
-Package manager for linked data packages
+Linked Data Package Manager.
 
 [![NPM](https://nodei.co/npm/ldpm.png)](https://nodei.co/npm/ldpm/)
 
@@ -61,8 +61,7 @@ hosted on [cloudant](https://sballesteros.cloudant.com).
 Roadmap
 =======
 
-
-    package.json -> datapackage.json -> datapackage.jsonld -> http (any webpage) -> linked data FTW !
+    package.json -> datapackage.json -> datapackage.jsonld -> any webpage with schema.org markup -> linked data FTW !
 
 
 License

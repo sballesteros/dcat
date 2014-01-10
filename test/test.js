@@ -280,10 +280,12 @@ describe('ldpm', function(){
           var files = readdirpSync(path.join(dirPath, 'req-test'));
 
           var expected = [ 
-            path.join('datapackages', 'mydpkg-test', 'package.json'), 
+            path.join('datapackages', 'mydpkg-test', 'datapackage.json'), 
             path.join('datapackages', 'mydpkg-test', 'x1.csv'), 
             path.join('datapackages', 'mydpkg-test', 'x2.csv'),
-            'package.json' 
+            path.join('datapackages', 'mydpkg-test', 'README.md'),
+            'datapackage.json',
+            'README.md'
           ];
 
           assert(files.length && difference(files, expected).length === 0);
@@ -299,10 +301,12 @@ describe('ldpm', function(){
           var files = readdirpSync(path.join(dirPath, 'datapackages'));
 
           var expected = [ 
-            path.join('req-test', 'datapackages', 'mydpkg-test', 'package.json'), 
+            path.join('req-test', 'datapackages', 'mydpkg-test', 'datapackage.json'), 
             path.join('req-test', 'datapackages', 'mydpkg-test', 'x1.csv'), 
             path.join('req-test', 'datapackages', 'mydpkg-test', 'x2.csv'),
-            path.join('req-test', 'package.json')
+            path.join('req-test', 'datapackages', 'mydpkg-test', 'README.md'),
+            path.join('req-test', 'datapackage.json'),
+            path.join('req-test', 'README.md')
           ];
 
           assert(files.length && difference(files, expected).length === 0);
@@ -316,7 +320,7 @@ describe('ldpm', function(){
         var ldpm = new Ldpm(conf, dirPath);
         ldpm.install(['mydpkg-test@0.0.0'], { top: true, all:true }, function(err, dpkgs){          
           var files = readdirpSync(path.join(dirPath, 'mydpkg-test'));
-          assert(files.length && difference(files, ['package.json', path.join('scripts', 'test.r')]).length === 0);
+          assert(files.length && difference(files, ['datapackage.json', 'README.md', path.join('scripts', 'test.r')]).length === 0);
           done();
         });
       });

@@ -306,7 +306,7 @@ Ldpm.prototype._install = function(dpkgId, opts, callback){
 
     function(dpkg, context, root, cb){
       
-      var dest = path.join(root, 'package.json');
+      var dest = path.join(root, 'datapackage.json');
       fs.writeFile(dest, JSON.stringify(dpkg, null, 2), function(err){
         if(err) return cb(err);
         cb(null, dpkg, context, root);
@@ -336,7 +336,7 @@ Ldpm.prototype._installDep = function(dpkg, opts, context, callback){
 
 
 /**
- * get package.json and create empty directory that will receive package.json
+ * get datapackage.json and create empty directory that will receive datapackage.json
  */
 Ldpm.prototype._get = function(dpkgId, opts, callback){
 
@@ -358,7 +358,7 @@ Ldpm.prototype._get = function(dpkgId, opts, callback){
 
 
 /**
- * get package.json and create a directory populated by (dist_.tar.gz)
+ * get datapackage.json and create a directory populated by (dist_.tar.gz)
  */
 Ldpm.prototype._getAll = function(dpkgId, opts, callback){
 
@@ -428,6 +428,13 @@ Ldpm.prototype._cache = function(dpkg, context, root, callback){
 
   var toCache = dpkg.dataset.filter(function(r){return !('data' in r);});
 
+  //add README if exists
+  if(dpkg.about && dpkg.about.url){
+    toCache.push({
+      distribution: {contentUrl: dpkg.about.url},
+      path: dpkg.about.name || 'README.md'          
+    });
+  }
   
   async.each(toCache, function(r, cb){
     cb = once(cb);

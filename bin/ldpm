@@ -25,7 +25,7 @@ var argv = optimist
   .usage(
     [
       'Usage: ldpm <command> [options] where command is:',
-//      '  * init [globs] [urls] [-d, --defaults] Interactively create a package.json file and add the files listed as globs (*.csv ... and urls) as dataset',
+//      '  * init [globs] [urls] [-d, --defaults] Interactively create a datapackage.json file and add the files listed as globs (*.csv ... and urls) as dataset',
       '  - cat       <datapackage name>[@<version>] [-e, --expand]',
       '  - install   <datapackage name 1>[@<version>] <datapackage name 2>[@<version>] ... [-t, --top] [-a, --all] [-c, --cache] [-s, --save]',
       '  - publish',
@@ -106,11 +106,11 @@ if (argv._[0] === 'init') {
   (function(){
     var dpkgIds = argv._.slice(1);
     var dpkg;
-    if(!dpkgIds.length || argv.save){ //get deps for a package.json
+    if(!dpkgIds.length || argv.save){ //get deps for a datapackage.json
       try{
-        dpkg = JSON.parse(fs.readFileSync(path.join(ldpm.root, 'package.json')));
+        dpkg = JSON.parse(fs.readFileSync(path.join(ldpm.root, 'datapackage.json')));
       } catch(e){
-        _fail(new Error('could not load '+ path.join(ldpm.root, 'package.json')));
+        _fail(new Error('could not load '+ path.join(ldpm.root, 'datapackage.json')));
       }
     }
 
@@ -124,7 +124,7 @@ if (argv._[0] === 'init') {
 
       if(argv.save){
         dpkg.dataDependencies = uniq( dpkgs.map(function(x){return x['@id'];}).concat(dpkg.dataDependencies || []) );
-        fs.writeFileSync(path.join(ldpm.root, 'package.json'), JSON.stringify(dpkg, null, 2));
+        fs.writeFileSync(path.join(ldpm.root, 'datapackage.json'), JSON.stringify(dpkg, null, 2));
       }
 
       //print tree
@@ -144,8 +144,8 @@ if (argv._[0] === 'init') {
   })();
 
 } else if (argv._[0] === 'publish') {
-  if(!fs.existsSync(path.resolve(ldpm.root, 'package.json'))){
-    _fail(new Error('no package.json file in '+ ldpm.root));
+  if(!fs.existsSync(path.resolve(ldpm.root, 'datapackage.json'))){
+    _fail(new Error('no datapackage.json file in '+ ldpm.root));
   };
 
   ldpm.publish(function(err, id){

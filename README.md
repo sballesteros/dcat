@@ -11,7 +11,7 @@ Usage:
 ##CLI
 
     Usage: ldpm <command> [options] where command is:
-      - init [globs] [urls] [-d, --defaults] Interactively create a datapackage.json file and add the files listed as globs (*.csv ... and urls) as dataset
+      - init [globs] [urls] [-d, --defaults] Interactively create a datapackage.jsonld file and add the files listed as globs (*.csv ... and urls) as dataset
       - cat       <datapackage name>[@<version>] [-e, --expand]
       - install   <datapackage name 1>[@<version>] <datapackage name 2>[@<version>] <datapackage url> ... [-t, --top] [-a, --all] [-c, --cache] [-s, --save]
       - publish

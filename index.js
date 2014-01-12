@@ -308,7 +308,7 @@ Ldpm.prototype._install = function(dpkgId, opts, callback){
 
     function(dpkg, context, root, cb){
       
-      var dest = path.join(root, 'datapackage.json');
+      var dest = path.join(root, 'datapackage.jsonld');
       fs.writeFile(dest, JSON.stringify(dpkg, null, 2), function(err){
         if(err) return cb(err);
         cb(null, dpkg, context, root);
@@ -338,7 +338,7 @@ Ldpm.prototype._installDep = function(dpkg, opts, context, callback){
 
 
 /**
- * get datapackage.json and create empty directory that will receive datapackage.json
+ * get datapackage.jsonld and create empty directory that will receive datapackage.jsonld
  */
 Ldpm.prototype._get = function(dpkgId, opts, callback){
 
@@ -360,7 +360,7 @@ Ldpm.prototype._get = function(dpkgId, opts, callback){
 
 
 /**
- * get datapackage.json and create a directory populated by (dist_.tar.gz)
+ * get datapackage.jsonld and create a directory populated by (dist_.tar.gz)
  */
 Ldpm.prototype._getAll = function(dpkgId, opts, callback){
 
@@ -561,7 +561,7 @@ Ldpm.prototype.paths2datasets = function(globs, callback){
 
         jsonldContextInfer(fs.createReadStream(dataset.distribution.contentPath).pipe(binaryCSV({json:true})), function(err, context){
           if(err) return cb(err);
-          dataset.distribution['@context'] = context['@context'];
+          dataset['@context'] = context['@context'];
           cb(null, dataset);
         });
 
@@ -609,11 +609,11 @@ Ldpm.prototype.urls2datasets = function(urls, callback){
         req.on('response', function(res){
           if (res.statusCode >= 300){
             return cb(new Error('could not process ' + myurl + ' code (' + res.statusCode + ')'));
-          } 
+          }
 
           jsonldContextInfer(req.pipe(binaryCSV({json:true})), function(err, context){
             if(err) return cb(err);
-            dataset.distribution['@context'] = context['@context'];
+            dataset['@context'] = context['@context'];
             cb(null, dataset);
           });
 

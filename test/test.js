@@ -55,19 +55,19 @@ describe('ldpm', function(){
 
   describe('init', function(){
 
-    it('should create a datapackage.json with default values', function(done){
+    it('should create a datapackage.jsonld with default values', function(done){
       var expected = {
         license: 'CC0-1.0',
         description: 'my datapackage description',
         dataset: [
           {
             name: 'x1',
+            '@context': {
+              xsd: 'http://www.w3.org/2001/XMLSchema#',
+              a: { '@id': '_:a', '@type': 'xsd:integer' },
+              b: { '@id': '_:b', '@type': 'xsd:integer' }
+            },
             distribution: { 
-              '@context': {
-                xsd: 'http://www.w3.org/2001/XMLSchema#',
-                a: { '@id': '_:a', '@type': 'xsd:integer' },
-                b: { '@id': '_:b', '@type': 'xsd:integer' }
-              },
               contentPath: 'x1.csv',
               encodingFormat: 'csv' 
             }
@@ -76,7 +76,7 @@ describe('ldpm', function(){
       };
       
       exec(path.join(path.dirname(root), 'bin', 'ldpm') + ' init *.csv --defaults', {cwd: path.join(root, 'fixtures', 'init-test') }, function(err, stdout, stderr){
-        var dpkg = JSON.parse(fs.readFileSync(path.join(root, 'fixtures', 'init-test', 'datapackage.json'), 'utf8'));
+        var dpkg = JSON.parse(fs.readFileSync(path.join(root, 'fixtures', 'init-test', 'datapackage.jsonld'), 'utf8'));
         delete dpkg.author;
         assert.deepEqual(dpkg, expected);
         done();
@@ -310,11 +310,11 @@ describe('ldpm', function(){
           var files = readdirpSync(path.join(dirPath, 'req-test'));
 
           var expected = [ 
-            path.join('datapackages', 'mydpkg-test', 'datapackage.json'), 
+            path.join('datapackages', 'mydpkg-test', 'datapackage.jsonld'), 
             path.join('datapackages', 'mydpkg-test', 'x1.csv'), 
             path.join('datapackages', 'mydpkg-test', 'x2.csv'),
             path.join('datapackages', 'mydpkg-test', 'README.md'),
-            'datapackage.json',
+            'datapackage.jsonld',
             'README.md'
           ];
 
@@ -331,11 +331,11 @@ describe('ldpm', function(){
           var files = readdirpSync(path.join(dirPath, 'datapackages'));
 
           var expected = [ 
-            path.join('req-test', 'datapackages', 'mydpkg-test', 'datapackage.json'), 
+            path.join('req-test', 'datapackages', 'mydpkg-test', 'datapackage.jsonld'), 
             path.join('req-test', 'datapackages', 'mydpkg-test', 'x1.csv'), 
             path.join('req-test', 'datapackages', 'mydpkg-test', 'x2.csv'),
             path.join('req-test', 'datapackages', 'mydpkg-test', 'README.md'),
-            path.join('req-test', 'datapackage.json'),
+            path.join('req-test', 'datapackage.jsonld'),
             path.join('req-test', 'README.md')
           ];
 
@@ -350,7 +350,7 @@ describe('ldpm', function(){
         var ldpm = new Ldpm(conf, dirPath);
         ldpm.install(['mydpkg-test@0.0.0'], { top: true, all:true }, function(err, dpkgs){          
           var files = readdirpSync(path.join(dirPath, 'mydpkg-test'));
-          assert(files.length && difference(files, ['datapackage.json', 'README.md', path.join('scripts', 'test.r')]).length === 0);
+          assert(files.length && difference(files, ['datapackage.jsonld', 'README.md', path.join('scripts', 'test.r')]).length === 0);
           done();
         });
       });

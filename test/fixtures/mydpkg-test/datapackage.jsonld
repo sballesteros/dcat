@@ -1,0 +1,47 @@
+{
+  "name": "mydpkg-test",
+  "description": "my datapackage",
+  "version": "0.0.0",
+  "keywords": ["test", "datapackage"],
+
+  "dataset": [
+    {
+      "name": "inline",
+      "@context": {
+        "xsd": "http://www.w3.org/2001/XMLSchema#",
+        "a": {"@id": "_:a", "@type": "xsd:string" },
+        "b": {"@id": "_:b", "@type": "xsd:integer" },
+        "c": {"@id": "_:c", "@type": "xsd:double" }
+      },
+      "distribution": {
+        "contentData": [
+          {"a": "a", "b": 1, "c": 1.2},
+          {"a": "x", "b": 2, "c": 2.3},
+          {"a": "y", "b": 3, "c": 3.4}
+        ]
+      }
+    },
+    {
+      "name": "csv1",
+      "@context": {
+        "xsd": "http://www.w3.org/2001/XMLSchema#",
+        "a": {"@id": "_:a", "@type": "xsd:string" },
+        "b": {"@id": "_:b", "@type": "xsd:integer" }
+      },
+      "distribution": {       
+        "contentPath": "x1.csv"
+      }
+    },
+    {
+      "name": "csv2",
+      "@context": {
+        "xsd": "http://www.w3.org/2001/XMLSchema#",
+        "c": {"@id": "_:c", "@type": "xsd:string" },
+        "d": {"@id": "_:d", "@type": "xsd:integer" }
+      },
+      "distribution":{
+        "contentPath": "x2.csv"
+      }
+    }
+  ]
+}

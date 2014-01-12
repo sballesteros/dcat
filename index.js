@@ -23,7 +23,9 @@ var crypto = require('crypto')
   , jsonld = require('jsonld')
   , clone = require('clone')
   , publish = require('./lib/publish')
-  , jtsInfer = require('jts-infer');
+  , binaryCSV = require('binary-csv')
+  , split = require('split')
+  , jsonldContextInfer = require('jsonld-context-infer');
 
 mime.define({
   'application/ld+json': ['jsonld'],
@@ -177,7 +179,7 @@ Ldpm.prototype.cat = function(dpkgId, opts, callback){
   } else {
     var splt = dpkgId.split( (dpkgId.indexOf('@') !==-1) ? '@': '/');
     var name = splt[0]
-      , version;
+    , version;
 
     if(splt.length === 2){
       version = semver.valid(splt[1]);
@@ -188,7 +190,7 @@ Ldpm.prototype.cat = function(dpkgId, opts, callback){
       version = 'latest'
     }
 
-    rurl = this.url('/' + name + '/' + version, (opts.clone) ? {clone:true} : undefined);
+    rurl = this.url('/' + name + '/' + version, (opts.cache || opts.all) ? {contentData: true} : undefined);
   }
 
   this.logHttp('GET', rurl);
@@ -426,26 +428,28 @@ Ldpm.prototype._getAll = function(dpkgId, opts, callback){
  */
 Ldpm.prototype._cache = function(dpkg, context, root, callback){
 
-  var toCache = dpkg.dataset.filter(function(r){return !('data' in r);});
+  var toCache = dpkg.dataset.filter(function(r){return ( ('distribution' in r) &&  !('contentData' in r.distribution) );});
 
-  //add README if exists
+  //add README if exists TODO improve
   if(dpkg.about && dpkg.about.url){
     toCache.push({
-      distribution: {contentUrl: dpkg.about.url},
-      path: dpkg.about.name || 'README.md'          
+      distribution: { 
+        contentUrl: dpkg.about.url, 
+        contentPath: dpkg.about.name || 'README.md'  
+      }
     });
   }
   
   async.each(toCache, function(r, cb){
     cb = once(cb);
 
-    var dirname  = ('path' in r) ? path.dirname(r.path) : '.data';
+    var dirname  = ('contentPath' in r.distribution) ? path.dirname(r.distribution.contentPath) : '.data';
     
     mkdirp(path.resolve(root, dirname), function(err) {
 
       if(err) return cb(err);
 
-      var iri = _expandIri(r.distribution.contentUrl || r.distribution.isBasedOnUrl, context['@context']['@base']);
+      var iri = _expandIri(r.distribution.contentUrl, context['@context']['@base']);
 
       this.logHttp('GET', iri );
       var req = request(this.rOpts(iri));
@@ -461,11 +465,15 @@ Ldpm.prototype._cache = function(dpkg, context, root, callback){
           }));
         } else {
 
-          var filename = ('contentUrl' in r.distribution) ? path.basename(r.distribution.contentUrl) : r.name + '.' +mime.extension(resp.headers['content-type']);
+          var filename = ('contentPath' in r.distribution) ? path.basename(r.distribution.contentPath) : r.name + '.' +mime.extension(resp.headers['content-type']);
 
           resp
             .pipe(fs.createWriteStream(path.resolve(root, dirname, filename)))
-            .on('finish', cb); //TODO add path to dpkg ??? Would say no as we should not modify it ?
+            .on('finish', function(){
+              this.emit('log', 'ldpm'.grey + ' save'.green + ' ' + (r.name || 'about') + ' at ' +  path.relative(this.root, path.resolve(root, dirname, filename)));
+
+              cb(null);
+            }.bind(this));
 
         }
       }.bind(this));
@@ -537,20 +545,23 @@ Ldpm.prototype.paths2datasets = function(globs, callback){
       
       var dataset = {
         name: path.basename(p, ext),
-        encoding: {encodingFormat: ext.substring(1)},
-        path: path.relative(this.root, p)
+        distribution: {
+          contentPath: path.relative(this.root, p),
+          encodingFormat: ext.substring(1)
+        }
       };
 
       //check that all path are within this.root if not throw error
-      if(dataset.path.indexOf('..') !== -1){
-        return cb(new Error('only data files within ' + this.root + ' can be added (' + dataset.path +')'));
+      if(dataset.distribution.contentPath.indexOf('..') !== -1){
+        return cb(new Error('only data files within ' + this.root + ' can be added (' + dataset.distribution.contentPath +')'));
       }
 
-      if(dataset.encoding.encodingFormat === 'csv'){
 
-        jtsInfer(fs.createReadStream(dataset.path), function(err, schema){
+      if(dataset.distribution.encodingFormat === 'csv'){
+
+        jsonldContextInfer(fs.createReadStream(dataset.distribution.contentPath).pipe(binaryCSV({json:true})), function(err, context){
           if(err) return cb(err);
-          dataset.schema = schema;
+          dataset.distribution['@context'] = context['@context'];
           cb(null, dataset);
         });
 
@@ -586,11 +597,13 @@ Ldpm.prototype.urls2datasets = function(urls, callback){
 
       var dataset = {
         name: path.basename(mypath, path.extname(mypath)),
-        encoding: {encodingFormat: mime.extension(res.headers['content-type'])},
-        url: myurl
+        distribution: {
+          encodingFormat: mime.extension(res.headers['content-type']),
+          contentUrl: myurl
+        }
       };
 
-      if(dataset.format === 'csv'){
+      if(dataset.distribution.encodingFormat === 'csv'){
         var req = request(myurl); 
         req.on('error', cb);
         req.on('response', function(res){
@@ -598,12 +611,12 @@ Ldpm.prototype.urls2datasets = function(urls, callback){
             return cb(new Error('could not process ' + myurl + ' code (' + res.statusCode + ')'));
           } 
 
-          jtsInfer(req, function(err, schema){
+          jsonldContextInfer(req.pipe(binaryCSV({json:true})), function(err, context){
             if(err) return cb(err);
-            dataset.schema = schema;
+            dataset.distribution['@context'] = context['@context'];
             cb(null, dataset);
           });
-          
+
         });
 
       } else {
@@ -615,6 +628,7 @@ Ldpm.prototype.urls2datasets = function(urls, callback){
   }, callback);
   
 };
+
 
 /**
  * add datasets to dpkg.dataset by taking care of removing previous

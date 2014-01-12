@@ -57,21 +57,26 @@ describe('ldpm', function(){
 
     it('should create a datapackage.json with default values', function(done){
       var expected = {
-        "license": "CC0-1.0",
-        "description": "my datapackage description",
-        "dataset": [
+        license: 'CC0-1.0',
+        description: 'my datapackage description',
+        dataset: [
           {
-            "name": "x1",
-            "encoding": { "encodingFormat": "csv" },
-            "path": "x1.csv",
-            "schema": { "fields": [ { "name": "a", "type": "integer" }, { "name": "b", "type": "integer" } ] }
+            name: 'x1',
+            distribution: { 
+              '@context': {
+                xsd: 'http://www.w3.org/2001/XMLSchema#',
+                a: { '@id': '_:a', '@type': 'xsd:integer' },
+                b: { '@id': '_:b', '@type': 'xsd:integer' }
+              },
+              contentPath: 'x1.csv',
+              encodingFormat: 'csv' 
+            }
           }
         ]
       };
       
       exec(path.join(path.dirname(root), 'bin', 'ldpm') + ' init *.csv --defaults', {cwd: path.join(root, 'fixtures', 'init-test') }, function(err, stdout, stderr){
-        var dpkg = JSON.parse(fs.readFileSync(path.join(root, 'fixtures', 'init-test', 'datapackage.json'), 'utf8'));        
-
+        var dpkg = JSON.parse(fs.readFileSync(path.join(root, 'fixtures', 'init-test', 'datapackage.json'), 'utf8'));
         delete dpkg.author;
         assert.deepEqual(dpkg, expected);
         done();
@@ -93,7 +98,7 @@ describe('ldpm', function(){
     });
     
     it('should publish a data package with attachments and raise an error with code if the dpkg is republished', function(done){
-      ldpm1.publish(function(err, id){     
+      ldpm1.publish(function(err, id){
         assert.equal('mydpkg-test@0.0.0', id);
         ldpm1.publish(function(err, id){     
           assert.equal(err.code, 409);
@@ -203,43 +208,39 @@ describe('ldpm', function(){
 
     var ldpm1, ldpm2;
 
-    var expected = {
+    var expected = { 
+//      '@context': 'http://localhost:3000/contexts/datapackage.jsonld',
       '@id': 'req-test/0.0.0',
       '@type': 'DataCatalog',
       name: 'req-test',
       description: 'a test for data dependencies',
+      about: { name: 'README.md', url: 'req-test/0.0.0/about/README.md' },
       isBasedOnUrl: [ 'mydpkg-test/0.0.0' ],
       version: '0.0.0',
       keywords: [ 'test', 'datapackage' ],
-      about: {
-        name: "README.md",
-        url: "req-test/0.0.0/about/README.md"
-      },
-      encoding: 
-      {
+      dataset: [
+        {
+          '@id': 'req-test/0.0.0/dataset/azerty',
+          '@type': 'Dataset',
+          name: 'azerty',
+          fields: [ 'a' ],
+          distribution:  {
+            '@type': 'DataDownload' ,
+            contentUrl: 'mydpkg-test/0.0.0/dataset/csv1/x1.csv',
+            //uploadDate: '2014-01-12T05:11:48.221Z',
+          },
+          catalog: { name: 'req-test', version: '0.0.0', url: 'req-test/0.0.0' } 
+        }
+      ],
+//      datePublished: '2014-01-12T05:11:48.220Z',
+      encoding: {
         contentUrl: 'req-test/0.0.0/dist_/dist_.tar.gz',
         contentSize: 29,
         encodingFormat: 'gtar',
         hashAlgorithm: 'md5',
         hashValue: '31f6566d35ccd604be46ed5b1f813cdf' 
       },
-      dataset:[
-        { 
-          '@id': 'req-test/0.0.0/azerty',
-          '@type': 'Dataset',
-          name: 'azerty',
-          url: 'mydpkg-test/0.0.0/csv1',
-          fields: [ 'a' ],
-          distribution:  {
-            isBasedOnUrl: 'mydpkg-test/0.0.0/csv1',
-            '@type': 'DataDownload' 
-          },
-          //datePublished: '2014-01-06T02:33:53.922Z', commented as variable
-          catalog: { name: 'req-test', version: '0.0.0', url: 'req-test/0.0.0' } 
-        } 
-      ],
-      catalog: { name: 'req-test', url: 'req-test' },
-      //'@context': 'http://127.0.0.1:3000/contexts/datapackage.jsonld' commented as base URL specific
+      catalog: { name: 'req-test', url: 'req-test' }
     };
 
     before(function(done){
@@ -268,6 +269,8 @@ describe('ldpm', function(){
         delete dpkg['@context'];
         assert('datePublished' in dpkg);
         delete dpkg.datePublished;
+        assert('uploadDate' in dpkg.dataset[0].distribution);
+        delete dpkg.dataset[0].distribution.uploadDate;
         assert.deepEqual(expected, dpkg);
         done();
       });

@@ -8,8 +8,10 @@
   "dataset": [
     {
       "name": "azerty",
-      "url": "mydpkg-test/0.0.0/csv1",
-      "fields": ["a"]
+      "fields": ["a"],
+      "distribution": {
+        "contentUrl": "mydpkg-test/0.0.0/dataset/csv1/x1.csv"
+      }
     }
   ]
 }

@@ -7,38 +7,41 @@
   "dataset": [
     {
       "name": "inline",
-      "schema": {
-        "fields": [
-          {"name": "a", "type": "string"},
-          {"name": "b", "type": "integer"},
-          {"name": "c", "type": "number"}
+      "distribution": {
+        "@context": {
+          "xsd": "http://www.w3.org/2001/XMLSchema#",
+          "a": {"@id": "_:a", "@type": "xsd:string" },
+          "b": {"@id": "_:b", "@type": "xsd:integer" },
+          "c": {"@id": "_:c", "@type": "xsd:double" }
+        },
+        "contentData": [
+          {"a": "a", "b": 1, "c": 1.2},
+          {"a": "x", "b": 2, "c": 2.3},
+          {"a": "y", "b": 3, "c": 3.4}
         ]
-      },
-      "data": [
-        {"a": "a", "b": 1, "c": 1.2},
-        {"a": "x", "b": 2, "c": 2.3},
-        {"a": "y", "b": 3, "c": 3.4}
-      ]
+      }
     },
     {
       "name": "csv1",
-      "schema": {
-        "fields": [
-          {"name": "a", "type": "integer"},
-          {"name": "b", "type": "integer"}
-        ]
-      },
-      "path": "x1.csv"
+      "distribution": {
+        "@context": {
+          "xsd": "http://www.w3.org/2001/XMLSchema#",
+          "a": {"@id": "_:a", "@type": "xsd:string" },
+          "b": {"@id": "_:b", "@type": "xsd:integer" }
+        },
+        "contentPath": "x1.csv"
+      }
     },
     {
       "name": "csv2",
-      "schema": {
-        "fields": [
-          {"name": "c", "type": "integer"},
-          {"name": "d", "type": "integer"}
-        ]
-      },
-      "path": "x2.csv"
+      "distribution":{
+        "@context": {
+          "xsd": "http://www.w3.org/2001/XMLSchema#",
+          "c": {"@id": "_:c", "@type": "xsd:string" },
+          "d": {"@id": "_:d", "@type": "xsd:integer" }
+        },
+        "contentPath": "x2.csv"
+      }
     }
   ]
 }

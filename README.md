@@ -1,7 +1,7 @@
 ldpm
 ====
 
-Linked Data Package Manager. [![Stories in Ready](https://badge.waffle.io/standard-analytics/ldpm.png?label=ready)](https://waffle.io/standard-analytics/ldpm)
+Linked Data Package Manager.
 
 [![NPM](https://nodei.co/npm/ldpm.png)](https://nodei.co/npm/ldpm/)
 
@@ -62,7 +62,7 @@ hosted on [cloudant](https://sballesteros.cloudant.com).
 Roadmap
 =======
 
-package.json -> [datapackage](http://dataprotocols.org/data-packages/).json -> datapackage.[jsonld](http://json-ld.org) -> any webpage with [schema.org](http://schema.org) markup -> linked data FTW !
+[package.json](http://wiki.commonjs.org/wiki/Packages/1.1) -> [datapackage](http://dataprotocols.org/data-packages/).json -> datapackage.[jsonld](http://json-ld.org) -> any webpage with [schema.org](http://schema.org/DataCatalog) markup -> linked data FTW!
 
 
 License

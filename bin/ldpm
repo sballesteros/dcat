@@ -171,7 +171,7 @@ if (argv._[0] === 'init') {
           if(err) _fail(err);
           dpkg = ldpm.addDatasets(dpkg, resourcesFromPaths.concat(resourcesFromUrls));
 
-          console.log(dpkg);
+          console.log(util.inspect(dpkg, {depth:null}));
 
           fs.writeFileSync(path.resolve(ldpm.root, 'datapackage.jsonld'), JSON.stringify(dpkg, null, 2));
 
@@ -207,7 +207,7 @@ if (argv._[0] === 'init') {
     }
 
     if(!dpkgIds.length){
-      dpkgIds = dpkg.dataDependencies || [];
+      dpkgIds = dpkg.isBasedOnUrl || [];
       delete argv.top;
     }
 
@@ -215,7 +215,7 @@ if (argv._[0] === 'init') {
       if(err) _fail(err);
 
       if(argv.save){
-        dpkg.dataDependencies = uniq( dpkgs.map(function(x){return x['@id'];}).concat(dpkg.dataDependencies || []) );
+        dpkg.isBasedOnUrl = uniq( dpkgs.map(function(x){return x['@id'];}).concat(dpkg.isBasedOnUrl || []) );
         fs.writeFileSync(path.join(ldpm.root, 'datapackage.jsonld'), JSON.stringify(dpkg, null, 2));
       }
 

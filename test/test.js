@@ -209,7 +209,7 @@ describe('ldpm', function(){
     var ldpm1, ldpm2;
 
     var expected = { 
-//      '@context': 'http://localhost:3000/contexts/datapackage.jsonld',
+//      '@context': 'http://localhost:3000/datapackage.jsonld',
       '@id': 'req-test/0.0.0',
       '@type': 'DataCatalog',
       name: 'req-test',

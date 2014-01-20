@@ -1,6 +1,6 @@
 {
   "name": "ldpm",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "linked data package manager",
   "main": "index.js",
   "bin": {
@@ -62,7 +62,8 @@
     "jsonld-context-infer": "*",
     "datapackage-jsonld": "*",
     "jsonld": "~0.1.25",
-    "binary-csv": "~0.1.6"
+    "binary-csv": "~0.1.6",
+    "minimatch": "~0.2.14"
   },
   "devDependencies": {
     "mocha": "~1.15.1",

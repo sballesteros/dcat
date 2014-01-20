@@ -55,29 +55,39 @@ describe('ldpm', function(){
 
   describe('init', function(){
 
-    it('should create a datapackage.jsonld with default values', function(done){
-      var expected = {
-        license: 'CC0-1.0',
-        description: 'my datapackage description',
-        dataset: [
-          {
-            name: 'x1',
-            '@context': {
-              xsd: 'http://www.w3.org/2001/XMLSchema#',
-              a: { '@id': '_:a', '@type': 'xsd:integer' },
-              b: { '@id': '_:b', '@type': 'xsd:integer' }
-            },
-            distribution: { 
-              contentPath: 'x1.csv',
-              encodingFormat: 'csv' 
-            }
+    var expected = {
+      license: 'CC0-1.0',
+      description: 'my datapackage description',
+      dataset: [
+        {
+          name: 'x1',
+          '@context': {
+            xsd: 'http://www.w3.org/2001/XMLSchema#',
+            a: { '@id': '_:a', '@type': 'xsd:integer' },
+            b: { '@id': '_:b', '@type': 'xsd:integer' }
+          },
+          distribution: { 
+            contentPath: 'x1.csv',
+            encodingFormat: 'csv' 
           }
-        ]
-      };
-      
-      exec(path.join(path.dirname(root), 'bin', 'ldpm') + ' init *.csv --defaults', {cwd: path.join(root, 'fixtures', 'init-test') }, function(err, stdout, stderr){
+        }
+      ]
+    };
+
+    it('should create a datapackage.jsonld with default values', function(done){      
+      exec(path.join(path.dirname(root), 'bin', 'ldpm') + ' init "*.csv" --defaults', {cwd: path.join(root, 'fixtures', 'init-test') }, function(err, stdout, stderr){
         var dpkg = JSON.parse(fs.readFileSync(path.join(root, 'fixtures', 'init-test', 'datapackage.jsonld'), 'utf8'));
         delete dpkg.author;
+        assert.deepEqual(dpkg, expected);
+        done();
+      });
+    });
+
+    it('should create a datapackage.jsonld with default values and do not include content of node_modules or datapackage.jsonld in case we ask to recursively include everything', function(done){      
+      exec(path.join(path.dirname(root), 'bin', 'ldpm') + ' init "**/*" --defaults', {cwd: path.join(root, 'fixtures', 'init-test') }, function(err, stdout, stderr){
+        var dpkg = JSON.parse(fs.readFileSync(path.join(root, 'fixtures', 'init-test', 'datapackage.jsonld'), 'utf8'));
+        delete dpkg.author;
+        console.log(dpkg);
         assert.deepEqual(dpkg, expected);
         done();
       });

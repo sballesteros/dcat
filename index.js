@@ -5,6 +5,7 @@ var crypto = require('crypto')
   , uniq = require('lodash.uniq')
   , flatten = require('lodash.flatten')
   , glob = require('glob')
+  , minimatch = require('minimatch')
   , querystring = require('querystring')
   , cookie = require('cookie')
   , EventEmitter = require('events').EventEmitter
@@ -538,6 +539,15 @@ Ldpm.prototype.paths2datasets = function(globs, callback){
   }.bind(this), function(err, paths){    
     if(err) return cb(err);
 
+    //filter (TODO find more elegant way (node_modules|.git) does not seem to work...)
+    paths = uniq(flatten(paths))   
+      .filter(minimatch.filter('!**/.git/**/*', {matchBase: true}))
+      .filter(minimatch.filter('!**/node_modules/**/*', {matchBase: true}))
+      .filter(minimatch.filter('!**/package.json', {matchBase: true}))
+      .filter(minimatch.filter('!**/datapackage.jsonld', {matchBase: true}))
+      .filter(minimatch.filter('!**/README.md', {matchBase: true}))
+      .filter(function(p){return p.indexOf('.') !== -1;}); //filter out directories, LICENSE...
+
     paths = uniq(flatten(paths));
     
     async.map(paths, function(p, cb){
@@ -555,7 +565,6 @@ Ldpm.prototype.paths2datasets = function(globs, callback){
       if(dataset.distribution.contentPath.indexOf('..') !== -1){
         return cb(new Error('only data files within ' + this.root + ' can be added (' + dataset.distribution.contentPath +')'));
       }
-
 
       if(dataset.distribution.encodingFormat === 'csv'){
 

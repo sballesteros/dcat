@@ -568,7 +568,7 @@ Ldpm.prototype.paths2datasets = function(globs, callback){
 
       if(dataset.distribution.encodingFormat === 'csv'){
 
-        jsonldContextInfer(fs.createReadStream(dataset.distribution.contentPath).pipe(binaryCSV({json:true})), function(err, context){
+        jsonldContextInfer(fs.createReadStream(p).pipe(binaryCSV({json:true})), function(err, context){
           if(err) return cb(err);
           dataset['@context'] = context['@context'];
           cb(null, dataset);

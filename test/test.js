@@ -87,7 +87,6 @@ describe('ldpm', function(){
       exec(path.join(path.dirname(root), 'bin', 'ldpm') + ' init "**/*" --defaults', {cwd: path.join(root, 'fixtures', 'init-test') }, function(err, stdout, stderr){
         var dpkg = JSON.parse(fs.readFileSync(path.join(root, 'fixtures', 'init-test', 'datapackage.jsonld'), 'utf8'));
         delete dpkg.author;
-        console.log(dpkg);
         assert.deepEqual(dpkg, expected);
         done();
       });

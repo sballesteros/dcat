@@ -532,7 +532,12 @@ Ldpm.prototype.adduser = function(callback){
 /**
  * from paths expressed as globs (*.csv, ...) to resources
  */
-Ldpm.prototype.paths2datasets = function(globs, callback){
+Ldpm.prototype.paths2datasets = function(globs, fFilter, callback){
+
+  if(arguments.length === 2){
+    callback = fFilter;
+    fFilter = undefined;
+  }
 
   async.map(globs, function(pattern, cb){
     glob(path.resolve(this.root, pattern), {matchBase: true}, cb);
@@ -548,9 +553,9 @@ Ldpm.prototype.paths2datasets = function(globs, callback){
       .filter(minimatch.filter('!**/README.md', {matchBase: true}))
       .filter(function(p){return p.indexOf('.') !== -1;}); //filter out directories, LICENSE...
 
-    paths = uniq(flatten(paths));
+    var fpaths = (fFilter) ? paths.filter(fFilter) : paths;
     
-    async.map(paths, function(p, cb){
+    async.map(fpaths, function(p, cb){
       var ext = path.extname(p);
       
       var dataset = {
@@ -578,7 +583,9 @@ Ldpm.prototype.paths2datasets = function(globs, callback){
         cb(null, dataset);
       }
 
-    }.bind(this), callback);
+    }.bind(this), function(err, datasets){
+      callback(err, datasets, paths);     
+    });
 
   }.bind(this));
   

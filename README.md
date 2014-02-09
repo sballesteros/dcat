@@ -1,6 +1,8 @@
 ldpm
 ====
 
+![ldpm](https://raw2.github.com/standard-analytics/ldpm/master/logo.png)
+
 Linked Data Package Manager.
 
 [![NPM](https://nodei.co/npm/ldpm.png)](https://nodei.co/npm/ldpm/)

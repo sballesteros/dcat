@@ -30,11 +30,11 @@ var crypto = require('crypto')
 
 mime.define({
   'application/ld+json': ['jsonld'],
-  'application/x-ldjson': ['ldjson', 'ldj']
+  'application/x-ldjson': ['ldjson', 'ldj'],
+  'application/x-gzip': ['gz', 'gzip'] //tar.gz won't work
 });
 
-
-var Ldpm = module.exports = function(rc, root){
+var Ldc = module.exports = function(rc, root){
   EventEmitter.call(this);
 
   this.root = root || process.cwd();
@@ -42,15 +42,15 @@ var Ldpm = module.exports = function(rc, root){
   this.rc = rc;
 };
 
-util.inherits(Ldpm, EventEmitter);
+util.inherits(Ldc, EventEmitter);
 
-Ldpm.prototype.publish = publish;
+Ldc.prototype.publish = publish;
 
-Ldpm.prototype.url = function(path, queryObj){
+Ldc.prototype.url = function(path, queryObj){
   return this.rc.protocol + '://'  + this.rc.hostname + ':' + this.rc.port + path + ( (queryObj) ? '?' + querystring.stringify(queryObj): '');
 };
 
-Ldpm.prototype.auth = function(){
+Ldc.prototype.auth = function(){
   return {user: this.rc.name, pass: this.rc.password};
 };
 
@@ -58,7 +58,7 @@ Ldpm.prototype.auth = function(){
 /**
  * create an option object for mikeal/request
  */
-Ldpm.prototype.rOpts = function(myurl, extras){
+Ldc.prototype.rOpts = function(myurl, extras){
   extras = extras || {};
 
   var opts = {
@@ -76,7 +76,7 @@ Ldpm.prototype.rOpts = function(myurl, extras){
 /**
  * create an option object for mikeal/request **with** basic auth
  */
-Ldpm.prototype.rOptsAuth = function(myurl, extras){
+Ldc.prototype.rOptsAuth = function(myurl, extras){
   var opts = this.rOpts(myurl, extras);
   opts.auth = this.auth();
 
@@ -84,14 +84,14 @@ Ldpm.prototype.rOptsAuth = function(myurl, extras){
 };
 
 
-Ldpm.prototype.logHttp = function(methodCode, reqUrl){
-  this.emit('log', 'ldpm'.grey + ' http '.green + methodCode.toString().magenta + ' ' + reqUrl.replace(/:80\/|:443\//, '/'));
+Ldc.prototype.logHttp = function(methodCode, reqUrl){
+  this.emit('log', 'ldc'.grey + ' http '.green + methodCode.toString().magenta + ' ' + reqUrl.replace(/:80\/|:443\//, '/'));
 };
 
 
-Ldpm.prototype.lsOwner = function(dpkgName, callback){
+Ldc.prototype.lsOwner = function(ctnrName, callback){
 
-  var rurl = this.url('/owner/ls/' + dpkgName);
+  var rurl = this.url('/owner/ls/' + ctnrName);
   this.logHttp('GET', rurl);
 
   request(this.rOpts(rurl), function(err, res, body){
@@ -110,9 +110,9 @@ Ldpm.prototype.lsOwner = function(dpkgName, callback){
 };
 
 /**
- * data: {username, dpkgName}
+ * data: {username, ctnrname}
  */
-Ldpm.prototype.addOwner = function(data, callback){
+Ldc.prototype.addOwner = function(data, callback){
   var rurl = this.url('/owner/add');
   this.logHttp('POST', rurl);
   request.post(this.rOptsAuth(rurl, {json: data}), function(err, res, body){
@@ -128,9 +128,9 @@ Ldpm.prototype.addOwner = function(data, callback){
 };
 
 /**
- * data: {username, dpkgName}
+ * data: {username, ctnrname}
  */
-Ldpm.prototype.rmOwner = function(data, callback){
+Ldc.prototype.rmOwner = function(data, callback){
   var rurl = this.url('/owner/rm');
   this.logHttp('POST', rurl);
   request.post(this.rOptsAuth(rurl, {json: data}), function(err, res, body){
@@ -145,15 +145,11 @@ Ldpm.prototype.rmOwner = function(data, callback){
   }.bind(this));
 };
 
+Ldc.prototype.unpublish = function(ctnrId, callback){
+  ctnrId = ctnrId.replace('@', '/');
 
-/**
- * data: {dpkgName[@version]}
- */
-Ldpm.prototype.unpublish = function(dpkgId, callback){
-  dpkgId = dpkgId.replace('@', '/');
-
-  var rurl = this.url('/'+ dpkgId);
-  this.logHttp('DELETE', rurl);
+  var rurl = this.url('/'+ ctnrId);
+  this.logHttp('DELETE', rurl);  
   request.del(this.rOptsAuth(rurl), function(err, res, body){
     if(err) return callback(err);
     this.logHttp(res.statusCode, rurl);
@@ -167,7 +163,7 @@ Ldpm.prototype.unpublish = function(dpkgId, callback){
 
 };
 
-Ldpm.prototype.cat = function(dpkgId, opts, callback){
+Ldc.prototype.cat = function(ctnrId, opts, callback){
 
   if(arguments.length === 2){
     callback = opts;
@@ -175,31 +171,42 @@ Ldpm.prototype.cat = function(dpkgId, opts, callback){
   }
 
   var rurl;
-  if(isUrl(dpkgId)){
-    rurl = dpkgId;    
+  if(isUrl(ctnrId)){
+
+    rurl = ctnrId;    
+    var prurl = url.parse(rurl, true);
+    if ( (prurl.hostname === 'registry.standardanalytics.io' || prurl.hostname === 'localhost') && (opts.cache || opts.all)){
+      prurl.query = prurl.query || {};
+      prurl.query.contentData = true;
+      delete prurl.search;
+      rurl = url.format(prurl);
+    }
+
   } else {
-    var splt = dpkgId.split( (dpkgId.indexOf('@') !==-1) ? '@': '/');
+
+    var splt = ctnrId.split( (ctnrId.indexOf('@') !==-1) ? '@': '/');
     var name = splt[0]
-    , version;
+      , version;
 
     if(splt.length === 2){
       version = semver.valid(splt[1]);
       if(!version){
-        return callback(new Error('invalid version '+ dpkgId.red +' see http://semver.org/'));
+        return callback(new Error('invalid version '+ ctnrId.red +' see http://semver.org/'));
       }
     } else {
       version = 'latest'
     }
 
     rurl = this.url('/' + name + '/' + version, (opts.cache || opts.all) ? {contentData: true} : undefined);
+
   }
 
   this.logHttp('GET', rurl);
 
-  var headers = (opts.expand) ? { headers: {'Accept': 'application/ld+json;profile="http://www.w3.org/ns/json-ld#expanded"'} }:
+  var headers = (opts.expand) ? { headers: {'Accept': 'application/ld+json;profile="http://www.w3.org/ns/json-ld#expanded"'} } :
   { headers: {'Accept': 'application/ld+json;profile="http://www.w3.org/ns/json-ld#compacted"'} };
 
-  request(this.rOpts(rurl, headers), function(err, res, dpkg){
+  request(this.rOpts(rurl, headers), function(err, res, ctnr){
 
     if(err) return callback(err);
 
@@ -211,7 +218,7 @@ Ldpm.prototype.cat = function(dpkgId, opts, callback){
     }
     
     try{
-      var dpkg = JSON.parse(dpkg);
+      var ctnr = JSON.parse(ctnr);
     } catch(e){
       return callback(e);
     }
@@ -223,13 +230,13 @@ Ldpm.prototype.cat = function(dpkgId, opts, callback){
       if('http://www.w3.org/ns/json-ld#context' in links){
         contextUrl = links['http://www.w3.org/ns/json-ld#context'].target;
       };
-    } else if(isUrl(dpkg['@context'])){
-      contextUrl = dpkg['@context'];
+    } else if(isUrl(ctnr['@context'])){
+      contextUrl = ctnr['@context'];
     }
 
     if(!contextUrl){
       //TODO better handle context free case...
-      return callback(null, dpkg, (dpkg['@context']) ? {'@context': dpkg['@context']}: undefined);
+      return callback(null, ctnr, (ctnr['@context']) ? {'@context': ctnr['@context']}: undefined);
     }
 
     this.logHttp('GET', contextUrl);
@@ -249,13 +256,13 @@ Ldpm.prototype.cat = function(dpkgId, opts, callback){
       }
 
       if(opts.expand){
-        jsonld.expand(dpkg, {expandContext: context}, function(err, dpkgExpanded){
-          return callback(err, dpkgExpanded, context);
+        jsonld.expand(ctnr, {expandContext: context}, function(err, ctnrExpanded){
+          return callback(err, ctnrExpanded, context);
         });
       } else { 
-        dpkg['@context'] = contextUrl;
+        ctnr['@context'] = contextUrl;
 
-        return callback(null, dpkg, context);
+        return callback(null, ctnr, context);
       }
 
     }.bind(this));
@@ -266,18 +273,18 @@ Ldpm.prototype.cat = function(dpkgId, opts, callback){
 
 
 /**
- * Install a list of dpkgIds and their dependencies
+ * Install a list of ctnrIds and their dependencies
  * callback(err)
  */
-Ldpm.prototype.install = function(dpkgIds, opts, callback){
+Ldc.prototype.install = function(ctnrIds, opts, callback){
   
-  async.map(dpkgIds, function(dpkgId, cb){
-    this._install(dpkgId, opts, function(err, dpkg, context, root){
+  async.map(ctnrIds, function(ctnrId, cb){
+    this._install(ctnrId, opts, function(err, ctnr, context, root){
       if(err) return cb(err);
       opts = clone(opts);
       opts.root = root;
-      this._installDep(dpkg, opts, context, function(err){
-        return cb(err, dpkg);
+      this._installDep(ctnr, opts, context, function(err){
+        return cb(err, ctnr);
       });     
     }.bind(this));
 
@@ -287,32 +294,32 @@ Ldpm.prototype.install = function(dpkgIds, opts, callback){
 
 
 /**
- * Install a dpkg (without dataDependencies)
+ * Install a ctnr (without dataDependencies)
  */
-Ldpm.prototype._install = function(dpkgId, opts, callback){
+Ldc.prototype._install = function(ctnrId, opts, callback){
 
   async.waterfall([
 
     function(cb){
-      this[(opts.all) ? '_getAll' : '_get'](dpkgId, opts, function(err, dpkg, context, root){
+      this[(opts.all) ? '_getAll' : '_get'](ctnrId, opts, function(err, ctnr, context, root){
 
         if(err) return cb(err);
         
         if(!opts.cache){
-          cb(null, dpkg, context, root);
+          cb(null, ctnr, context, root);
         } else {        
-          this._cache(dpkg, context, root, cb);
+          this._cache(ctnr, context, root, cb);
         }
-
+        
       }.bind(this));    
     }.bind(this),
 
-    function(dpkg, context, root, cb){
+    function(ctnr, context, root, cb){
       
-      var dest = path.join(root, 'datapackage.jsonld');
-      fs.writeFile(dest, JSON.stringify(dpkg, null, 2), function(err){
+      var dest = path.join(root, 'container.jsonld');
+      fs.writeFile(dest, JSON.stringify(ctnr, null, 2), function(err){
         if(err) return cb(err);
-        cb(null, dpkg, context, root);
+        cb(null, ctnr, context, root);
       });
 
     }.bind(this)
@@ -325,35 +332,35 @@ Ldpm.prototype._install = function(dpkgId, opts, callback){
 /**
  * Install dataDependencies
  */
-Ldpm.prototype._installDep = function(dpkg, opts, context, callback){
+Ldc.prototype._installDep = function(ctnr, opts, context, callback){
   
-  var deps = dpkg.isBasedOnUrl || [];  
+  var deps = ctnr.isBasedOnUrl || [];  
   opts = clone(opts);
   delete opts.top;
 
-  async.each(deps.map(function(iri){return _expandIri(iri, context['@context']['@base']);}), function(dpkgId, cb){
-    this._install(dpkgId, opts, cb);    
+  async.each(deps.map(function(iri){return _expandIri(context['@context']['@base'], iri);}), function(ctnrId, cb){
+    this._install(ctnrId, opts, cb);    
   }.bind(this), callback);
 
 };
 
 
 /**
- * get datapackage.jsonld and create empty directory that will receive datapackage.jsonld
+ * get container.jsonld and create empty directory that will receive container.jsonld
  */
-Ldpm.prototype._get = function(dpkgId, opts, callback){
+Ldc.prototype._get = function(ctnrId, opts, callback){
 
   if(arguments.length === 2){
     callback = opts;
     opts = {};
   }
-  
-  this.cat(dpkgId, opts, function(err, dpkg, context){
+
+  this.cat(ctnrId, opts, function(err, ctnr, context){
     if(err) return callback(err);
 
-    var root = (opts.top) ? path.join(opts.root || this.root, dpkg.name) : path.join(opts.root || this.root, 'datapackages', dpkg.name);
+    var root = (opts.top) ? path.join(opts.root || this.root, ctnr.name) : path.join(opts.root || this.root, 'ld_containers', ctnr.name);
     _createDir(root, opts, function(err){
-      callback(err, dpkg, context, root);
+      callback(err, ctnr, context, root);
     });
 
   }.bind(this));  
@@ -361,9 +368,9 @@ Ldpm.prototype._get = function(dpkgId, opts, callback){
 
 
 /**
- * get datapackage.jsonld and create a directory populated by (dist_.tar.gz)
+ * get container.jsonld and create a directory populated by (env_.tar.gz)
  */
-Ldpm.prototype._getAll = function(dpkgId, opts, callback){
+Ldc.prototype._getAll = function(ctnrId, opts, callback){
 
   callback = once(callback);
 
@@ -372,21 +379,21 @@ Ldpm.prototype._getAll = function(dpkgId, opts, callback){
     opts = {};
   }
 
-  this.cat(dpkgId, opts, function(err, dpkg, context){
+  this.cat(ctnrId, opts, function(err, ctnr, context){
 
     if(err) return callback(err);
 
-    var root = (opts.top) ? path.join(opts.root || this.root, dpkg.name) : path.join(opts.root || this.root, 'datapackages', dpkg.name);
+    var root = (opts.top) ? path.join(opts.root || this.root, ctnr.name) : path.join(opts.root || this.root, 'ld_containers', ctnr.name);
     _createDir(root, opts, function(err){
       if(err) {
         return callback(err);
       }
 
-      if(!dpkg.encoding || !(dpkg.encoding && dpkg.encoding.contentUrl)){
+      if(!ctnr.encoding || !(ctnr.encoding && ctnr.encoding.contentUrl)){
         return callback(new Error('--all cannot be satisfied'));
       }
 
-      var rurl = _expandIri(dpkg.encoding.contentUrl, context['@context']['@base']);
+      var rurl = _expandIri(context['@context']['@base'], ctnr.encoding.contentUrl);
       this.logHttp('GET', rurl);
 
       var req = request(this.rOpts(rurl));
@@ -412,7 +419,7 @@ Ldpm.prototype._getAll = function(dpkgId, opts, callback){
             .on('end', function(){
               //TODO write README.md (if exists)
 
-              callback(null, dpkg, context, root);
+              callback(null, ctnr, context, root);
             });
 
         }
@@ -425,32 +432,60 @@ Ldpm.prototype._getAll = function(dpkgId, opts, callback){
 };
 
 /**
- * cache all the dataset at their path (when it exists or in .data)
+ * cache all the resources at their path (when it exists or in .data/type when they dont)
  */
-Ldpm.prototype._cache = function(dpkg, context, root, callback){
+Ldc.prototype._cache = function(ctnr, context, root, callback){
 
-  var toCache = dpkg.dataset.filter(function(r){return ( ('distribution' in r) &&  !('contentData' in r.distribution) );});
+  var toCache  = (ctnr.dataset || [])
+    .filter(function(r){return ( r.distribution && r.distribution.contentUrl && !('contentData' in r.distribution) );})
+    .map(function(r){
+      return {
+        name: r.name,
+        type: 'dataset',
+        url: r.distribution.contentUrl,
+        path: r.distribution.contentPath
+      }
+    }).concat(
+      (ctnr.code || [])
+        .filter(function(r){return ( r.targetProduct && r.targetProduct.downloadUrl );})
+        .map(function(r){
+          return {
+            name: r.name,
+            type: 'code',
+            url: r.targetProduct.downloadUrl,
+            path: r.targetProduct.filePath
+          }
+        }),
+      (ctnr.figure || [])
+        .filter(function(r){return !!r.contentUrl ;})
+        .map(function(r){
+          return {
+            name: r.name,
+            type: 'figure',
+            url: r.contentUrl,
+            path: r.contentPath
+          }
+        })
+    );
 
   //add README if exists TODO improve
-  if(dpkg.about && dpkg.about.url){
+  if(ctnr.about && ctnr.about.url){
     toCache.push({
-      distribution: { 
-        contentUrl: dpkg.about.url, 
-        contentPath: dpkg.about.name || 'README.md'  
-      }
+      url: ctnr.about.url, 
+      path: ctnr.about.name || 'README.md'  
     });
   }
   
   async.each(toCache, function(r, cb){
     cb = once(cb);
 
-    var dirname  = ('contentPath' in r.distribution) ? path.dirname(r.distribution.contentPath) : '.data';
+    var dirname  = (r.path) ? path.dirname(r.path) : '.data';
     
     mkdirp(path.resolve(root, dirname), function(err) {
 
       if(err) return cb(err);
 
-      var iri = _expandIri(r.distribution.contentUrl, context['@context']['@base']);
+      var iri = _expandIri(context['@context']['@base'], r.url);
 
       this.logHttp('GET', iri );
       var req = request(this.rOpts(iri));
@@ -466,12 +501,12 @@ Ldpm.prototype._cache = function(dpkg, context, root, callback){
           }));
         } else {
 
-          var filename = ('contentPath' in r.distribution) ? path.basename(r.distribution.contentPath) : r.name + '.' +mime.extension(resp.headers['content-type']);
+          var filename = (r.path) ? path.basename(r.path) : r.name + '.' + (mime.extension(resp.headers['content-type']) || r.type );
 
           resp
             .pipe(fs.createWriteStream(path.resolve(root, dirname, filename)))
             .on('finish', function(){
-              this.emit('log', 'ldpm'.grey + ' save'.green + ' ' + (r.name || 'about') + ' at ' +  path.relative(this.root, path.resolve(root, dirname, filename)));
+              this.emit('log', 'ldc'.grey + ' save'.green + ' ' + (r.name || 'about') + ' at ' +  path.relative(this.root, path.resolve(root, dirname, filename)));
 
               cb(null);
             }.bind(this));
@@ -482,13 +517,13 @@ Ldpm.prototype._cache = function(dpkg, context, root, callback){
     }.bind(this));
 
   }.bind(this), function(err){
-    callback(err, dpkg, context, root);
+    callback(err, ctnr, context, root);
   });
 
 };
 
 
-Ldpm.prototype.adduser = function(callback){
+Ldc.prototype.adduser = function(callback){
 
   var rurl = this.url('/adduser/' + this.rc.name);
   this.logHttp('PUT', rurl);
@@ -532,7 +567,7 @@ Ldpm.prototype.adduser = function(callback){
 /**
  * from paths expressed as globs (*.csv, ...) to resources
  */
-Ldpm.prototype.paths2datasets = function(globs, fFilter, callback){
+Ldc.prototype.paths2datasets = function(globs, fFilter, callback){
 
   if(arguments.length === 2){
     callback = fFilter;
@@ -548,8 +583,9 @@ Ldpm.prototype.paths2datasets = function(globs, fFilter, callback){
     paths = uniq(flatten(paths))   
       .filter(minimatch.filter('!**/.git/**/*', {matchBase: true}))
       .filter(minimatch.filter('!**/node_modules/**/*', {matchBase: true}))
+      .filter(minimatch.filter('!**/ld_containers/**/*', {matchBase: true}))
       .filter(minimatch.filter('!**/package.json', {matchBase: true}))
-      .filter(minimatch.filter('!**/datapackage.jsonld', {matchBase: true}))
+      .filter(minimatch.filter('!**/container.jsonld', {matchBase: true}))
       .filter(minimatch.filter('!**/README.md', {matchBase: true}))
       .filter(function(p){return p.indexOf('.') !== -1;}); //filter out directories, LICENSE...
 
@@ -562,7 +598,7 @@ Ldpm.prototype.paths2datasets = function(globs, fFilter, callback){
         name: path.basename(p, ext),
         distribution: {
           contentPath: path.relative(this.root, p),
-          encodingFormat: ext.substring(1)
+          encodingFormat: mime.lookup(ext)
         }
       };
 
@@ -595,7 +631,7 @@ Ldpm.prototype.paths2datasets = function(globs, fFilter, callback){
 /**
  * from urls to resources
  */
-Ldpm.prototype.urls2datasets = function(urls, callback){
+Ldc.prototype.urls2datasets = function(urls, callback){
   urls = uniq(urls);
 
   async.map(urls, function(myurl, cb){
@@ -614,7 +650,7 @@ Ldpm.prototype.urls2datasets = function(urls, callback){
       var dataset = {
         name: path.basename(mypath, path.extname(mypath)),
         distribution: {
-          encodingFormat: mime.extension(res.headers['content-type']),
+          encodingFormat: res.headers['content-type'],
           contentUrl: myurl
         }
       };
@@ -647,26 +683,26 @@ Ldpm.prototype.urls2datasets = function(urls, callback){
 
 
 /**
- * add datasets to dpkg.dataset by taking care of removing previous
+ * add datasets to ctnr.dataset by taking care of removing previous
  * datasets with conflicting names
  */
-Ldpm.prototype.addDatasets = function(dpkg, datasets){
+Ldc.prototype.addDatasets = function(ctnr, datasets){
 
-  if(!('dataset' in dpkg)){
-    dpkg.dataset = [];
+  if(!('dataset' in ctnr)){
+    ctnr.dataset = [];
   }
 
   var names = datasets.map(function(r) {return r.name;});
-  dpkg.dataset = dpkg.dataset
+  ctnr.dataset = ctnr.dataset
     .filter(function(r){ return names.indexOf(r.name) === -1; })
     .concat(datasets);
 
-  return dpkg;  
+  return ctnr;  
 
 };
 
 
-function _expandIri(iri, base){
+function _expandIri(base, iri){
   if(!isUrl(iri)){
     return url.resolve(base, iri);
   }

@@ -6,7 +6,7 @@ var path = require('path')
   , request = require('request')
   , flatten = require('lodash.flatten')
   , fs = require('fs')
-  , Ldpm = require('..')
+  , Ldc = require('..')
   , optimist = require('optimist')
   , read = require('read')
   , async = require('async')
@@ -24,24 +24,24 @@ var path = require('path')
 var argv = optimist
   .usage(
     [
-      'Usage: ldpm <command> [options] where command is:',
-      '  - init [globs] [urls] [-d, --defaults] Interactively create a datapackage.jsonld file and add the files listed as globs (*.csv ... and urls) as dataset. Be sure to double quote the glob so that the shell does not expand them',
-      '  - cat       <datapackage name>[@<version>] [-e, --expand]',
-      '  - install   <datapackage name 1>[@<version>] <datapackage name 2>[@<version>] <datapackage url> ... [-t, --top] [-a, --all] [-c, --cache] [-s, --save]',
+      'Usage: ldc <command> [options] where command is:',
+      '  - init [globs] [urls] [-d, --defaults] Interactively create a container.jsonld file and add the files listed as globs (*.csv ... and urls) as dataset. Be sure to double quote the glob so that the shell does not expand them',
+      '  - cat       <container name>[@<version>] [-e, --expand]',
+      '  - install   <container name 1>[@<version>] <container name 2>[@<version>] <container url> ... [-t, --top] [-a, --all] [-c, --cache] [-s, --save]',
       '  - publish',
-      '  - unpublish <datapackage name>[@<version>]',
+      '  - unpublish <container name>[@<version>]',
       '  - adduser',
       '  - owner <subcommand> where subcommand is:',
-      '    - ls  <datapackage name>',
-      '    - add <user> <datapackage name>',
-      '    - rm  <user> <datapackage name>[@<version>]',
+      '    - ls  <container name>',
+      '    - add <user> <container name>',
+      '    - rm  <user> <container name>[@<version>]',
       '  - search [search terms]',
       '  - help [command]',
     ].join(os.EOL)
   )
   .alias('f', 'force').describe('f', 'overwrite previous if exists')
   .alias('d', 'defaults').describe('d', 'bypass the promzard prompt')
-  .alias('t', 'top').describe('t', 'install in the current working directory (and not within datapackages/)')
+  .alias('t', 'top').describe('t', 'install in the current working directory (and not within ld_containers/)')
   .alias('a', 'all').describe('a', 'install all the files present in the directory at publication time')
   .alias('e', 'expand').describe('e', 'expand the JSON-LD document')
   .alias('s', 'save').describe('s', 'data packages will appear in your dataDependencies')
@@ -61,10 +61,10 @@ if(argv.v){
 }
 
 //if cloudant: use sha:true
-var ldpm = new Ldpm(require('rc')('ldpm', {protocol: 'https', port: 443, hostname: 'registry.standardanalytics.io', strictSSL: false, sha:true}), process.cwd());
+var ldc = new Ldc(require('rc')('ldc', {protocol: 'https', port: 443, hostname: 'registry.standardanalytics.io', strictSSL: false, sha:true}), process.cwd());
 
 if(argv._[0] !== 'cat'){
-  ldpm.on('log', console.log);
+  ldc.on('log', console.log);
 }
 
 if (argv._[0] === 'init') {
@@ -109,8 +109,8 @@ if (argv._[0] === 'init') {
         function(cb){
           var defaults = {
             license: 'CC0-1.0',
-            authorName: ldpm.rc.name,
-            authorEmail: ldpm.rc.email,
+            authorName: ldc.rc.name,
+            authorEmail: ldc.rc.email,
             description: description,
             codeRepository: codeRepository
           }; 
@@ -123,10 +123,10 @@ if (argv._[0] === 'init') {
           read({prompt: 'data package name: '}, function(err, prompted, _){cb(err, prompted);});
         },
         authorName: function(cb){
-          read({ prompt: 'your name: ', default: ldpm.rc.name }, function(err, prompted, _){cb(err, prompted);});
+          read({ prompt: 'your name: ', default: ldc.rc.name }, function(err, prompted, _){cb(err, prompted);});
         },
         authorEmail: function(cb){
-          read({ prompt: 'your email: ', default: ldpm.rc.email }, function(err, prompted, _){cb(err, prompted);});
+          read({ prompt: 'your email: ', default: ldc.rc.email }, function(err, prompted, _){cb(err, prompted);});
         },
         keywords: function(cb){
           read({prompt: 'keywords: '}, function(err, prompted, _){cb(err, prompted.split(/[\s,]+/));});
@@ -165,15 +165,15 @@ if (argv._[0] === 'init') {
       }
       
       var inputs = argv._.slice(1);
-      ldpm.paths2datasets(inputs.filter(function(x){return !isUrl(x);}), function(err, resourcesFromPaths){
+      ldc.paths2datasets(inputs.filter(function(x){return !isUrl(x);}), function(err, resourcesFromPaths){
         if(err) _fail(err);
-        ldpm.urls2datasets(inputs.filter(function(x){return isUrl(x);}), function(err, resourcesFromUrls){
+        ldc.urls2datasets(inputs.filter(function(x){return isUrl(x);}), function(err, resourcesFromUrls){
           if(err) _fail(err);
-          dpkg = ldpm.addDatasets(dpkg, resourcesFromPaths.concat(resourcesFromUrls));
+          dpkg = ldc.addDatasets(dpkg, resourcesFromPaths.concat(resourcesFromUrls));
 
           console.log(util.inspect(dpkg, {depth:null}));
 
-          fs.writeFileSync(path.resolve(ldpm.root, 'datapackage.jsonld'), JSON.stringify(dpkg, null, 2));
+          fs.writeFileSync(path.resolve(ldc.root, 'container.jsonld'), JSON.stringify(dpkg, null, 2));
 
         });
       });
@@ -187,7 +187,7 @@ if (argv._[0] === 'init') {
   (function(){
     var dpkgId = argv._[1];
     if(!dpkgId) _fail(new Error('invalid usage'));
-    ldpm.cat(dpkgId, { expand: argv.expand }, function(err, dpkg){
+    ldc.cat(dpkgId, { expand: argv.expand }, function(err, dpkg){
       if(err) return _fail(err);
       console.log(JSON.stringify(dpkg, null, 2));
     });
@@ -198,11 +198,11 @@ if (argv._[0] === 'init') {
   (function(){
     var dpkgIds = argv._.slice(1);
     var dpkg;
-    if(!dpkgIds.length || argv.save){ //get deps for a datapackage.jsonld
+    if(!dpkgIds.length || argv.save){ //get deps for a container.jsonld
       try{
-        dpkg = JSON.parse(fs.readFileSync(path.join(ldpm.root, 'datapackage.jsonld')));
+        dpkg = JSON.parse(fs.readFileSync(path.join(ldc.root, 'container.jsonld')));
       } catch(e){
-        _fail(new Error('could not load '+ path.join(ldpm.root, 'datapackage.jsonld')));
+        _fail(new Error('could not load '+ path.join(ldc.root, 'container.jsonld')));
       }
     }
 
@@ -211,17 +211,17 @@ if (argv._[0] === 'init') {
       delete argv.top;
     }
 
-    ldpm.install(dpkgIds, { top: argv.top, all: argv.all, cache: argv.cache, force: argv.force }, function(err, dpkgs){
+    ldc.install(dpkgIds, { top: argv.top, all: argv.all, cache: argv.cache, force: argv.force }, function(err, dpkgs){
       if(err) _fail(err);
 
       if(argv.save){
         dpkg.isBasedOnUrl = uniq( dpkgs.map(function(x){return x['@id'];}).concat(dpkg.isBasedOnUrl || []) );
-        fs.writeFileSync(path.join(ldpm.root, 'datapackage.jsonld'), JSON.stringify(dpkg, null, 2));
+        fs.writeFileSync(path.join(ldc.root, 'container.jsonld'), JSON.stringify(dpkg, null, 2));
       }
 
       //print tree
       var names = dpkgs.map(function(x){return x.name;});
-      var paths = readdirpSync(ldpm.root)
+      var paths = readdirpSync(ldc.root)
         .filter(function(p){
           return names.indexOf(p.split(path.sep)[(argv.top) ? 0: 1]) !== -1;
         })
@@ -236,11 +236,11 @@ if (argv._[0] === 'init') {
   })();
 
 } else if (argv._[0] === 'publish') {
-  if(!fs.existsSync(path.resolve(ldpm.root, 'datapackage.jsonld'))){
-    _fail(new Error('no datapackage.jsonld file in '+ ldpm.root));
+  if(!fs.existsSync(path.resolve(ldc.root, 'container.jsonld'))){
+    _fail(new Error('no container.jsonld file in '+ ldc.root));
   };
 
-  ldpm.publish(function(err, id){
+  ldc.publish(function(err, id){
     if(err) return _fail(err);
     console.log('+ ' + id);
   });
@@ -250,7 +250,7 @@ if (argv._[0] === 'init') {
   (function(){
     var dpkgId = argv._[1];
     if(!dpkgId) _fail(new Error('invalid usage'));
-    ldpm.unpublish(dpkgId, _fail);
+    ldc.unpublish(dpkgId, _fail);
   })();
   
 } else if (argv._[0] === 'adduser') {
@@ -295,12 +295,12 @@ if (argv._[0] === 'init') {
       if(err) _fail(err);
 
       for(var key in prompted){
-        ldpm.rc[key] = prompted[key];
+        ldc.rc[key] = prompted[key];
       }
 
       var $HOME = process.env.HOME || process.env.HOMEPATH || process.env.USERPROFILE;
       try {
-        fs.writeFileSync(path.resolve($HOME, '.ldpmrc'), JSON.stringify(ldpm.rc, function(key, value){
+        fs.writeFileSync(path.resolve($HOME, '.ldcrc'), JSON.stringify(ldc.rc, function(key, value){
           if(key.charAt(0) === '_' || key.charAt(0) === '$' || key === 'config'){
             return undefined;
           }
@@ -309,9 +309,9 @@ if (argv._[0] === 'init') {
       } catch (e){
         _fail(e);
       }
-      ldpm.adduser(_fail);
+      ldc.adduser(_fail);
     });
-
+    
   })();
 
 } else if (argv._[0] === 'owner'){
@@ -328,14 +328,14 @@ if (argv._[0] === 'init') {
       dpkgName = argv._[3];
       if(!dpkgName) _fail(new Error('invalid usage'));
 
-      ldpm.addOwner({username: granted, dpkgName: dpkgName}, _fail);
+      ldc.addOwner({username: granted, dpkgName: dpkgName}, _fail);
 
     } else if (action === 'ls'){
 
       dpkgName = argv._[2];
       if(!dpkgName) _fail(new Error('invalid usage'));
       
-      ldpm.lsOwner(dpkgName, function(err, maintainers){
+      ldc.lsOwner(dpkgName, function(err, maintainers){
         if(err) _fail(err);
         if(!Array.isArray(maintainers)) _fail(new Error('no maintainers'));
         maintainers.forEach(function(m){
@@ -351,7 +351,7 @@ if (argv._[0] === 'init') {
       dpkgName = argv._[3];
       if(!dpkgName) _fail(new Error('invalid usage'));
 
-      ldpm.rmOwner({username: banned, dpkgName: dpkgName}, _fail);
+      ldc.rmOwner({username: banned, dpkgName: dpkgName}, _fail);
 
     } else {
       _fail(new Error('invalid usage'));
@@ -368,10 +368,10 @@ if (argv._[0] === 'init') {
     var $HOME = process.env.HOME || process.env.HOMEPATH || process.env.USERPROFILE;
 
     var rpath = '/search' + qs
-    var rurl = ldpm.url(rpath);
-    ldpm.logHttp('GET', rurl);
-    request(ldpm.rOpts(rurl)).on('response', function(res){
-      ldpm.logHttp(res.statusCode, rurl);
+    var rurl = ldc.url(rpath);
+    ldc.logHttp('GET', rurl);
+    request(ldc.rOpts(rurl)).on('response', function(res){
+      ldc.logHttp(res.statusCode, rurl);
       if(res.statusCode === 404){
         res.setEncoding('utf8');
         var data = '';
@@ -406,7 +406,7 @@ if (argv._[0] === 'init') {
 
 function _fail(err){
   if(err){
-    console.error('ldpm'.grey +  ' ERR! '.red + err.message + (('code' in err) ? ' (' + err.code + ')': ''));
+    console.error('ldc'.grey +  ' ERR! '.red + err.message + (('code' in err) ? ' (' + err.code + ')': ''));
     process.exit(1);
   }
 };

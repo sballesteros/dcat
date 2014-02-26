@@ -15,7 +15,7 @@ temp.track();
 var root = path.dirname(__filename);
 
 describe('ldc', function(){
-  this.timeout(8000);
+  this.timeout(10000);
 
   var conf = {
     protocol: 'http',

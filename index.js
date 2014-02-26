@@ -1,6 +1,7 @@
 var crypto = require('crypto')
   , url = require('url')
   , isUrl = require('is-url')
+  , Ignore = require("fstream-ignore")
   , semver = require('semver')
   , uniq = require('lodash.uniq')
   , flatten = require('lodash.flatten')
@@ -26,6 +27,7 @@ var crypto = require('crypto')
   , publish = require('./lib/publish')
   , binaryCSV = require('binary-csv')
   , split = require('split')
+  , temp = require('temp')
   , jsonldContextInfer = require('jsonld-context-infer');
 
 mime.define({
@@ -566,13 +568,19 @@ Ldc.prototype.adduser = function(callback){
 
 /**
  * from paths expressed as globs (*.csv, ...) to resources
+ * opts: { fFilter: function(){}, codeBundles: [] }
  */
-Ldc.prototype.paths2datasets = function(globs, fFilter, callback){
+Ldc.prototype.paths2resources = function(globs, opts, callback){
 
   if(arguments.length === 2){
-    callback = fFilter;
-    fFilter = undefined;
+    callback = opts;
+    opts = {};
   }
+
+  callback = once(callback);
+
+  //supposes that codeBundles are relative path to code project directories
+  opts.codeBundles = (opts.codeBundles || []).map(function(x){return path.resolve(this.root, x)}, this);
 
   async.map(globs, function(pattern, cb){
     glob(path.resolve(this.root, pattern), {matchBase: true}, cb);
@@ -584,47 +592,140 @@ Ldc.prototype.paths2datasets = function(globs, fFilter, callback){
       .filter(minimatch.filter('!**/.git/**/*', {matchBase: true}))
       .filter(minimatch.filter('!**/node_modules/**/*', {matchBase: true}))
       .filter(minimatch.filter('!**/ld_containers/**/*', {matchBase: true}))
-      .filter(minimatch.filter('!**/package.json', {matchBase: true}))
       .filter(minimatch.filter('!**/container.jsonld', {matchBase: true}))
-      .filter(minimatch.filter('!**/README.md', {matchBase: true}))
-      .filter(function(p){return p.indexOf('.') !== -1;}); //filter out directories, LICENSE...
+      .filter(minimatch.filter('!**/README.md', {matchBase: true}));
 
-    var fpaths = (fFilter) ? paths.filter(fFilter) : paths;
-    
+    opts.codeBundles.forEach(function(x){
+      paths = paths.filter(minimatch.filter('!' + path.join(x, '**/*'), {matchBase: true}));
+    });
+
+    paths = paths.filter(function(p){return p.indexOf('.') !== -1;}); //filter out directories, LICENSE...
+
+    console.log(uniq(flatten(paths)));
+
+    var fpaths = (opts.fFilter) ? paths.filter(opts.fFilter) : paths;
+
+    if(!fpaths.length){
+      return callback(new Error('nothing to add'));
+    }
+
     async.map(fpaths, function(p, cb){
       var ext = path.extname(p);
+
       
-      var dataset = {
-        name: path.basename(p, ext),
-        distribution: {
+      if(['.csv', '.xls', '.xlsx', '.ods', '.json', '.jsonld', '.ldjson', '.txt', '.xml', '.ttl'].indexOf(ext.toLowerCase()) !== -1){
+        
+        var dataset = {
+          name: path.basename(p, ext),
+          distribution: {
+            contentPath: path.relative(this.root, p),
+            encodingFormat: mime.lookup(ext)
+          }
+        };
+
+        if(dataset.distribution.contentPath.indexOf('..') !== -1){ //check that all path are within this.root
+          return cb(new Error('only dataset files within ' + this.root + ' can be added (' + dataset.distribution.contentPath +')'));
+        }
+
+        if(ext.toLowerCase() === '.csv'){
+          jsonldContextInfer(fs.createReadStream(p).pipe(binaryCSV({json:true})), function(err, context){
+            if(err) return cb(err);            
+            dataset.about = jsonldContextInfer.about(context);
+            cb(null, {type: 'dataset', value: dataset});
+          });
+        } else {
+          cb(null, {type: 'dataset', value: dataset});
+        }
+
+      } else if (['.png', '.jpg', '.jpeg', '.gif', '.tiff', '.pdf', '.eps'].indexOf(ext.toLowerCase()) !== -1){
+
+        var figure = {
+          name: path.basename(p, ext),
           contentPath: path.relative(this.root, p),
           encodingFormat: mime.lookup(ext)
+        };
+
+        if(figure.contentPath.indexOf('..') !== -1){
+          return cb(new Error('only figure files within ' + this.root + ' can be added (' + figure.contentPath +')'));
         }
+
+        cb(null, {type: 'figure', value: figure});        
+        
+      } else if (['.r', '.py', '.m'].indexOf(ext.toLowerCase()) !== -1) { //standalone executable scripts and that only (all the rest should be code bundle)
+
+        var lang = {
+          '.r': 'r',
+          '.m': 'matlab',
+          '.py': 'python'
+        }[ext.toLowerCase()];
+
+        var code = {
+          name: path.basename(p, ext),
+          programmingLanguage: { name: lang },
+          targetProduct: {
+            filePath: path.relative(this.root, p),
+            fileFormat: 'plain/text'
+          }
+        };
+
+        if(code.targetProduct.filePath.indexOf('..') !== -1){
+          return cb(new Error('only standalone scripts within ' + this.root + ' can be added (' + code.filePath +')'));
+        }
+
+        cb(null, {type: 'code', value: code});
+        
+      } else {
+        cb(new Error('non suported file type: ' + path.relative(this.root, p) + " If it is part of a code project, use --codebundle and the directory to be bundled"));
+      }     
+
+    }.bind(this), function(err, typedResources){      
+
+      if(err) return callback(err);
+
+      var resources = {
+        dataset: [],
+        code: [],
+        figure: []
       };
 
-      //check that all path are within this.root if not throw error
-      if(dataset.distribution.contentPath.indexOf('..') !== -1){
-        return cb(new Error('only data files within ' + this.root + ' can be added (' + dataset.distribution.contentPath +')'));
+      for(var i=0; i<typedResources.length; i++){
+        var r = typedResources[i];
+        resources[r.type].push(r.value);
       }
 
-      if(dataset.distribution.encodingFormat === 'csv'){
+      
+      if(!opts.codeBundles.length){
+        return callback(null, resources, paths);
+      }
+      
+      async.map(opts.codeBundles, function(dirPath, cb){
 
-        jsonldContextInfer(fs.createReadStream(p).pipe(binaryCSV({json:true})), function(err, context){
-          if(err) return cb(err);
-          dataset['@context'] = context['@context'];
-          cb(null, dataset);
+        var tempPath = temp.path({prefix:'ldc-'});
+
+        var ignore = new Ignore({
+          path: dirPath,
+          ignoreFiles: ['.gitignore', '.npmignore', '.ldcignore'].map(function(x){return path.resolve(dirPath, x)})
+        });
+        ignore.addIgnoreRules(['.git', '__MACOSX', 'ld_containers', 'node_modules'], 'custom-rules');
+        var ws = ignore.pipe(tar.Pack()).pipe(zlib.createGzip()).pipe(fs.createWriteStream(tempPath));
+        ws.on('error', cb);
+        ws.on('finish', function(){
+          cb(null, {name: path.basename(dirPath), targetProduct: {filePath: tempPath, fileFormat:'application/x-gzip'}});
         });
 
-      } else {
-        cb(null, dataset);
-      }
+      }, function(err, codeResources){
+        if(err) return callback(err);
+        
+        resources.code = resources.code.concat(codeResources);
 
-    }.bind(this), function(err, datasets){
-      callback(err, datasets, paths);     
+        callback(null, resources, paths);
+        
+      });
+      
     });
 
   }.bind(this));
-  
+
 };
 
 
@@ -682,23 +783,23 @@ Ldc.prototype.urls2datasets = function(urls, callback){
 };
 
 
-/**
- * add datasets to ctnr.dataset by taking care of removing previous
- * datasets with conflicting names
- */
-Ldc.prototype.addDatasets = function(ctnr, datasets){
 
-  if(!('dataset' in ctnr)){
-    ctnr.dataset = [];
+/**
+ * add resources to ctnr[type] by taking care of removing previous
+ * resources with conflicting names
+ */
+Ldc.prototype.addResources = function(ctnr, type, resources){
+
+  if(!(type in ctnr)){
+    ctnr[type] = [];
   }
 
-  var names = datasets.map(function(r) {return r.name;});
-  ctnr.dataset = ctnr.dataset
+  var names = resources.map(function(r) {return r.name;});
+  ctnr[type] = ctnr[type]
     .filter(function(r){ return names.indexOf(r.name) === -1; })
-    .concat(datasets);
+    .concat(resources);
 
-  return ctnr;  
-
+  return ctnr;
 };
 
 

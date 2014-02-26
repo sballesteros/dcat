@@ -25,7 +25,7 @@ var argv = optimist
   .usage(
     [
       'Usage: ldc <command> [options] where command is:',
-      '  - init [globs] [urls] [-d, --defaults] Interactively create a container.jsonld file and add the files listed as globs (*.csv ... and urls) as dataset. Be sure to double quote the glob so that the shell does not expand them',
+      '  - init [globs] [urls] [-d, --defaults] [-b --codebundle <relative/path/to/code/directory>] Interactively create a container.jsonld file and add the files listed as globs (*.csv ... and urls) as dataset. Be sure to double quote the glob so that the shell does not expand them',
       '  - cat       <container name>[@<version>] [-e, --expand]',
       '  - install   <container name 1>[@<version>] <container name 2>[@<version>] <container url> ... [-t, --top] [-a, --all] [-c, --cache] [-s, --save]',
       '  - publish',
@@ -46,6 +46,7 @@ var argv = optimist
   .alias('e', 'expand').describe('e', 'expand the JSON-LD document')
   .alias('s', 'save').describe('s', 'data packages will appear in your dataDependencies')
   .alias('c', 'cache').describe('c', 'store the dataset content on the disk')
+  .alias('b', 'codebundle').describe('b', 'treat the listed directory as a code project')
   .alias('h', 'help').describe('h', 'print usage')
   .alias('v', 'version').describe('v', 'print version number')
   .argv;
@@ -83,9 +84,7 @@ if (argv._[0] === 'init') {
         .replace(/^./, function (c) { return c.toLowerCase() })
         .replace(/\.$/, '')
       ;
-    }
-    catch (e) {
-    }
+    } catch (e) { }
     
     //taken from https://github.com/maxogden/datapackage-json/blob/master/prompt.js
     try { var gconf = fs.readFileSync('.git/config').toString() }
@@ -165,18 +164,26 @@ if (argv._[0] === 'init') {
       }
       
       var inputs = argv._.slice(1);
-      ldc.paths2datasets(inputs.filter(function(x){return !isUrl(x);}), function(err, resourcesFromPaths){
+      var codeBundles = (Array.isArray(argv.codebundle)) ? argv.codebundle : 
+        ((argv.codebundle)? [ argv.codebundle ] : []);
+
+      ldc.paths2resources(inputs.filter(function(x){return !isUrl(x);}), { codeBundles: codeBundles } , function(err, resources){
         if(err) _fail(err);
-        ldc.urls2datasets(inputs.filter(function(x){return isUrl(x);}), function(err, resourcesFromUrls){
-          if(err) _fail(err);
-          dpkg = ldc.addDatasets(dpkg, resourcesFromPaths.concat(resourcesFromUrls));
 
-          console.log(util.inspect(dpkg, {depth:null}));
+        console.log(util.inspect(resources, {depth: null}));
 
-          fs.writeFileSync(path.resolve(ldc.root, 'container.jsonld'), JSON.stringify(dpkg, null, 2));
 
-        });
+//        ldc.urls2datasets(inputs.filter(function(x){return isUrl(x);}), function(err, resourcesFromUrls){
+//          if(err) _fail(err);
+//          dpkg = ldc.addDatasets(dpkg, resourcesFromPaths.concat(resourcesFromUrls));
+//
+//          console.log(util.inspect(dpkg, {depth:null}));
+//
+//          fs.writeFileSync(path.resolve(ldc.root, 'container.jsonld'), JSON.stringify(dpkg, null, 2));
+//
+//        });
       });
+
 
     });
     

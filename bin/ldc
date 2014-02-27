@@ -18,6 +18,7 @@ var path = require('path')
   , tree = require('../lib/tree')
   , readdirpSync = require('fs-readdir-recursive')
   , uniq = require('lodash.uniq')
+  , githubUrl = require('github-url')
   , os = require('os')
   , colors = require('colors');
 
@@ -146,42 +147,43 @@ if (argv._[0] === 'init') {
       if(err) _fail(err);
       prompted = Array.isArray(prompted) ? prompted[0]: prompted;
 
-      var dpkg = {};
+      var ctnr = {};
       [ 'name', 'description', 'keywords' ,'license' ].forEach(function(key){
         if(prompted[key]){
-          dpkg[key] = prompted[key];
+          ctnr[key] = prompted[key];
         }
       });
 
       if(prompted.authorName || prompted.authorEmail){
-        dpkg.author = {};
-        if (prompted.authorName) dpkg.author.name = prompted.authorName;
-        if (prompted.authorEmail) dpkg.author.email = prompted.authorEmail;
+        ctnr.author = {};
+        if (prompted.authorName) ctnr.author.name = prompted.authorName;
+        if (prompted.authorEmail) ctnr.author.email = prompted.authorEmail;
       }
 
       if(prompted.codeRepository){
-        dpkg.repository = [{codeRepository: prompted.codeRepository}];
+        ctnr.repository = [{codeRepository: prompted.codeRepository}];
       }
       
       var inputs = argv._.slice(1);
       var codeBundles = (Array.isArray(argv.codebundle)) ? argv.codebundle : 
         ((argv.codebundle)? [ argv.codebundle ] : []);
 
-      ldc.paths2resources(inputs.filter(function(x){return !isUrl(x);}), { codeBundles: codeBundles } , function(err, resources){
+      ldc.paths2resources(inputs.filter(function(x){return !(isUrl(x) || githubUrl(x));}), { codeBundles: codeBundles } , function(err, resourcesFromPath){
         if(err) _fail(err);
 
-        console.log(util.inspect(resources, {depth: null}));
+        ldc.urls2resources(inputs.filter(function(x){return ( isUrl(x) || githubUrl(x) );}), function(err, resourcesFromUrls){
+          if(err) _fail(err);
+                   
+          for (var type in resourcesFromPath){
+            var resources = resourcesFromPath[type].concat(resourcesFromUrls[type]);
+            if(resources.length){
+              ldc.addResources(ctnr, type, resources);
+            }
+          }
 
+          fs.writeFileSync(path.resolve(ldc.root, 'container.jsonld'), JSON.stringify(ctnr, null, 2));
 
-//        ldc.urls2datasets(inputs.filter(function(x){return isUrl(x);}), function(err, resourcesFromUrls){
-//          if(err) _fail(err);
-//          dpkg = ldc.addDatasets(dpkg, resourcesFromPaths.concat(resourcesFromUrls));
-//
-//          console.log(util.inspect(dpkg, {depth:null}));
-//
-//          fs.writeFileSync(path.resolve(ldc.root, 'container.jsonld'), JSON.stringify(dpkg, null, 2));
-//
-//        });
+        });
       });
 
 
@@ -192,42 +194,42 @@ if (argv._[0] === 'init') {
 } else if (argv._[0] === 'cat') {
   
   (function(){
-    var dpkgId = argv._[1];
-    if(!dpkgId) _fail(new Error('invalid usage'));
-    ldc.cat(dpkgId, { expand: argv.expand }, function(err, dpkg){
+    var ctnrId = argv._[1];
+    if(!ctnrId) _fail(new Error('invalid usage'));
+    ldc.cat(ctnrId, { expand: argv.expand }, function(err, ctnr){
       if(err) return _fail(err);
-      console.log(JSON.stringify(dpkg, null, 2));
+      console.log(JSON.stringify(ctnr, null, 2));
     });
   })();
 
 } else if(argv._[0] === 'install'){
 
   (function(){
-    var dpkgIds = argv._.slice(1);
-    var dpkg;
-    if(!dpkgIds.length || argv.save){ //get deps for a container.jsonld
+    var ctnrIds = argv._.slice(1);
+    var ctnr;
+    if(!ctnrIds.length || argv.save){ //get deps for a container.jsonld
       try{
-        dpkg = JSON.parse(fs.readFileSync(path.join(ldc.root, 'container.jsonld')));
+        ctnr = JSON.parse(fs.readFileSync(path.join(ldc.root, 'container.jsonld')));
       } catch(e){
         _fail(new Error('could not load '+ path.join(ldc.root, 'container.jsonld')));
       }
     }
 
-    if(!dpkgIds.length){
-      dpkgIds = dpkg.isBasedOnUrl || [];
+    if(!ctnrIds.length){
+      ctnrIds = ctnr.isBasedOnUrl || [];
       delete argv.top;
     }
 
-    ldc.install(dpkgIds, { top: argv.top, all: argv.all, cache: argv.cache, force: argv.force }, function(err, dpkgs){
+    ldc.install(ctnrIds, { top: argv.top, all: argv.all, cache: argv.cache, force: argv.force }, function(err, ctnrs){
       if(err) _fail(err);
 
       if(argv.save){
-        dpkg.isBasedOnUrl = uniq( dpkgs.map(function(x){return x['@id'];}).concat(dpkg.isBasedOnUrl || []) );
-        fs.writeFileSync(path.join(ldc.root, 'container.jsonld'), JSON.stringify(dpkg, null, 2));
+        ctnr.isBasedOnUrl = uniq( ctnrs.map(function(x){return x['@id'];}).concat(ctnr.isBasedOnUrl || []) );
+        fs.writeFileSync(path.join(ldc.root, 'container.jsonld'), JSON.stringify(ctnr, null, 2));
       }
 
       //print tree
-      var names = dpkgs.map(function(x){return x.name;});
+      var names = ctnrs.map(function(x){return x.name;});
       var paths = readdirpSync(ldc.root)
         .filter(function(p){
           return names.indexOf(p.split(path.sep)[(argv.top) ? 0: 1]) !== -1;
@@ -255,9 +257,9 @@ if (argv._[0] === 'init') {
 } else if (argv._[0] === 'unpublish') {
 
   (function(){
-    var dpkgId = argv._[1];
-    if(!dpkgId) _fail(new Error('invalid usage'));
-    ldc.unpublish(dpkgId, _fail);
+    var ctnrId = argv._[1];
+    if(!ctnrId) _fail(new Error('invalid usage'));
+    ldc.unpublish(ctnrId, _fail);
   })();
   
 } else if (argv._[0] === 'adduser') {
@@ -326,23 +328,23 @@ if (argv._[0] === 'init') {
   (function(){
     var action = argv._[1];
     if(!action) _fail(new Error('invalid usage'));
-    var dpkgname;
+    var ctnrname;
 
     if(action === 'add'){
       var granted = argv._[2];
       if(!granted) _fail(new Error('invalid usage'));
 
-      dpkgName = argv._[3];
-      if(!dpkgName) _fail(new Error('invalid usage'));
+      ctnrName = argv._[3];
+      if(!ctnrName) _fail(new Error('invalid usage'));
 
-      ldc.addOwner({username: granted, dpkgName: dpkgName}, _fail);
+      ldc.addOwner({username: granted, ctnrName: ctnrName}, _fail);
 
     } else if (action === 'ls'){
 
-      dpkgName = argv._[2];
-      if(!dpkgName) _fail(new Error('invalid usage'));
+      ctnrName = argv._[2];
+      if(!ctnrName) _fail(new Error('invalid usage'));
       
-      ldc.lsOwner(dpkgName, function(err, maintainers){
+      ldc.lsOwner(ctnrName, function(err, maintainers){
         if(err) _fail(err);
         if(!Array.isArray(maintainers)) _fail(new Error('no maintainers'));
         maintainers.forEach(function(m){
@@ -355,10 +357,10 @@ if (argv._[0] === 'init') {
       var banned = argv._[2];
       if(!banned) _fail(new Error('invalid usage'));
 
-      dpkgName = argv._[3];
-      if(!dpkgName) _fail(new Error('invalid usage'));
+      ctnrName = argv._[3];
+      if(!ctnrName) _fail(new Error('invalid usage'));
 
-      ldc.rmOwner({username: banned, dpkgName: dpkgName}, _fail);
+      ldc.rmOwner({username: banned, ctnrName: ctnrName}, _fail);
 
     } else {
       _fail(new Error('invalid usage'));

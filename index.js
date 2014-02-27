@@ -28,6 +28,7 @@ var crypto = require('crypto')
   , binaryCSV = require('binary-csv')
   , split = require('split')
   , temp = require('temp')
+  , githubUrl = require('github-url')
   , jsonldContextInfer = require('jsonld-context-infer');
 
 mime.define({
@@ -601,13 +602,7 @@ Ldc.prototype.paths2resources = function(globs, opts, callback){
 
     paths = paths.filter(function(p){return p.indexOf('.') !== -1;}); //filter out directories, LICENSE...
 
-    console.log(uniq(flatten(paths)));
-
     var fpaths = (opts.fFilter) ? paths.filter(opts.fFilter) : paths;
-
-    if(!fpaths.length){
-      return callback(new Error('nothing to add'));
-    }
 
     async.map(fpaths, function(p, cb){
       var ext = path.extname(p);
@@ -732,54 +727,98 @@ Ldc.prototype.paths2resources = function(globs, opts, callback){
 /**
  * from urls to resources
  */
-Ldc.prototype.urls2datasets = function(urls, callback){
+Ldc.prototype.urls2resources = function(urls, callback){
   urls = uniq(urls);
 
   async.map(urls, function(myurl, cb){
 
     cb = once(cb);
 
-    request.head(myurl, function(err, res){
-      if(err) return cb(err);
+    var gh = githubUrl(myurl);
 
-      if(res.statusCode >= 300){
+    if(gh){ //github URL => code TODO: generalize
+      return cb(null, { value: { name: gh.project, codeRepository: myurl }, type: 'code' });
+    }
+
+    var r = request(myurl);
+    r.on('response', function(res){
+
+      if(res.statusCode >= 400){
         return cb(new Error('could not process ' + myurl + ' code (' + res.statusCode + ')'));
       }
 
-      var mypath = url.parse(myurl).pathname;
+      var ctype = res.headers['content-type']
+        , mypath = url.parse(myurl).pathname
+        , myname = path.basename(mypath, path.extname(mypath));
 
-      var dataset = {
-        name: path.basename(mypath, path.extname(mypath)),
-        distribution: {
-          encodingFormat: res.headers['content-type'],
-          contentUrl: myurl
-        }
-      };
+      if ( [ 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'text/csv', 'application/json', 'application/ld+json', 'application/x-ldjson' ].indexOf(ctype) !== -1 ) { 
 
-      if(dataset.distribution.encodingFormat === 'csv'){
-        var req = request(myurl); 
-        req.on('error', cb);
-        req.on('response', function(res){
-          if (res.statusCode >= 300){
-            return cb(new Error('could not process ' + myurl + ' code (' + res.statusCode + ')'));
-          }
+        var dataset = {
+          value: {
+            name: myname,
+            distribution: {
+              encodingFormat: ctype,
+              contentUrl: myurl
+            }
+          },
+          type: 'dataset'
+        };
 
-          jsonldContextInfer(req.pipe(binaryCSV({json:true})), function(err, context){
+        if(dataset.value.distribution.encodingFormat === 'text/csv'){
+
+          jsonldContextInfer(res.pipe(binaryCSV({json:true})), function(err, context){
             if(err) return cb(err);
-            dataset['@context'] = context['@context'];
+            dataset.value.about = jsonldContextInfer.about(context);
             cb(null, dataset);
           });
 
-        });
+        } else {
+          res.destroy();
+          cb(null, dataset);
+        }
+
+      } else if ([ 'image/png', 'image/jpeg', 'image/tiff', 'image/gif', 'image/svg+xml' ].indexOf(ctype) !== -1) { 
+
+        var figure = {
+          value: {
+            name: myname,
+            encodingFormat: ctype,
+            contentUrl: myurl
+          },
+          type: 'figure'
+        };
+        
+        cb(null, figure);
 
       } else {
-        cb(null, dataset);
+
+        res.destroy();        
+        cb(new Error('unsuported MIME type (' + ctype + '). It might be that the host is not setting MIME type properly'));
+
       }
 
     });
 
-  }, callback);
-  
+    r.on('error', cb);
+
+  }, function (err, typedResources){
+    if(err) return callback(err);
+    
+    var resources = {
+      dataset: [],
+      code: [],
+      figure: []
+    };
+    
+    for(var i=0; i<typedResources.length; i++){
+      var r = typedResources[i];
+      resources[r.type].push(r.value);
+    }
+
+    callback(null, resources);
+
+  });
+
 };
 
 

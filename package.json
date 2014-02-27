@@ -64,7 +64,8 @@
     "glob": "^3.2.8",
     "split": "^0.3.0",
     "concat-stream": "^1.4.1",
-    "minimatch": "^0.2.14"
+    "minimatch": "^0.2.14",
+    "github-url": "^1.1.0"
   },
   "devDependencies": {
     "mocha": "~1.15.1",

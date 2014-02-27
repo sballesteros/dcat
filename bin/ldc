@@ -162,7 +162,7 @@ if (argv._[0] === 'init') {
       }
 
       if(prompted.codeRepository){
-        ctnr.repository = [{codeRepository: prompted.codeRepository}];
+        ctnr.codeRepository = prompted.codeRepository;
       }
       
       var inputs = argv._.slice(1);

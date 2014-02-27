@@ -53,39 +53,57 @@ describe('ldc', function(){
     });
   };
 
-  describe.skip('init', function(){
+  describe('init', function(){
 
     var expected = {
+      description: 'my datapackage description',
       license: 'CC0-1.0',
-      description: 'my container description',
-      dataset: [
+      dataset: [ 
+        { name: 'x1',
+          distribution: { contentPath: 'x1.csv', encodingFormat: 'text/csv' },
+          about: [ { name: 'a', valueType: 'xsd:integer' }, { name: 'b', valueType: 'xsd:integer' } ] 
+        }
+      ],
+      code: [
         {
-          name: 'x1',
-          about: [
-            { name: 'a', valueType: 'xsd:integer' },
-            { name: 'b', valueType: 'xsd:integer' }
-          ],
-          distribution: { 
-            contentPath: 'x1.csv',
-            encodingFormat: 'csv' 
-          }
+          name: 'C',
+          targetProduct: {
+            //filePath: '/var/folders/7p/587xptpx31d0l7rbb1cxk5y80000gn/T/ldc-114127-1835-la1g41', always different
+            bundlePath: 'C',
+            fileFormat: 'application/x-gzip' 
+          } 
+        },
+        {
+          name: 'scripts',
+          targetProduct: {
+            //filePath: '/var/folders/7p/587xptpx31d0l7rbb1cxk5y80000gn/T/ldc-114127-1835-7ba56z',
+            bundlePath: 'scripts',
+            fileFormat: 'application/x-gzip' 
+          } 
         }
       ]
     };
 
-    it('should create a container.jsonld with default values', function(done){      
-      exec(path.join(path.dirname(root), 'bin', 'ldc') + ' init "*.csv" --defaults', {cwd: path.join(root, 'fixtures', 'init-test') }, function(err, stdout, stderr){
+    it('should create a container.jsonld with default values and code bundles', function(done){      
+      exec(path.join(path.dirname(root), 'bin', 'ldc') + ' init "*.csv" -b C -b scripts --defaults', {cwd: path.join(root, 'fixtures', 'init-test') }, function(err, stdout, stderr){
         var ctnr = JSON.parse(fs.readFileSync(path.join(root, 'fixtures', 'init-test', 'container.jsonld'), 'utf8'));
-        delete ctnr.author;
+
+        delete ctnr.author; //might not be here
+        assert(ctnr.code[0].targetProduct.filePath);
+        assert(ctnr.code[1].targetProduct.filePath);
+        delete ctnr.code[0].targetProduct.filePath;
+        delete ctnr.code[1].targetProduct.filePath;
         assert.deepEqual(ctnr, expected);
         done();
       });
     });
 
     it('should create a container.jsonld with default values and do not include content of node_modules or container.jsonld in case we ask to recursively include everything', function(done){      
-      exec(path.join(path.dirname(root), 'bin', 'ldc') + ' init "**/*" --defaults', {cwd: path.join(root, 'fixtures', 'init-test') }, function(err, stdout, stderr){
+      exec(path.join(path.dirname(root), 'bin', 'ldc') + ' init "**/*" -b C -b scripts --defaults', {cwd: path.join(root, 'fixtures', 'init-test') }, function(err, stdout, stderr){
         var ctnr = JSON.parse(fs.readFileSync(path.join(root, 'fixtures', 'init-test', 'container.jsonld'), 'utf8'));
         delete ctnr.author;
+        delete ctnr.code[0].targetProduct.filePath;
+        delete ctnr.code[1].targetProduct.filePath;
         assert.deepEqual(ctnr, expected);
         done();
       });
@@ -93,7 +111,7 @@ describe('ldc', function(){
 
   });
 
-  describe.skip('publish', function(){
+  describe('publish', function(){
     var ldc1, ldc2;
 
     before(function(done){
@@ -129,7 +147,7 @@ describe('ldc', function(){
   });
 
            
-  describe.skip('unpublish', function(){
+  describe('unpublish', function(){
     var ldc1;
 
     before(function(done){
@@ -155,7 +173,7 @@ describe('ldc', function(){
   });
 
 
-  describe.skip('owner', function(){
+  describe('owner', function(){
 
     var expected = [ 
       {name: 'user_a', email: 'user@domain.com'},
@@ -212,7 +230,7 @@ describe('ldc', function(){
 
   });
   
-  describe.skip('cat', function(){
+  describe('cat', function(){
 
     var ldc1, ldc2;
 
@@ -296,7 +314,7 @@ describe('ldc', function(){
     
   });
 
-  describe.skip('files', function(){
+  describe('files', function(){
     var ldc1, ldc2;
     before(function(done){
       ldc1 = new Ldc(conf, path.join(root, 'fixtures', 'req-test'));
@@ -377,7 +395,6 @@ describe('ldc', function(){
         ldc.install(['myctnr-test@0.0.0'], {top: true, cache: true, require: true}, function(err){
           var files = readdirpSync(path.join(dirPath, 'myctnr-test'));
 
-          console.log(files);
           var expected = [ 
             'container.jsonld', 
             'x1.csv', 

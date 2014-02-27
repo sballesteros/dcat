@@ -28,7 +28,7 @@ var argv = optimist
       'Usage: ldc <command> [options] where command is:',
       '  - init [globs] [urls] [-d, --defaults] [-b --codebundle <relative/path/to/code/directory>] Interactively create a container.jsonld file and add the files listed as globs (*.csv ... and urls) as dataset. Be sure to double quote the glob so that the shell does not expand them',
       '  - cat       <container name>[@<version>] [-e, --expand]',
-      '  - install   <container name 1>[@<version>] <container name 2>[@<version>] <container url> ... [-t, --top] [-a, --all] [-c, --cache] [-s, --save]',
+      '  - install   <container name 1>[@<version>] <container name 2>[@<version>] <container url> ... [-t, --top] [-a, --env] [-c, --cache] [-r, --require] [-s, --save]',
       '  - publish',
       '  - unpublish <container name>[@<version>]',
       '  - adduser',
@@ -43,10 +43,11 @@ var argv = optimist
   .alias('f', 'force').describe('f', 'overwrite previous if exists')
   .alias('d', 'defaults').describe('d', 'bypass the promzard prompt')
   .alias('t', 'top').describe('t', 'install in the current working directory (and not within ld_containers/)')
-  .alias('a', 'all').describe('a', 'install all the files present in the directory at publication time')
+  .alias('a', 'env').describe('a', 'install all the environment files present in the directory at publication time')
   .alias('e', 'expand').describe('e', 'expand the JSON-LD document')
   .alias('s', 'save').describe('s', 'data packages will appear in your dataDependencies')
-  .alias('c', 'cache').describe('c', 'store the dataset content on the disk')
+  .alias('c', 'cache').describe('c', 'store the dataset content on the disk (inlined data will stay in the container.jsonld see -r, --require to change this behavior)')
+  .alias('r', 'require').describe('c', 'force the inlined dataset (contentData) to be stored in their own file in ld_resources/')
   .alias('b', 'codebundle').describe('b', 'treat the listed directory as a code project')
   .alias('h', 'help').describe('h', 'print usage')
   .alias('v', 'version').describe('v', 'print version number')
@@ -175,10 +176,8 @@ if (argv._[0] === 'init') {
           if(err) _fail(err);
                    
           for (var type in resourcesFromPath){
-            var resources = resourcesFromPath[type].concat(resourcesFromUrls[type]);
-            if(resources.length){
-              ldc.addResources(ctnr, type, resources);
-            }
+            resourcesFromPath[type] = resourcesFromPath[type].concat(resourcesFromUrls[type]); //merge
+            ldc.addResources(ctnr, resourcesFromPath);
           }
 
           fs.writeFileSync(path.resolve(ldc.root, 'container.jsonld'), JSON.stringify(ctnr, null, 2));
@@ -220,7 +219,7 @@ if (argv._[0] === 'init') {
       delete argv.top;
     }
 
-    ldc.install(ctnrIds, { top: argv.top, all: argv.all, cache: argv.cache, force: argv.force }, function(err, ctnrs){
+    ldc.install(ctnrIds, { top: argv.top, env: argv.env, cache: argv.cache, force: argv.force }, function(err, ctnrs){
       if(err) _fail(err);
 
       if(argv.save){

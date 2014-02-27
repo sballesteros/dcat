@@ -93,7 +93,7 @@ describe('ldc', function(){
 
   });
 
-  describe('publish', function(){
+  describe.skip('publish', function(){
     var ldc1, ldc2;
 
     before(function(done){
@@ -129,7 +129,7 @@ describe('ldc', function(){
   });
 
            
-  describe('unpublish', function(){
+  describe.skip('unpublish', function(){
     var ldc1;
 
     before(function(done){
@@ -155,7 +155,7 @@ describe('ldc', function(){
   });
 
 
-  describe('owner', function(){
+  describe.skip('owner', function(){
 
     var expected = [ 
       {name: 'user_a', email: 'user@domain.com'},
@@ -212,14 +212,14 @@ describe('ldc', function(){
 
   });
   
-  describe('cat', function(){
+  describe.skip('cat', function(){
 
     var ldc1, ldc2;
 
     var expected = { 
 //      '@context': 'http://localhost:3000/container.jsonld',
       '@id': 'req-test/0.0.0',
-      '@type': 'Container',
+      '@type': ['Container', 'DataCatalog'],
       name: 'req-test',
       description: 'a test for data dependencies',
       about: { name: 'README.md', url: 'req-test/0.0.0/about/README.md' },
@@ -236,14 +236,14 @@ describe('ldc', function(){
             contentUrl: 'myctnr-test/0.0.0/dataset/csv1/x1.csv',
             //uploadDate: '2014-01-12T05:11:48.221Z',
           },
-          container: { name: 'req-test', version: '0.0.0', url: 'req-test/0.0.0' } 
+          catalog: { '@type': ['Container', 'DataCatalog'], name: 'req-test', version: '0.0.0', url: 'req-test/0.0.0' } 
         }
       ],
 //      datePublished: '2014-01-12T05:11:48.220Z',
       encoding: {
         contentUrl: 'req-test/0.0.0/env/env_.tar.gz',
         contentSize: 29,
-        "encodingFormat": "application/x-gtar",
+        'encodingFormat': 'application/x-gtar',
         hashAlgorithm: 'md5',
         hashValue: '31f6566d35ccd604be46ed5b1f813cdf'      
       },
@@ -296,7 +296,7 @@ describe('ldc', function(){
     
   });
 
-  describe('files', function(){
+  describe.skip('files', function(){
     var ldc1, ldc2;
     before(function(done){
       ldc1 = new Ldc(conf, path.join(root, 'fixtures', 'req-test'));
@@ -323,6 +323,7 @@ describe('ldc', function(){
             path.join('ld_containers', 'myctnr-test', 'scripts', 'test.r'),
             path.join('ld_containers', 'myctnr-test', 'img', 'daftpunk.jpg'),
             path.join('ld_containers', 'myctnr-test', 'README.md'),
+            path.join('ld_resources', 'azerty.csv'),
             'container.jsonld',
             'README.md'
           ];
@@ -332,6 +333,7 @@ describe('ldc', function(){
         });
       });
     });
+
 
     it('should install req-test@0.0.0 (and its dependencies) and cache data', function(done){
       temp.mkdir('test-ldc-', function(err, dirPath) {
@@ -346,6 +348,7 @@ describe('ldc', function(){
             path.join('req-test', 'ld_containers', 'myctnr-test', 'scripts', 'test.r'),
             path.join('req-test', 'ld_containers', 'myctnr-test', 'img', 'daftpunk.jpg'),
             path.join('req-test', 'ld_containers', 'myctnr-test', 'README.md'),
+            path.join('req-test', 'ld_resources', 'azerty.csv'),
             path.join('req-test', 'container.jsonld'),
             path.join('req-test', 'README.md')
           ];
@@ -359,19 +362,91 @@ describe('ldc', function(){
     it('should install myctnr-test at the top level with all env files', function(done){
       temp.mkdir('test-ldc-', function(err, dirPath) {
         var ldc = new Ldc(conf, dirPath);
-        ldc.install(['myctnr-test@0.0.0'], { top: true, all:true }, function(err, ctnrs){          
+        ldc.install(['myctnr-test@0.0.0'], { top: true, env:true }, function(err, ctnrs){          
           var files = readdirpSync(path.join(dirPath, 'myctnr-test'));
-          var expected = ['container.jsonld', 'README.md',  'env.txt'];
+          var expected = ['container.jsonld',  'env.txt'];
+          assert(files.length && difference(files, expected).length === 0);
+          done();
+        });
+      });
+    });    
+
+    it('should install myctnr-test@0.0.0 at the top level, cache data and put inlined data in their own files in ld_resources', function(done){
+      temp.mkdir('test-ldc-', function(err, dirPath) {
+        var ldc = new Ldc(conf, dirPath);
+        ldc.install(['myctnr-test@0.0.0'], {top: true, cache: true, require: true}, function(err){
+          var files = readdirpSync(path.join(dirPath, 'myctnr-test'));
+
+          console.log(files);
+          var expected = [ 
+            'container.jsonld', 
+            'x1.csv', 
+            'x2.csv',
+            path.join('scripts', 'test.r'),
+            path.join('img', 'daftpunk.jpg'),
+            path.join('ld_resources', 'inline.json'),
+            'README.md'
+          ];
+
           assert(files.length && difference(files, expected).length === 0);
           done();
         });
       });
     });
-    
+
     after(function(done){
       rmFixtures(done);
     });
     
+  });
+
+
+  describe('code bundles', function(){
+
+    before(function(done){
+      var ldc = new Ldc(conf, path.join(root, 'fixtures', 'init-test'));
+      ldc.adduser(function(err, headers){
+        ldc.paths2resources(['*.csv'], {codeBundles: ['scripts']}, function(err, resources){
+          var ctnr = {name: 'test-bundle', version: '0.0.0'};
+          ldc.addResources(ctnr, resources);
+          fs.writeFileSync(path.join(root, 'fixtures', 'init-test', 'container.jsonld'), JSON.stringify(ctnr, null, 2));
+          ldc.publish(function(err, body){                     
+            done();
+          });       
+        });     
+      });     
+    });
+
+    it('should properly unpack a codebundle', function(done){
+
+      temp.mkdir('test-ldc-', function(err, dirPath) {
+        var ldc = new Ldc(conf, dirPath);
+        ldc.install(['test-bundle@0.0.0'], { top: true, cache: true }, function(err){
+          var files = readdirpSync(path.join(dirPath, 'test-bundle'));
+
+          var expected = [ 
+            path.join('scripts', 'main.r'),
+            path.join('scripts', 'deps', 'dep.r'),
+            'x1.csv',
+            'container.jsonld',
+            'README.md'
+          ];
+          
+          assert(files.length && difference(files, expected).length === 0);
+          done();
+        });
+      });
+
+    });
+
+    after(function(done){
+      fs.unlinkSync(path.join(root, 'fixtures', 'init-test', 'container.jsonld'));
+      request.del( { url: rurl('/test-bundle'), auth: {user: conf.name, pass: conf.password} }, function(err, resp, body){
+        request.del( { url: rurl('/rmuser/' + conf.name), auth: {user: conf.name, pass: conf.password} }, function(err, resp, body){
+          done();
+        });
+      });
+    });
   });
 
 });

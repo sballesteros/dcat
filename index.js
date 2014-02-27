@@ -178,7 +178,7 @@ Ldc.prototype.cat = function(ctnrId, opts, callback){
 
     rurl = ctnrId;    
     var prurl = url.parse(rurl, true);
-    if ( (prurl.hostname === 'registry.standardanalytics.io' || prurl.hostname === 'localhost') && (opts.cache || opts.all)){
+    if ( (prurl.hostname === 'registry.standardanalytics.io' || prurl.hostname === 'localhost') && ( (opts.cache && !opts.require) || opts.env)){
       prurl.query = prurl.query || {};
       prurl.query.contentData = true;
       delete prurl.search;
@@ -200,7 +200,7 @@ Ldc.prototype.cat = function(ctnrId, opts, callback){
       version = 'latest'
     }
 
-    rurl = this.url('/' + name + '/' + version, (opts.cache || opts.all) ? {contentData: true} : undefined);
+    rurl = this.url('/' + name + '/' + version, ((opts.cache && !opts.require) || opts.env) ? {contentData: true} : undefined);
 
   }
 
@@ -304,7 +304,8 @@ Ldc.prototype._install = function(ctnrId, opts, callback){
   async.waterfall([
 
     function(cb){
-      this[(opts.all) ? '_getAll' : '_get'](ctnrId, opts, function(err, ctnr, context, root){
+      this[(opts.env) ? '_getAll' : '_get'](ctnrId, opts, function(err, ctnr, context, root){
+        //console.log(util.inspect(ctnr, {depth:null}));
 
         if(err) return cb(err);
         
@@ -419,9 +420,8 @@ Ldc.prototype._getAll = function(ctnrId, opts, callback){
               path: root,
               strip: 1
             }))
+            .on('error', callback)
             .on('end', function(){
-              //TODO write README.md (if exists)
-
               callback(null, ctnr, context, root);
             });
 
@@ -435,7 +435,7 @@ Ldc.prototype._getAll = function(ctnrId, opts, callback){
 };
 
 /**
- * cache all the resources at their path (when it exists or in .data/type when they dont)
+ * cache all the resources at their path (when it exists or in ld_resources when they dont)
  */
 Ldc.prototype._cache = function(ctnr, context, root, callback){
 
@@ -456,7 +456,8 @@ Ldc.prototype._cache = function(ctnr, context, root, callback){
             name: r.name,
             type: 'code',
             url: r.targetProduct.downloadUrl,
-            path: r.targetProduct.filePath
+            path: r.targetProduct.filePath,
+            bundlePath: r.targetProduct.bundlePath
           }
         }),
       (ctnr.figure || [])
@@ -471,19 +472,24 @@ Ldc.prototype._cache = function(ctnr, context, root, callback){
         })
     );
 
-  //add README if exists TODO improve
+  //add README if exists
   if(ctnr.about && ctnr.about.url){
     toCache.push({
       url: ctnr.about.url, 
-      path: ctnr.about.name || 'README.md'  
+      path: ctnr.about.name || 'README.md'  //TODO improve
     });
   }
   
   async.each(toCache, function(r, cb){
     cb = once(cb);
 
-    var dirname  = (r.path) ? path.dirname(r.path) : '.data';
-    
+    var dirname;
+    if(r.bundlePath){            
+      dirname  = r.bundlePath;
+    } else {
+      dirname  = (r.path) ? path.dirname(r.path) : 'ld_resources';
+    }
+
     mkdirp(path.resolve(root, dirname), function(err) {
 
       if(err) return cb(err);
@@ -504,15 +510,33 @@ Ldc.prototype._cache = function(ctnr, context, root, callback){
           }));
         } else {
 
-          var filename = (r.path) ? path.basename(r.path) : r.name + '.' + (mime.extension(resp.headers['content-type']) || r.type );
+          if(r.bundlePath){            
 
-          resp
-            .pipe(fs.createWriteStream(path.resolve(root, dirname, filename)))
-            .on('finish', function(){
-              this.emit('log', 'ldc'.grey + ' save'.green + ' ' + (r.name || 'about') + ' at ' +  path.relative(this.root, path.resolve(root, dirname, filename)));
+            resp
+              .pipe(zlib.createGunzip())
+              .pipe(new tar.Extract({
+                path: path.resolve(root, r.bundlePath),
+                strip: 1
+              }))
+              .on('error', cb)
+              .on('end', function(){
+                this.emit('log', 'ldc'.grey + ' mounted'.green + ' ' + r.name + ' at ' +  r.bundlePath);
+                cb(null);
+              }.bind(this));
 
-              cb(null);
-            }.bind(this));
+          } else {
+
+            var filename = (r.path) ? path.basename(r.path) : r.name + '.' + (mime.extension(resp.headers['content-type']) || r.type );
+
+            resp
+              .pipe(fs.createWriteStream(path.resolve(root, dirname, filename)))
+              .on('finish', function(){
+                this.emit('log', 'ldc'.grey + ' save'.green + ' ' + (r.name || 'about') + ' at ' +  path.relative(root, path.resolve(root, dirname, filename)));
+
+                cb(null);
+              }.bind(this));
+
+          }          
 
         }
       }.bind(this));
@@ -581,7 +605,7 @@ Ldc.prototype.paths2resources = function(globs, opts, callback){
   callback = once(callback);
 
   //supposes that codeBundles are relative path to code project directories
-  opts.codeBundles = (opts.codeBundles || []).map(function(x){return path.resolve(this.root, x)}, this);
+  var absCodeBundles = (opts.codeBundles || []).map(function(x){return path.resolve(this.root, x)}, this);
 
   async.map(globs, function(pattern, cb){
     glob(path.resolve(this.root, pattern), {matchBase: true}, cb);
@@ -596,7 +620,7 @@ Ldc.prototype.paths2resources = function(globs, opts, callback){
       .filter(minimatch.filter('!**/container.jsonld', {matchBase: true}))
       .filter(minimatch.filter('!**/README.md', {matchBase: true}));
 
-    opts.codeBundles.forEach(function(x){
+    absCodeBundles.forEach(function(x){
       paths = paths.filter(minimatch.filter('!' + path.join(x, '**/*'), {matchBase: true}));
     });
 
@@ -689,35 +713,34 @@ Ldc.prototype.paths2resources = function(globs, opts, callback){
       }
 
       
-      if(!opts.codeBundles.length){
+      if(!absCodeBundles.length){
         return callback(null, resources, paths);
       }
       
-      async.map(opts.codeBundles, function(dirPath, cb){
+      async.map(absCodeBundles, function(absPath, cb){
 
         var tempPath = temp.path({prefix:'ldc-'});
 
         var ignore = new Ignore({
-          path: dirPath,
-          ignoreFiles: ['.gitignore', '.npmignore', '.ldcignore'].map(function(x){return path.resolve(dirPath, x)})
+          path: absPath,
+          ignoreFiles: ['.gitignore', '.npmignore', '.ldcignore'].map(function(x){return path.resolve(absPath, x)})
         });
         ignore.addIgnoreRules(['.git', '__MACOSX', 'ld_containers', 'node_modules'], 'custom-rules');
         var ws = ignore.pipe(tar.Pack()).pipe(zlib.createGzip()).pipe(fs.createWriteStream(tempPath));
         ws.on('error', cb);
         ws.on('finish', function(){
-          cb(null, {name: path.basename(dirPath), targetProduct: {filePath: tempPath, fileFormat:'application/x-gzip'}});
-        });
+          cb(null, {name: path.basename(absPath), targetProduct: {filePath: tempPath, bundlePath: path.relative(this.root, absPath), fileFormat:'application/x-gzip'}});
+        }.bind(this));
 
-      }, function(err, codeResources){
+      }.bind(this), function(err, codeResources){
         if(err) return callback(err);
         
         resources.code = resources.code.concat(codeResources);
-
         callback(null, resources, paths);
         
       });
       
-    });
+    }.bind(this));
 
   }.bind(this));
 
@@ -824,19 +847,20 @@ Ldc.prototype.urls2resources = function(urls, callback){
 
 
 /**
- * add resources to ctnr[type] by taking care of removing previous
+ * add resources by taking care of removing previous
  * resources with conflicting names
+ * !! resources is {dataset: [], code: [], figure: []}
  */
-Ldc.prototype.addResources = function(ctnr, type, resources){
+Ldc.prototype.addResources = function(ctnr, resources){
 
-  if(!(type in ctnr)){
-    ctnr[type] = [];
+  for (var type in resources){
+    if(resources[type].length){
+      var names = resources[type].map(function(r) {return r.name;});
+      ctnr[type] = (ctnr[type] || [])
+        .filter(function(r){ return names.indexOf(r.name) === -1; })
+        .concat(resources[type]);     
+    }
   }
-
-  var names = resources.map(function(r) {return r.name;});
-  ctnr[type] = ctnr[type]
-    .filter(function(r){ return names.indexOf(r.name) === -1; })
-    .concat(resources);
 
   return ctnr;
 };

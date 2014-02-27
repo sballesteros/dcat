@@ -13,9 +13,9 @@ Usage:
 ##CLI
 
     Usage: ldc <command> [options] where command is:
-      - init [globs] [urls] [-d, --defaults] Interactively create a container.jsonld file and add the files listed as globs (*.csv ... and urls) as dataset
+      - init [globs] [urls] [-d, --defaults] [-b --codebundle <relative/path/to/code/directory>] Interactively create a container.jsonld file and add the files listed as globs (*.csv ... and urls) as dataset. Be sure to double quote the glob so that the shell does not expand them
       - cat       <container name>[@<version>] [-e, --expand]
-      - install   <container name 1>[@<version>] <container name 2>[@<version>] <container url> ... [-t, --top] [-a, --all] [-c, --cache] [-s, --save]
+      - install   <container name 1>[@<version>] <container name 2>[@<version>] <container url> ... [-t, --top] [-a, --env] [-c, --cache] [-r, --require] [-s, --save]
       - publish
       - unpublish <container name>[@<version>]
       - adduser
@@ -27,15 +27,16 @@ Usage:
       - help [command]
     
     Options:
-      -f, --force     overwrite previous if exists
-      -d, --defaults  bypass the promzard prompt
-      -t, --top       install in the current working directory (and not within ld_containers/)
-      -a, --all       install all the files present in the directory at publication time
-      -e, --expand    expand the JSON-LD document
-      -s, --save      data packages will appear in your dataDependencies
-      -c, --cache     store the dataset content on the disk
-      -h, --help      print usage
-      -v, --version   print version number
+      -f, --force       overwrite previous if exists
+      -d, --defaults    bypass the promzard prompt
+      -t, --top         install in the current working directory (and not within ld_containers/)
+      -a, --env         install all the environment files present in the directory at publication time
+      -e, --expand      expand the JSON-LD document
+      -s, --save        data packages will appear in your dataDependencies
+      -c, --cache       force the inlined dataset (contentData) to be stored in their own file in ld_resources/
+      -b, --codebundle  treat the listed directory as a code project
+      -h, --help        print usage
+      -v, --version     print version number
 
 
 ## Using ldc programaticaly

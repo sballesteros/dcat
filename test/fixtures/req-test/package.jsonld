@@ -1,15 +1,15 @@
 {
   "name": "req-test",
   "description": "a test for data dependencies",
-  "isBasedOnUrl": ["myctnr-test/0.0.0"],
+  "isBasedOnUrl": ["mypkg-test/0.0.0"],
   "version": "0.0.0",
-  "keywords": ["test", "container"],
+  "keywords": ["test", "package"],
 
   "dataset": [
     {
       "name": "azerty",
       "distribution": {
-        "contentUrl": "myctnr-test/0.0.0/dataset/csv1/x1.csv"
+        "contentUrl": "mypkg-test/0.0.0/dataset/csv1/x1.csv"
       }
     }
   ]

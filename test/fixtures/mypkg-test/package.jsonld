@@ -1,5 +1,5 @@
 {
-  "name": "myctnr-test",
+  "name": "mypkg-test",
   "description": "my container",
   "version": "0.0.0",
   "keywords": ["test", "container"],

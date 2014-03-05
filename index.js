@@ -34,10 +34,10 @@ var crypto = require('crypto')
 mime.define({
   'application/ld+json': ['jsonld'],
   'application/x-ldjson': ['ldjson', 'ldj'],
-  'application/x-gzip': ['gz', 'gzip'] //tar.gz won't work
+  'application/x-gzip': ['gz', 'gzip', 'tgz'] //tar.gz won't work
 });
 
-var Ldc = module.exports = function(rc, root){
+var Ldpm = module.exports = function(rc, root){
   EventEmitter.call(this);
 
   this.root = root || process.cwd();
@@ -45,15 +45,15 @@ var Ldc = module.exports = function(rc, root){
   this.rc = rc;
 };
 
-util.inherits(Ldc, EventEmitter);
+util.inherits(Ldpm, EventEmitter);
 
-Ldc.prototype.publish = publish;
+Ldpm.prototype.publish = publish;
 
-Ldc.prototype.url = function(path, queryObj){
+Ldpm.prototype.url = function(path, queryObj){
   return this.rc.protocol + '://'  + this.rc.hostname + ':' + this.rc.port + path + ( (queryObj) ? '?' + querystring.stringify(queryObj): '');
 };
 
-Ldc.prototype.auth = function(){
+Ldpm.prototype.auth = function(){
   return {user: this.rc.name, pass: this.rc.password};
 };
 
@@ -61,7 +61,7 @@ Ldc.prototype.auth = function(){
 /**
  * create an option object for mikeal/request
  */
-Ldc.prototype.rOpts = function(myurl, extras){
+Ldpm.prototype.rOpts = function(myurl, extras){
   extras = extras || {};
 
   var opts = {
@@ -79,7 +79,7 @@ Ldc.prototype.rOpts = function(myurl, extras){
 /**
  * create an option object for mikeal/request **with** basic auth
  */
-Ldc.prototype.rOptsAuth = function(myurl, extras){
+Ldpm.prototype.rOptsAuth = function(myurl, extras){
   var opts = this.rOpts(myurl, extras);
   opts.auth = this.auth();
 
@@ -87,14 +87,14 @@ Ldc.prototype.rOptsAuth = function(myurl, extras){
 };
 
 
-Ldc.prototype.logHttp = function(methodCode, reqUrl){
+Ldpm.prototype.logHttp = function(methodCode, reqUrl){
   this.emit('log', 'ldc'.grey + ' http '.green + methodCode.toString().magenta + ' ' + reqUrl.replace(/:80\/|:443\//, '/'));
 };
 
 
-Ldc.prototype.lsOwner = function(ctnrName, callback){
+Ldpm.prototype.lsOwner = function(pkgName, callback){
 
-  var rurl = this.url('/owner/ls/' + ctnrName);
+  var rurl = this.url('/owner/ls/' + pkgName);
   this.logHttp('GET', rurl);
 
   request(this.rOpts(rurl), function(err, res, body){
@@ -113,9 +113,9 @@ Ldc.prototype.lsOwner = function(ctnrName, callback){
 };
 
 /**
- * data: {username, ctnrname}
+ * data: {username, pkgname}
  */
-Ldc.prototype.addOwner = function(data, callback){
+Ldpm.prototype.addOwner = function(data, callback){
   var rurl = this.url('/owner/add');
   this.logHttp('POST', rurl);
   request.post(this.rOptsAuth(rurl, {json: data}), function(err, res, body){
@@ -131,9 +131,9 @@ Ldc.prototype.addOwner = function(data, callback){
 };
 
 /**
- * data: {username, ctnrname}
+ * data: {username, pkgname}
  */
-Ldc.prototype.rmOwner = function(data, callback){
+Ldpm.prototype.rmOwner = function(data, callback){
   var rurl = this.url('/owner/rm');
   this.logHttp('POST', rurl);
   request.post(this.rOptsAuth(rurl, {json: data}), function(err, res, body){
@@ -148,10 +148,10 @@ Ldc.prototype.rmOwner = function(data, callback){
   }.bind(this));
 };
 
-Ldc.prototype.unpublish = function(ctnrId, callback){
-  ctnrId = ctnrId.replace('@', '/');
+Ldpm.prototype.unpublish = function(pkgId, callback){
+  pkgId = pkgId.replace('@', '/');
 
-  var rurl = this.url('/'+ ctnrId);
+  var rurl = this.url('/'+ pkgId);
   this.logHttp('DELETE', rurl);  
   request.del(this.rOptsAuth(rurl), function(err, res, body){
     if(err) return callback(err);
@@ -166,7 +166,7 @@ Ldc.prototype.unpublish = function(ctnrId, callback){
 
 };
 
-Ldc.prototype.cat = function(ctnrId, opts, callback){
+Ldpm.prototype.cat = function(pkgId, opts, callback){
 
   if(arguments.length === 2){
     callback = opts;
@@ -174,9 +174,9 @@ Ldc.prototype.cat = function(ctnrId, opts, callback){
   }
 
   var rurl;
-  if(isUrl(ctnrId)){
+  if(isUrl(pkgId)){
 
-    rurl = ctnrId;    
+    rurl = pkgId;    
     var prurl = url.parse(rurl, true);
     if ( (prurl.hostname === 'registry.standardanalytics.io' || prurl.hostname === 'localhost') && ( (opts.cache && !opts.require) || opts.env)){
       prurl.query = prurl.query || {};
@@ -187,14 +187,14 @@ Ldc.prototype.cat = function(ctnrId, opts, callback){
 
   } else {
 
-    var splt = ctnrId.split( (ctnrId.indexOf('@') !==-1) ? '@': '/');
+    var splt = pkgId.split( (pkgId.indexOf('@') !==-1) ? '@': '/');
     var name = splt[0]
       , version;
 
     if(splt.length === 2){
       version = semver.valid(splt[1]);
       if(!version){
-        return callback(new Error('invalid version '+ ctnrId.red +' see http://semver.org/'));
+        return callback(new Error('invalid version '+ pkgId.red +' see http://semver.org/'));
       }
     } else {
       version = 'latest'
@@ -209,7 +209,7 @@ Ldc.prototype.cat = function(ctnrId, opts, callback){
   var headers = (opts.expand) ? { headers: {'Accept': 'application/ld+json;profile="http://www.w3.org/ns/json-ld#expanded"'} } :
   { headers: {'Accept': 'application/ld+json;profile="http://www.w3.org/ns/json-ld#compacted"'} };
 
-  request(this.rOpts(rurl, headers), function(err, res, ctnr){
+  request(this.rOpts(rurl, headers), function(err, res, pkg){
 
     if(err) return callback(err);
 
@@ -221,7 +221,7 @@ Ldc.prototype.cat = function(ctnrId, opts, callback){
     }
     
     try{
-      var ctnr = JSON.parse(ctnr);
+      var pkg = JSON.parse(pkg);
     } catch(e){
       return callback(e);
     }
@@ -233,13 +233,13 @@ Ldc.prototype.cat = function(ctnrId, opts, callback){
       if('http://www.w3.org/ns/json-ld#context' in links){
         contextUrl = links['http://www.w3.org/ns/json-ld#context'].target;
       };
-    } else if(isUrl(ctnr['@context'])){
-      contextUrl = ctnr['@context'];
+    } else if(isUrl(pkg['@context'])){
+      contextUrl = pkg['@context'];
     }
 
     if(!contextUrl){
       //TODO better handle context free case...
-      return callback(null, ctnr, (ctnr['@context']) ? {'@context': ctnr['@context']}: undefined);
+      return callback(null, pkg, (pkg['@context']) ? {'@context': pkg['@context']}: undefined);
     }
 
     this.logHttp('GET', contextUrl);
@@ -259,13 +259,13 @@ Ldc.prototype.cat = function(ctnrId, opts, callback){
       }
 
       if(opts.expand){
-        jsonld.expand(ctnr, {expandContext: context}, function(err, ctnrExpanded){
-          return callback(err, ctnrExpanded, context);
+        jsonld.expand(pkg, {expandContext: context}, function(err, pkgExpanded){
+          return callback(err, pkgExpanded, context);
         });
       } else { 
-        ctnr['@context'] = contextUrl;
+        pkg['@context'] = contextUrl;
 
-        return callback(null, ctnr, context);
+        return callback(null, pkg, context);
       }
 
     }.bind(this));
@@ -276,18 +276,18 @@ Ldc.prototype.cat = function(ctnrId, opts, callback){
 
 
 /**
- * Install a list of ctnrIds and their dependencies
+ * Install a list of pkgIds and their dependencies
  * callback(err)
  */
-Ldc.prototype.install = function(ctnrIds, opts, callback){
+Ldpm.prototype.install = function(pkgIds, opts, callback){
   
-  async.map(ctnrIds, function(ctnrId, cb){
-    this._install(ctnrId, opts, function(err, ctnr, context, root){
+  async.map(pkgIds, function(pkgId, cb){
+    this._install(pkgId, opts, function(err, pkg, context, root){
       if(err) return cb(err);
       opts = clone(opts);
       opts.root = root;
-      this._installDep(ctnr, opts, context, function(err){
-        return cb(err, ctnr);
+      this._installDep(pkg, opts, context, function(err){
+        return cb(err, pkg);
       });     
     }.bind(this));
 
@@ -297,33 +297,33 @@ Ldc.prototype.install = function(ctnrIds, opts, callback){
 
 
 /**
- * Install a ctnr (without dataDependencies)
+ * Install a pkg (without dataDependencies)
  */
-Ldc.prototype._install = function(ctnrId, opts, callback){
+Ldpm.prototype._install = function(pkgId, opts, callback){
 
   async.waterfall([
 
     function(cb){
-      this[(opts.env) ? '_getAll' : '_get'](ctnrId, opts, function(err, ctnr, context, root){
-        //console.log(util.inspect(ctnr, {depth:null}));
+      this[(opts.env) ? '_getAll' : '_get'](pkgId, opts, function(err, pkg, context, root){
+        //console.log(util.inspect(pkg, {depth:null}));
 
         if(err) return cb(err);
         
         if(!opts.cache){
-          cb(null, ctnr, context, root);
+          cb(null, pkg, context, root);
         } else {        
-          this._cache(ctnr, context, root, cb);
+          this._cache(pkg, context, root, cb);
         }
         
       }.bind(this));    
     }.bind(this),
 
-    function(ctnr, context, root, cb){
+    function(pkg, context, root, cb){
       
-      var dest = path.join(root, 'container.jsonld');
-      fs.writeFile(dest, JSON.stringify(ctnr, null, 2), function(err){
+      var dest = path.join(root, 'package.jsonld');
+      fs.writeFile(dest, JSON.stringify(pkg, null, 2), function(err){
         if(err) return cb(err);
-        cb(null, ctnr, context, root);
+        cb(null, pkg, context, root);
       });
 
     }.bind(this)
@@ -336,35 +336,35 @@ Ldc.prototype._install = function(ctnrId, opts, callback){
 /**
  * Install dataDependencies
  */
-Ldc.prototype._installDep = function(ctnr, opts, context, callback){
+Ldpm.prototype._installDep = function(pkg, opts, context, callback){
   
-  var deps = ctnr.isBasedOnUrl || [];  
+  var deps = pkg.isBasedOnUrl || [];  
   opts = clone(opts);
   delete opts.top;
 
-  async.each(deps.map(function(iri){return _expandIri(context['@context']['@base'], iri);}), function(ctnrId, cb){
-    this._install(ctnrId, opts, cb);    
+  async.each(deps.map(function(iri){return _expandIri(context['@context']['@base'], iri);}), function(pkgId, cb){
+    this._install(pkgId, opts, cb);    
   }.bind(this), callback);
 
 };
 
 
 /**
- * get container.jsonld and create empty directory that will receive container.jsonld
+ * get package.jsonld and create empty directory that will receive package.jsonld
  */
-Ldc.prototype._get = function(ctnrId, opts, callback){
+Ldpm.prototype._get = function(pkgId, opts, callback){
 
   if(arguments.length === 2){
     callback = opts;
     opts = {};
   }
 
-  this.cat(ctnrId, opts, function(err, ctnr, context){
+  this.cat(pkgId, opts, function(err, pkg, context){
     if(err) return callback(err);
 
-    var root = (opts.top) ? path.join(opts.root || this.root, ctnr.name) : path.join(opts.root || this.root, 'ld_containers', ctnr.name);
+    var root = (opts.top) ? path.join(opts.root || this.root, pkg.name) : path.join(opts.root || this.root, 'ld_packages', pkg.name);
     _createDir(root, opts, function(err){
-      callback(err, ctnr, context, root);
+      callback(err, pkg, context, root);
     });
 
   }.bind(this));  
@@ -372,9 +372,9 @@ Ldc.prototype._get = function(ctnrId, opts, callback){
 
 
 /**
- * get container.jsonld and create a directory populated by (env_.tar.gz)
+ * get package.jsonld and create a directory populated by (env_.tar.gz)
  */
-Ldc.prototype._getAll = function(ctnrId, opts, callback){
+Ldpm.prototype._getAll = function(pkgId, opts, callback){
 
   callback = once(callback);
 
@@ -383,21 +383,21 @@ Ldc.prototype._getAll = function(ctnrId, opts, callback){
     opts = {};
   }
 
-  this.cat(ctnrId, opts, function(err, ctnr, context){
+  this.cat(pkgId, opts, function(err, pkg, context){
 
     if(err) return callback(err);
 
-    var root = (opts.top) ? path.join(opts.root || this.root, ctnr.name) : path.join(opts.root || this.root, 'ld_containers', ctnr.name);
+    var root = (opts.top) ? path.join(opts.root || this.root, pkg.name) : path.join(opts.root || this.root, 'ld_packages', pkg.name);
     _createDir(root, opts, function(err){
       if(err) {
         return callback(err);
       }
 
-      if(!ctnr.encoding || !(ctnr.encoding && ctnr.encoding.contentUrl)){
+      if(!pkg.encoding || !(pkg.encoding && pkg.encoding.contentUrl)){
         return callback(new Error('--all cannot be satisfied'));
       }
 
-      var rurl = _expandIri(context['@context']['@base'], ctnr.encoding.contentUrl);
+      var rurl = _expandIri(context['@context']['@base'], pkg.encoding.contentUrl);
       this.logHttp('GET', rurl);
 
       var req = request(this.rOpts(rurl));
@@ -422,7 +422,7 @@ Ldc.prototype._getAll = function(ctnrId, opts, callback){
             }))
             .on('error', callback)
             .on('end', function(){
-              callback(null, ctnr, context, root);
+              callback(null, pkg, context, root);
             });
 
         }
@@ -437,9 +437,9 @@ Ldc.prototype._getAll = function(ctnrId, opts, callback){
 /**
  * cache all the resources at their path (when it exists or in ld_resources when they dont)
  */
-Ldc.prototype._cache = function(ctnr, context, root, callback){
+Ldpm.prototype._cache = function(pkg, context, root, callback){
 
-  var toCache  = (ctnr.dataset || [])
+  var toCache  = (pkg.dataset || [])
     .filter(function(r){return ( r.distribution && r.distribution.contentUrl && !('contentData' in r.distribution) );})
     .map(function(r){
       return {
@@ -449,7 +449,7 @@ Ldc.prototype._cache = function(ctnr, context, root, callback){
         path: r.distribution.contentPath
       }
     }).concat(
-      (ctnr.code || [])
+      (pkg.code || [])
         .filter(function(r){return ( r.targetProduct && r.targetProduct.downloadUrl );})
         .map(function(r){
           return {
@@ -460,7 +460,7 @@ Ldc.prototype._cache = function(ctnr, context, root, callback){
             bundlePath: r.targetProduct.bundlePath
           }
         }),
-      (ctnr.figure || [])
+      (pkg.figure || [])
         .filter(function(r){return !!r.contentUrl ;})
         .map(function(r){
           return {
@@ -473,10 +473,10 @@ Ldc.prototype._cache = function(ctnr, context, root, callback){
     );
 
   //add README if exists
-  if(ctnr.about && ctnr.about.url){
+  if(pkg.about && pkg.about.url){
     toCache.push({
-      url: ctnr.about.url, 
-      path: ctnr.about.name || 'README.md'  //TODO improve
+      url: pkg.about.url, 
+      path: pkg.about.name || 'README.md'  //TODO improve
     });
   }
   
@@ -544,13 +544,13 @@ Ldc.prototype._cache = function(ctnr, context, root, callback){
     }.bind(this));
 
   }.bind(this), function(err){
-    callback(err, ctnr, context, root);
+    callback(err, pkg, context, root);
   });
 
 };
 
 
-Ldc.prototype.adduser = function(callback){
+Ldpm.prototype.adduser = function(callback){
 
   var rurl = this.url('/adduser/' + this.rc.name);
   this.logHttp('PUT', rurl);
@@ -595,7 +595,7 @@ Ldc.prototype.adduser = function(callback){
  * from paths expressed as globs (*.csv, ...) to resources
  * opts: { fFilter: function(){}, codeBundles: [] }
  */
-Ldc.prototype.paths2resources = function(globs, opts, callback){
+Ldpm.prototype.paths2resources = function(globs, opts, callback){
 
   if(arguments.length === 2){
     callback = opts;
@@ -616,8 +616,8 @@ Ldc.prototype.paths2resources = function(globs, opts, callback){
     paths = uniq(flatten(paths))   
       .filter(minimatch.filter('!**/.git/**/*', {matchBase: true}))
       .filter(minimatch.filter('!**/node_modules/**/*', {matchBase: true}))
-      .filter(minimatch.filter('!**/ld_containers/**/*', {matchBase: true}))
-      .filter(minimatch.filter('!**/container.jsonld', {matchBase: true}))
+      .filter(minimatch.filter('!**/ld_packages/**/*', {matchBase: true}))
+      .filter(minimatch.filter('!**/package.jsonld', {matchBase: true}))
       .filter(minimatch.filter('!**/README.md', {matchBase: true}));
 
     absCodeBundles.forEach(function(x){
@@ -725,7 +725,7 @@ Ldc.prototype.paths2resources = function(globs, opts, callback){
           path: absPath,
           ignoreFiles: ['.gitignore', '.npmignore', '.ldcignore'].map(function(x){return path.resolve(absPath, x)})
         });
-        ignore.addIgnoreRules(['.git', '__MACOSX', 'ld_containers', 'node_modules'], 'custom-rules');
+        ignore.addIgnoreRules(['.git', '__MACOSX', 'ld_packages', 'node_modules'], 'custom-rules');
         var ws = ignore.pipe(tar.Pack()).pipe(zlib.createGzip()).pipe(fs.createWriteStream(tempPath));
         ws.on('error', cb);
         ws.on('finish', function(){
@@ -750,7 +750,7 @@ Ldc.prototype.paths2resources = function(globs, opts, callback){
 /**
  * from urls to resources
  */
-Ldc.prototype.urls2resources = function(urls, callback){
+Ldpm.prototype.urls2resources = function(urls, callback){
   urls = uniq(urls);
 
   async.map(urls, function(myurl, cb){
@@ -851,18 +851,18 @@ Ldc.prototype.urls2resources = function(urls, callback){
  * resources with conflicting names
  * !! resources is {dataset: [], code: [], figure: []}
  */
-Ldc.prototype.addResources = function(ctnr, resources){
+Ldpm.prototype.addResources = function(pkg, resources){
 
   for (var type in resources){
     if(resources[type].length){
       var names = resources[type].map(function(r) {return r.name;});
-      ctnr[type] = (ctnr[type] || [])
+      pkg[type] = (pkg[type] || [])
         .filter(function(r){ return names.indexOf(r.name) === -1; })
         .concat(resources[type]);     
     }
   }
 
-  return ctnr;
+  return pkg;
 };
 
 

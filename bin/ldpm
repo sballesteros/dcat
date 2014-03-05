@@ -6,7 +6,7 @@ var path = require('path')
   , request = require('request')
   , flatten = require('lodash.flatten')
   , fs = require('fs')
-  , Ldc = require('..')
+  , Ldpm = require('..')
   , optimist = require('optimist')
   , read = require('read')
   , async = require('async')
@@ -25,28 +25,28 @@ var path = require('path')
 var argv = optimist
   .usage(
     [
-      'Usage: ldc <command> [options] where command is:',
-      '  - init [globs] [urls] [-d, --defaults] [-b --codebundle <relative/path/to/code/directory>] Interactively create a container.jsonld file and add the files listed as globs (*.csv ... and urls) as dataset. Be sure to double quote the glob so that the shell does not expand them',
-      '  - cat       <container name>[@<version>] [-e, --expand]',
-      '  - install   <container name 1>[@<version>] <container name 2>[@<version>] <container url> ... [-t, --top] [-a, --env] [-c, --cache] [-r, --require] [-s, --save]',
+      'Usage: ldpm <command> [options] where command is:',
+      '  - init [globs] [urls] [-d, --defaults] [-b --codebundle <relative/path/to/code/directory>] Interactively create a package.jsonld file and add the files listed as globs (*.csv ... and urls) as dataset. Be sure to double quote the glob so that the shell does not expand them',
+      '  - cat       <package name>[@<version>] [-e, --expand]',
+      '  - install   <package name 1>[@<version>] <package name 2>[@<version>] <package url> ... [-t, --top] [-a, --env] [-c, --cache] [-r, --require] [-s, --save]',
       '  - publish',
-      '  - unpublish <container name>[@<version>]',
+      '  - unpublish <package name>[@<version>]',
       '  - adduser',
       '  - owner <subcommand> where subcommand is:',
-      '    - ls  <container name>',
-      '    - add <user> <container name>',
-      '    - rm  <user> <container name>[@<version>]',
+      '    - ls  <package name>',
+      '    - add <user> <package name>',
+      '    - rm  <user> <package name>[@<version>]',
       '  - search [search terms]',
       '  - help [command]',
     ].join(os.EOL)
   )
   .alias('f', 'force').describe('f', 'overwrite previous if exists')
   .alias('d', 'defaults').describe('d', 'bypass the promzard prompt')
-  .alias('t', 'top').describe('t', 'install in the current working directory (and not within ld_containers/)')
+  .alias('t', 'top').describe('t', 'install in the current working directory (and not within ld_packages/)')
   .alias('a', 'env').describe('a', 'install all the environment files present in the directory at publication time')
   .alias('e', 'expand').describe('e', 'expand the JSON-LD document')
   .alias('s', 'save').describe('s', 'data packages will appear in your dataDependencies')
-  .alias('c', 'cache').describe('c', 'store the dataset content on the disk (inlined data will stay in the container.jsonld see -r, --require to change this behavior)')
+  .alias('c', 'cache').describe('c', 'store the dataset content on the disk (inlined data will stay in the package.jsonld see -r, --require to change this behavior)')
   .alias('r', 'require').describe('c', 'force the inlined dataset (contentData) to be stored in their own file in ld_resources/')
   .alias('b', 'codebundle').describe('b', 'treat the listed directory as a code project')
   .alias('h', 'help').describe('h', 'print usage')
@@ -64,10 +64,10 @@ if(argv.v){
 }
 
 //if cloudant: use sha:true
-var ldc = new Ldc(require('rc')('ldc', {protocol: 'https', port: 443, hostname: 'registry.standardanalytics.io', strictSSL: false, sha:true}), process.cwd());
+var ldpm = new Ldpm(require('rc')('ldpm', {protocol: 'https', port: 443, hostname: 'registry.standardanalytics.io', strictSSL: false, sha:true}), process.cwd());
 
 if(argv._[0] !== 'cat'){
-  ldc.on('log', console.log);
+  ldpm.on('log', console.log);
 }
 
 if (argv._[0] === 'init') {
@@ -110,8 +110,8 @@ if (argv._[0] === 'init') {
         function(cb){
           var defaults = {
             license: 'CC0-1.0',
-            authorName: ldc.rc.name,
-            authorEmail: ldc.rc.email,
+            authorName: ldpm.rc.name,
+            authorEmail: ldpm.rc.email,
             description: description,
             codeRepository: codeRepository
           }; 
@@ -124,10 +124,10 @@ if (argv._[0] === 'init') {
           read({prompt: 'data package name: '}, function(err, prompted, _){cb(err, prompted);});
         },
         authorName: function(cb){
-          read({ prompt: 'your name: ', default: ldc.rc.name }, function(err, prompted, _){cb(err, prompted);});
+          read({ prompt: 'your name: ', default: ldpm.rc.name }, function(err, prompted, _){cb(err, prompted);});
         },
         authorEmail: function(cb){
-          read({ prompt: 'your email: ', default: ldc.rc.email }, function(err, prompted, _){cb(err, prompted);});
+          read({ prompt: 'your email: ', default: ldpm.rc.email }, function(err, prompted, _){cb(err, prompted);});
         },
         keywords: function(cb){
           read({prompt: 'keywords: '}, function(err, prompted, _){cb(err, prompted.split(/[\s,]+/));});
@@ -148,39 +148,39 @@ if (argv._[0] === 'init') {
       if(err) _fail(err);
       prompted = Array.isArray(prompted) ? prompted[0]: prompted;
 
-      var ctnr = {};
+      var pkg = {};
       [ 'name', 'description', 'keywords' ,'license' ].forEach(function(key){
         if(prompted[key]){
-          ctnr[key] = prompted[key];
+          pkg[key] = prompted[key];
         }
       });
 
       if(prompted.authorName || prompted.authorEmail){
-        ctnr.author = {};
-        if (prompted.authorName) ctnr.author.name = prompted.authorName;
-        if (prompted.authorEmail) ctnr.author.email = prompted.authorEmail;
+        pkg.author = {};
+        if (prompted.authorName) pkg.author.name = prompted.authorName;
+        if (prompted.authorEmail) pkg.author.email = prompted.authorEmail;
       }
 
       if(prompted.codeRepository){
-        ctnr.codeRepository = prompted.codeRepository;
+        pkg.codeRepository = prompted.codeRepository;
       }
       
       var inputs = argv._.slice(1);
       var codeBundles = (Array.isArray(argv.codebundle)) ? argv.codebundle : 
         ((argv.codebundle)? [ argv.codebundle ] : []);
 
-      ldc.paths2resources(inputs.filter(function(x){return !(isUrl(x) || githubUrl(x));}), { codeBundles: codeBundles } , function(err, resourcesFromPath){
+      ldpm.paths2resources(inputs.filter(function(x){return !(isUrl(x) || githubUrl(x));}), { codeBundles: codeBundles } , function(err, resourcesFromPath){
         if(err) _fail(err);
 
-        ldc.urls2resources(inputs.filter(function(x){return ( isUrl(x) || githubUrl(x) );}), function(err, resourcesFromUrls){
+        ldpm.urls2resources(inputs.filter(function(x){return ( isUrl(x) || githubUrl(x) );}), function(err, resourcesFromUrls){
           if(err) _fail(err);
                    
           for (var type in resourcesFromPath){
             resourcesFromPath[type] = resourcesFromPath[type].concat(resourcesFromUrls[type]); //merge
-            ldc.addResources(ctnr, resourcesFromPath);
+            ldpm.addResources(pkg, resourcesFromPath);
           }
 
-          fs.writeFileSync(path.resolve(ldc.root, 'container.jsonld'), JSON.stringify(ctnr, null, 2));
+          fs.writeFileSync(path.resolve(ldpm.root, 'package.jsonld'), JSON.stringify(pkg, null, 2));
 
         });
       });
@@ -193,43 +193,43 @@ if (argv._[0] === 'init') {
 } else if (argv._[0] === 'cat') {
   
   (function(){
-    var ctnrId = argv._[1];
-    if(!ctnrId) _fail(new Error('invalid usage'));
-    ldc.cat(ctnrId, { expand: argv.expand }, function(err, ctnr){
+    var pkgId = argv._[1];
+    if(!pkgId) _fail(new Error('invalid usage'));
+    ldpm.cat(pkgId, { expand: argv.expand }, function(err, pkg){
       if(err) return _fail(err);
-      console.log(JSON.stringify(ctnr, null, 2));
+      console.log(JSON.stringify(pkg, null, 2));
     });
   })();
 
 } else if(argv._[0] === 'install'){
 
   (function(){
-    var ctnrIds = argv._.slice(1);
-    var ctnr;
-    if(!ctnrIds.length || argv.save){ //get deps for a container.jsonld
+    var pkgIds = argv._.slice(1);
+    var pkg;
+    if(!pkgIds.length || argv.save){ //get deps for a package.jsonld
       try{
-        ctnr = JSON.parse(fs.readFileSync(path.join(ldc.root, 'container.jsonld')));
+        pkg = JSON.parse(fs.readFileSync(path.join(ldpm.root, 'package.jsonld')));
       } catch(e){
-        _fail(new Error('could not load '+ path.join(ldc.root, 'container.jsonld')));
+        _fail(new Error('could not load '+ path.join(ldpm.root, 'package.jsonld')));
       }
     }
 
-    if(!ctnrIds.length){
-      ctnrIds = ctnr.isBasedOnUrl || [];
+    if(!pkgIds.length){
+      pkgIds = pkg.isBasedOnUrl || [];
       delete argv.top;
     }
 
-    ldc.install(ctnrIds, { top: argv.top, env: argv.env, cache: argv.cache, force: argv.force }, function(err, ctnrs){
+    ldpm.install(pkgIds, { top: argv.top, env: argv.env, cache: argv.cache, force: argv.force }, function(err, pkgs){
       if(err) _fail(err);
 
       if(argv.save){
-        ctnr.isBasedOnUrl = uniq( ctnrs.map(function(x){return x['@id'];}).concat(ctnr.isBasedOnUrl || []) );
-        fs.writeFileSync(path.join(ldc.root, 'container.jsonld'), JSON.stringify(ctnr, null, 2));
+        pkg.isBasedOnUrl = uniq( pkgs.map(function(x){return x['@id'];}).concat(pkg.isBasedOnUrl || []) );
+        fs.writeFileSync(path.join(ldpm.root, 'package.jsonld'), JSON.stringify(pkg, null, 2));
       }
 
       //print tree
-      var names = ctnrs.map(function(x){return x.name;});
-      var paths = readdirpSync(ldc.root)
+      var names = pkgs.map(function(x){return x.name;});
+      var paths = readdirpSync(ldpm.root)
         .filter(function(p){
           return names.indexOf(p.split(path.sep)[(argv.top) ? 0: 1]) !== -1;
         })
@@ -244,11 +244,11 @@ if (argv._[0] === 'init') {
   })();
 
 } else if (argv._[0] === 'publish') {
-  if(!fs.existsSync(path.resolve(ldc.root, 'container.jsonld'))){
-    _fail(new Error('no container.jsonld file in '+ ldc.root));
+  if(!fs.existsSync(path.resolve(ldpm.root, 'package.jsonld'))){
+    _fail(new Error('no package.jsonld file in '+ ldpm.root));
   };
 
-  ldc.publish(function(err, id){
+  ldpm.publish(function(err, id){
     if(err) return _fail(err);
     console.log('+ ' + id);
   });
@@ -256,9 +256,9 @@ if (argv._[0] === 'init') {
 } else if (argv._[0] === 'unpublish') {
 
   (function(){
-    var ctnrId = argv._[1];
-    if(!ctnrId) _fail(new Error('invalid usage'));
-    ldc.unpublish(ctnrId, _fail);
+    var pkgId = argv._[1];
+    if(!pkgId) _fail(new Error('invalid usage'));
+    ldpm.unpublish(pkgId, _fail);
   })();
   
 } else if (argv._[0] === 'adduser') {
@@ -303,12 +303,12 @@ if (argv._[0] === 'init') {
       if(err) _fail(err);
 
       for(var key in prompted){
-        ldc.rc[key] = prompted[key];
+        ldpm.rc[key] = prompted[key];
       }
 
       var $HOME = process.env.HOME || process.env.HOMEPATH || process.env.USERPROFILE;
       try {
-        fs.writeFileSync(path.resolve($HOME, '.ldcrc'), JSON.stringify(ldc.rc, function(key, value){
+        fs.writeFileSync(path.resolve($HOME, '.ldpmrc'), JSON.stringify(ldpm.rc, function(key, value){
           if(key.charAt(0) === '_' || key.charAt(0) === '$' || key === 'config'){
             return undefined;
           }
@@ -317,7 +317,7 @@ if (argv._[0] === 'init') {
       } catch (e){
         _fail(e);
       }
-      ldc.adduser(_fail);
+      ldpm.adduser(_fail);
     });
     
   })();
@@ -327,23 +327,23 @@ if (argv._[0] === 'init') {
   (function(){
     var action = argv._[1];
     if(!action) _fail(new Error('invalid usage'));
-    var ctnrname;
+    var pkgname;
 
     if(action === 'add'){
       var granted = argv._[2];
       if(!granted) _fail(new Error('invalid usage'));
 
-      ctnrName = argv._[3];
-      if(!ctnrName) _fail(new Error('invalid usage'));
+      pkgName = argv._[3];
+      if(!pkgName) _fail(new Error('invalid usage'));
 
-      ldc.addOwner({username: granted, ctnrName: ctnrName}, _fail);
+      ldpm.addOwner({username: granted, pkgName: pkgName}, _fail);
 
     } else if (action === 'ls'){
 
-      ctnrName = argv._[2];
-      if(!ctnrName) _fail(new Error('invalid usage'));
+      pkgName = argv._[2];
+      if(!pkgName) _fail(new Error('invalid usage'));
       
-      ldc.lsOwner(ctnrName, function(err, maintainers){
+      ldpm.lsOwner(pkgName, function(err, maintainers){
         if(err) _fail(err);
         if(!Array.isArray(maintainers)) _fail(new Error('no maintainers'));
         maintainers.forEach(function(m){
@@ -356,10 +356,10 @@ if (argv._[0] === 'init') {
       var banned = argv._[2];
       if(!banned) _fail(new Error('invalid usage'));
 
-      ctnrName = argv._[3];
-      if(!ctnrName) _fail(new Error('invalid usage'));
+      pkgName = argv._[3];
+      if(!pkgName) _fail(new Error('invalid usage'));
 
-      ldc.rmOwner({username: banned, ctnrName: ctnrName}, _fail);
+      ldpm.rmOwner({username: banned, pkgName: pkgName}, _fail);
 
     } else {
       _fail(new Error('invalid usage'));
@@ -376,10 +376,10 @@ if (argv._[0] === 'init') {
     var $HOME = process.env.HOME || process.env.HOMEPATH || process.env.USERPROFILE;
 
     var rpath = '/search' + qs
-    var rurl = ldc.url(rpath);
-    ldc.logHttp('GET', rurl);
-    request(ldc.rOpts(rurl)).on('response', function(res){
-      ldc.logHttp(res.statusCode, rurl);
+    var rurl = ldpm.url(rpath);
+    ldpm.logHttp('GET', rurl);
+    request(ldpm.rOpts(rurl)).on('response', function(res){
+      ldpm.logHttp(res.statusCode, rurl);
       if(res.statusCode === 404){
         res.setEncoding('utf8');
         var data = '';
@@ -414,7 +414,7 @@ if (argv._[0] === 'init') {
 
 function _fail(err){
   if(err){
-    console.error('ldc'.grey +  ' ERR! '.red + err.message + (('code' in err) ? ' (' + err.code + ')': ''));
+    console.error('ldpm'.grey +  ' ERR! '.red + err.message + (('code' in err) ? ' (' + err.code + ')': ''));
     process.exit(1);
   }
 };

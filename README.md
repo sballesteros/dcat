@@ -1,35 +1,35 @@
-ldc
+ldpm
 ====
 
-![ldc](https://raw2.github.com/standard-analytics/ldc/master/logo.png)
+![ldpm](https://raw2.github.com/standard-analytics/ldpm/master/logo.png)
 
-Linked Data Container manager.
+Linked Data package manager.
 
-[![NPM](https://nodei.co/npm/ldc.png)](https://nodei.co/npm/ldc/)
+[![NPM](https://nodei.co/npm/ldpm.png)](https://nodei.co/npm/ldpm/)
 
 Usage:
 ======
 
 ##CLI
 
-    Usage: ldc <command> [options] where command is:
-      - init [globs] [urls] [-d, --defaults] [-b --codebundle <relative/path/to/code/directory>] Interactively create a container.jsonld file and add the files listed as globs (*.csv ... and urls) as dataset. Be sure to double quote the glob so that the shell does not expand them
-      - cat       <container name>[@<version>] [-e, --expand]
-      - install   <container name 1>[@<version>] <container name 2>[@<version>] <container url> ... [-t, --top] [-a, --env] [-c, --cache] [-r, --require] [-s, --save]
+    Usage: ldpm <command> [options] where command is:
+      - init [globs] [urls] [-d, --defaults] [-b --codebundle <relative/path/to/code/directory>] Interactively create a package.jsonld file and add the files listed as globs (*.csv ... and urls) as dataset. Be sure to double quote the glob so that the shell does not expand them
+      - cat       <package name>[@<version>] [-e, --expand]
+      - install   <package name 1>[@<version>] <package name 2>[@<version>] <package url> ... [-t, --top] [-a, --env] [-c, --cache] [-r, --require] [-s, --save]
       - publish
-      - unpublish <container name>[@<version>]
+      - unpublish <package name>[@<version>]
       - adduser
       - owner <subcommand> where subcommand is:
-        - ls  <container name>
-        - add <user> <container name>
-        - rm  <user> <container name>[@<version>]
+        - ls  <package name>
+        - add <user> <package name>
+        - rm  <user> <package name>[@<version>]
       - search [search terms]
       - help [command]
     
     Options:
       -f, --force       overwrite previous if exists
       -d, --defaults    bypass the promzard prompt
-      -t, --top         install in the current working directory (and not within ld_containers/)
+      -t, --top         install in the current working directory (and not within ld_packages/)
       -a, --env         install all the environment files present in the directory at publication time
       -e, --expand      expand the JSON-LD document
       -s, --save        data packages will appear in your dataDependencies
@@ -39,26 +39,26 @@ Usage:
       -v, --version     print version number
 
 
-## Using ldc programaticaly
+## Using ldpm programaticaly
 
-You can also use ```ldc``` programaticaly.
+You can also use ```ldpm``` programaticaly.
 
-    var Ldc = require('ldc);
-    var ldc = new Ldc(conf);
+    var Ldpm = require('ldpm);
+    var ldpm = new Ldpm(conf);
     
-    ldc.install(['myctnr/0.0.0', 'mydata/1.0.0', 'http://example.com/mydata'], {cache: true}, function(err, ctnrs){
+    ldpm.install(['mypkg/0.0.0', 'mydata/1.0.0', 'http://example.com/mydata'], {cache: true}, function(err, pkgs){
     //done!
     });
-    ldc.on('log', console.log); //if you like stuff on stdout
+    ldpm.on('log', console.log); //if you like stuff on stdout
 
 
-See ```bin/ldc``` for examples.
+See ```bin/ldpm``` for examples.
 
 
 Registry
 ========
 
-By default, ```ldc``` uses [Standard Analytics IO](http://standardanalytics.io)
+By default, ```ldpm``` uses [Standard Analytics IO](http://standardanalytics.io)
 [data registry](https://github.com/standard-analytics/linked-data-registry)
 hosted on [cloudant](https://sballesteros.cloudant.com).
 

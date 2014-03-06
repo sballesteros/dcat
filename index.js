@@ -123,7 +123,7 @@ Ldpm.prototype.rOptsAuth = function(myurl, extras){
 
 
 Ldpm.prototype.logHttp = function(methodCode, reqUrl){
-  this.emit('log', 'ldc'.grey + ' http '.green + methodCode.toString().magenta + ' ' + reqUrl.replace(/:80\/|:443\//, '/'));
+  this.emit('log', 'ldpm'.grey + ' http '.green + methodCode.toString().magenta + ' ' + reqUrl.replace(/:80\/|:443\//, '/'));
 };
 
 
@@ -555,7 +555,7 @@ Ldpm.prototype._cache = function(pkg, context, root, callback){
               }))
               .on('error', cb)
               .on('end', function(){
-                this.emit('log', 'ldc'.grey + ' mounted'.green + ' ' + r.name + ' at ' +  r.bundlePath);
+                this.emit('log', 'ldpm'.grey + ' mounted'.green + ' ' + r.name + ' at ' +  r.bundlePath);
                 cb(null);
               }.bind(this));
 
@@ -566,7 +566,7 @@ Ldpm.prototype._cache = function(pkg, context, root, callback){
             resp
               .pipe(fs.createWriteStream(path.resolve(root, dirname, filename)))
               .on('finish', function(){
-                this.emit('log', 'ldc'.grey + ' save'.green + ' ' + (r.name || 'about') + ' at ' +  path.relative(root, path.resolve(root, dirname, filename)));
+                this.emit('log', 'ldpm'.grey + ' save'.green + ' ' + (r.name || 'about') + ' at ' +  path.relative(root, path.resolve(root, dirname, filename)));
 
                 cb(null);
               }.bind(this));
@@ -772,11 +772,11 @@ Ldpm.prototype.paths2resources = function(globs, opts, callback){
       
       async.map(absCodeBundles, function(absPath, cb){
 
-        var tempPath = temp.path({prefix:'ldc-'});
+        var tempPath = temp.path({prefix:'ldpm-'});
 
         var ignore = new Ignore({
           path: absPath,
-          ignoreFiles: ['.gitignore', '.npmignore', '.ldcignore'].map(function(x){return path.resolve(absPath, x)})
+          ignoreFiles: ['.gitignore', '.npmignore', '.ldpmignore'].map(function(x){return path.resolve(absPath, x)})
         });
         ignore.addIgnoreRules(['.git', '__MACOSX', 'ld_packages', 'node_modules'], 'custom-rules');
         var ws = ignore.pipe(tar.Pack()).pipe(zlib.createGzip()).pipe(fs.createWriteStream(tempPath));

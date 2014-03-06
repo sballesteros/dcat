@@ -64,7 +64,7 @@ if(argv.v){
 }
 
 //if cloudant: use sha:true
-var ldpm = new Ldpm(require('rc')('ldpm', {protocol: 'https', port: 443, hostname: 'registry.standardanalytics.io', strictSSL: false, sha:true}), process.cwd());
+var ldpm = new Ldpm(process.cwd());
 
 if(argv._[0] !== 'cat'){
   ldpm.on('log', console.log);

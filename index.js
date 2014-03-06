@@ -31,13 +31,24 @@ var crypto = require('crypto')
   , githubUrl = require('github-url')
   , jsonldContextInfer = require('jsonld-context-infer');
 
+var conf = require('rc')('ldpm', {protocol: 'https', port: 443, hostname: 'registry.standardanalytics.io', strictSSL: false, sha:true});
+
 mime.define({
   'application/ld+json': ['jsonld'],
   'application/x-ldjson': ['ldjson', 'ldj'],
   'application/x-gzip': ['gz', 'gzip', 'tgz'] //tar.gz won't work
 });
 
+/**
+ * rc is optional
+ */
 var Ldpm = module.exports = function(rc, root){
+  
+  if(arguments.length <2){
+    root = rc;
+    rc = conf;
+  }
+
   EventEmitter.call(this);
 
   this.root = root || process.cwd();
@@ -47,7 +58,31 @@ var Ldpm = module.exports = function(rc, root){
 
 util.inherits(Ldpm, EventEmitter);
 
-Ldpm.prototype.publish = publish;
+/**
+ * if no pkg is provided, will be read from package.jsonld
+ */
+Ldpm.prototype.publish = function(pkg, callback){
+
+  if(arguments.length === 1){
+    callback = pkg;
+    pkg = undefined;
+  }
+
+  if(pkg){
+    publish.call(this, pkg, callback);
+  } else {   
+    fs.readFile(path.resolve(this.root, 'package.jsonld'), function(err, pkg){
+      if(err) return callback(err);
+      try{
+        pkg = JSON.parse(pkg);
+      } catch(e){
+        return callback(e);
+      }
+      publish.call(this, pkg, callback);
+    }.bind(this));
+  }
+  
+};
 
 Ldpm.prototype.url = function(path, queryObj){
   return this.rc.protocol + '://'  + this.rc.hostname + ':' + this.rc.port + path + ( (queryObj) ? '?' + querystring.stringify(queryObj): '');

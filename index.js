@@ -552,41 +552,59 @@ Ldpm.prototype._cache = function(pkg, context, root, callback){
 
 Ldpm.prototype.adduser = function(callback){
 
-  var rurl = this.url('/adduser/' + this.rc.name);
-  this.logHttp('PUT', rurl);
+  //chech that we need to add an user
+  request.get(this.rOptsAuth(this.url('/auth')), function(err, resAuth, body){
+    if(err) return callback(err, resAuth.headers);
 
-  var data = {
-    name: this.rc.name,
-    email: this.rc.email
-  };
-
-  if(this.rc.sha){
-    var salt = crypto.randomBytes(30).toString('hex');
-    data.salt = salt;
-    data.password_sha = crypto.createHash("sha1").update(this.rc.password + salt).digest("hex");
-  } else {
-    data.password = this.rc.password;
-  }
-
-  request.put(this.rOptsAuth(rurl, {json: data}), function(err, res, body){
-
-    if(err) return callback(err);
-
-    this.logHttp(res.statusCode, rurl);
-
-    if(res.statusCode < 400){
-      callback(null, body);
-    } else if(res.statusCode === 409){
-      err = new Error('username ' + this.rc.name + ' already exists');
-      err.code = res.statusCode;
-      callback(err, res.headers);
-    } else {
-      err = new Error(JSON.stringify(body));
-      err.code = res.statusCode;
-      callback(err, res.headers);
+    if(resAuth.statusCode === 200){
+      return callback(null, JSON.parse(body));
     }
-    
+
+    //auth failed: invalid name or password or user does not exists we try to create it
+
+    var rurl = this.url('/adduser/' + this.rc.name);
+    this.logHttp('PUT', rurl);
+
+    var data = {
+      name: this.rc.name,
+      email: this.rc.email
+    };
+
+    if(this.rc.sha){
+      var salt = crypto.randomBytes(30).toString('hex');
+      data.salt = salt;
+      data.password_sha = crypto.createHash("sha1").update(this.rc.password + salt).digest("hex");
+    } else {
+      data.password = this.rc.password;
+    }
+
+    request.put(this.rOptsAuth(rurl, {json: data}), function(err, res, body){
+
+      if(err) return callback(err);
+
+      this.logHttp(res.statusCode, rurl);
+      if(res.statusCode < 400){
+        callback(null, body);
+      } else if(res.statusCode === 409){
+        if(resAuth.statusCode === 401){
+          err = new Error('invalid password for user: ' + this.rc.name);  
+          err.code = resAuth.statusCode;
+        } else {
+          err = new Error('username ' + this.rc.name + ' already exists');
+          err.code = res.statusCode;
+        }       
+        callback(err, res.headers);
+      } else {
+        err = new Error(JSON.stringify(body));
+        err.code = res.statusCode;
+        callback(err, res.headers);
+      }
+      
+    }.bind(this));
+
+
   }.bind(this));
+
 
 };
 

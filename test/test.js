@@ -111,6 +111,45 @@ describe('ldpm', function(){
 
   });
 
+
+  describe('adduser', function(){
+    var ldpm;
+
+    before(function(done){
+      ldpm = new Ldpm(conf, path.join(root, 'fixtures', 'mypkg-test'));
+      ldpm.adduser(function(err, auth){
+        done()
+      });
+    });
+    
+
+    it('should return auth token if user already registered but adduser is called with correct username and password', function(done){
+      ldpm.adduser(function(err, auth){
+        assert(auth.name, conf.name);
+        done()
+      });
+    });
+
+
+    it('should err if already registered user adduser with same name but invalid password', function(done){
+      var myc = clone(conf);
+      myc.password = 'wrong'
+      var wrong = new Ldpm(myc, path.join(root, 'fixtures', 'mypkg-test'));
+      wrong.adduser(function(err, auth){
+        assert(err.message, '․invalid password for user: user_a');
+        done()
+      });
+    });
+
+    after(function(done){
+      request.del( { url: rurl('/rmuser/' + conf.name), auth: {user: conf.name, pass: conf.password} }, function(err, resp, body){
+        done();
+      })
+    });
+
+  });
+
+
   describe('publish', function(){
     var ldpm1, ldpm2;
 

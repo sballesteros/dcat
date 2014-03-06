@@ -55,7 +55,6 @@
     "lodash.uniq": "~2.4.1",
     "lodash.flatten": "~2.4.1",
     "jsonld-context-infer": "*",
-    "container-jsonld": "*",
     "jsonld": "~0.1.25",
     "binary-csv": "~0.1.6",
     "is-url": "^1.0.0",

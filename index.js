@@ -332,7 +332,7 @@ Ldpm.prototype.install = function(pkgIds, opts, callback){
 
 
 /**
- * Install a pkg (without dataDependencies)
+ * Install a pkg (without dependencies)
  */
 Ldpm.prototype._install = function(pkgId, opts, callback){
 
@@ -503,6 +503,16 @@ Ldpm.prototype._cache = function(pkg, context, root, callback){
             type: 'figure',
             url: r.contentUrl,
             path: r.contentPath
+          }
+        }),
+      (pkg.article || [])
+        .filter(function(r){return r.encoding && r.encoding.contentUrl ;})
+        .map(function(r){
+          return {
+            name: r.name,
+            type: 'article',
+            url: r.encoding.contentUrl,
+            path: r.encoding.contentPath
           }
         })
     );
@@ -683,7 +693,6 @@ Ldpm.prototype.paths2resources = function(globs, opts, callback){
 
     async.map(fpaths, function(p, cb){
       var ext = path.extname(p);
-
       
       if(['.csv', '.xls', '.xlsx', '.ods', '.json', '.jsonld', '.ldjson', '.txt', '.xml', '.ttl'].indexOf(ext.toLowerCase()) !== -1){
         
@@ -709,7 +718,7 @@ Ldpm.prototype.paths2resources = function(globs, opts, callback){
           cb(null, {type: 'dataset', value: dataset});
         }
 
-      } else if (['.png', '.jpg', '.jpeg', '.gif', '.tiff', '.pdf', '.eps'].indexOf(ext.toLowerCase()) !== -1){
+      } else if (['.png', '.jpg', '.jpeg', '.gif', '.tiff', '.eps'].indexOf(ext.toLowerCase()) !== -1){
 
         var figure = {
           name: path.basename(p, ext),
@@ -722,6 +731,22 @@ Ldpm.prototype.paths2resources = function(globs, opts, callback){
         }
 
         cb(null, {type: 'figure', value: figure});        
+
+      } else if (['.pdf'].indexOf(ext.toLowerCase()) !== -1){
+
+        var article = {
+          name: path.basename(p, ext),
+          encoding: {
+            contentPath: path.relative(this.root, p),
+            encodingFormat: mime.lookup(ext)
+          }
+        };
+
+        if(article.encoding.contentPath.indexOf('..') !== -1){
+          return cb(new Error('only article files within ' + this.root + ' can be added (' + article.encoding.contentPath +')'));
+        }
+
+        cb(null, {type: 'article', value: article});        
         
       } else if (['.r', '.py', '.m'].indexOf(ext.toLowerCase()) !== -1) { //standalone executable scripts and that only (all the rest should be code bundle)
 
@@ -757,14 +782,14 @@ Ldpm.prototype.paths2resources = function(globs, opts, callback){
       var resources = {
         dataset: [],
         code: [],
-        figure: []
+        figure: [],
+        article: []
       };
 
       for(var i=0; i<typedResources.length; i++){
         var r = typedResources[i];
         resources[r.type].push(r.value);
       }
-
       
       if(!absCodeBundles.length){
         return callback(null, resources, paths);
@@ -866,6 +891,21 @@ Ldpm.prototype.urls2resources = function(urls, callback){
         
         cb(null, figure);
 
+      } else if ([ 'application/pdf' ].indexOf(ctype) !== -1) { 
+
+        var article = {
+          value: {
+            name: myname,
+            encoding: {
+              encodingFormat: ctype,
+              contentUrl: myurl
+            }
+          },
+          type: 'article'
+        };
+        
+        cb(null, article);
+
       } else {
 
         res.destroy();        
@@ -883,7 +923,8 @@ Ldpm.prototype.urls2resources = function(urls, callback){
     var resources = {
       dataset: [],
       code: [],
-      figure: []
+      figure: [],
+      article: []
     };
     
     for(var i=0; i<typedResources.length; i++){

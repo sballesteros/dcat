@@ -133,7 +133,7 @@ if (argv._[0] === 'init') {
           read({prompt: 'keywords: '}, function(err, prompted, _){cb(err, prompted.split(/[\s,]+/));});
         },
         description: function(cb){
-          read({ prompt: 'data package description: ', default: description }, function(err, prompted, _){cb(err, prompted);});        
+          read({ prompt: 'package description: ', default: description }, function(err, prompted, _){cb(err, prompted);});        
         },
         codeRepository: function(cb){
           read({ prompt: 'code repository URL: ', default: codeRepository }, function(err, prompted, _){cb(err, prompted);});
@@ -171,6 +171,7 @@ if (argv._[0] === 'init') {
 
       ldpm.paths2resources(inputs.filter(function(x){return !(isUrl(x) || githubUrl(x));}), { codeBundles: codeBundles } , function(err, resourcesFromPath){
         if(err) _fail(err);
+
 
         ldpm.urls2resources(inputs.filter(function(x){return ( isUrl(x) || githubUrl(x) );}), function(err, resourcesFromUrls){
           if(err) _fail(err);
@@ -373,8 +374,7 @@ if (argv._[0] === 'init') {
     var keys = argv._.slice(1);
     var qs = (keys.length) ?  '?keys=' + JSON.stringify(flatten(keys.map(function(x){return x.split('-');}))): '';
 
-    var $HOME = process.env.HOME || process.env.HOMEPATH || process.env.USERPROFILE;
-
+    //var qs = '?q=' + argv._.slice(1);
     var rpath = '/search' + qs
     var rurl = ldpm.url(rpath);
     ldpm.logHttp('GET', rurl);

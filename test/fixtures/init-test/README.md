@@ -1,3 +1,3 @@
-# hello data package
+# hello package
 
-My datapackage description
+My package description

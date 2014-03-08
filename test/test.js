@@ -15,7 +15,7 @@ temp.track();
 var root = path.dirname(__filename);
 
 describe('ldpm', function(){
-  this.timeout(10000);
+  this.timeout(20000);
   
   var conf = {
     protocol: 'http',
@@ -56,7 +56,7 @@ describe('ldpm', function(){
   describe('init', function(){
 
     var expected = {
-      description: 'my datapackage description',
+      description: 'my package description',
       license: 'CC0-1.0',
       dataset: [ 
         { name: 'x1',
@@ -101,10 +101,18 @@ describe('ldpm', function(){
     it('should create a package.jsonld with default values and do not include content of node_modules or package.jsonld in case we ask to recursively include everything', function(done){      
       exec(path.join(path.dirname(root), 'bin', 'ldpm') + ' init "**/*" -b C -b scripts --defaults', {cwd: path.join(root, 'fixtures', 'init-test') }, function(err, stdout, stderr){
         var pkg = JSON.parse(fs.readFileSync(path.join(root, 'fixtures', 'init-test', 'package.jsonld'), 'utf8'));
+
         delete pkg.author;
         delete pkg.code[0].targetProduct.filePath;
         delete pkg.code[1].targetProduct.filePath;
-        assert.deepEqual(pkg, expected);
+
+        var exp = clone(expected);
+        exp.article = [{
+          name: 'pone',
+          encoding: { contentPath: 'pone.pdf', encodingFormat: 'application/pdf' }
+        }];
+        
+        assert.deepEqual(pkg, exp);
         done();
       });
     });
@@ -379,6 +387,7 @@ describe('ldpm', function(){
             path.join('ld_packages', 'mypkg-test', 'x2.csv'),
             path.join('ld_packages', 'mypkg-test', 'scripts', 'test.r'),
             path.join('ld_packages', 'mypkg-test', 'img', 'daftpunk.jpg'),
+            path.join('ld_packages', 'mypkg-test', 'article', 'pone.pdf'),
             path.join('ld_packages', 'mypkg-test', 'README.md'),
             path.join('ld_resources', 'azerty.csv'),
             'package.jsonld',
@@ -404,6 +413,7 @@ describe('ldpm', function(){
             path.join('req-test', 'ld_packages', 'mypkg-test', 'x2.csv'),
             path.join('req-test', 'ld_packages', 'mypkg-test', 'scripts', 'test.r'),
             path.join('req-test', 'ld_packages', 'mypkg-test', 'img', 'daftpunk.jpg'),
+            path.join('req-test', 'ld_packages', 'mypkg-test', 'article', 'pone.pdf'),
             path.join('req-test', 'ld_packages', 'mypkg-test', 'README.md'),
             path.join('req-test', 'ld_resources', 'azerty.csv'),
             path.join('req-test', 'package.jsonld'),
@@ -440,6 +450,7 @@ describe('ldpm', function(){
             'x2.csv',
             path.join('scripts', 'test.r'),
             path.join('img', 'daftpunk.jpg'),
+            path.join('article', 'pone.pdf'),
             path.join('ld_resources', 'inline.json'),
             'README.md'
           ];

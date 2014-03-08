@@ -249,7 +249,7 @@ describe('ldpm', function(){
         done();
       });    
     });
-
+    
     it('should add a maintainer then remove it', function(done){
       ldpm1.addOwner({username: 'user_b', pkgname: 'req-test'}, function(err){
         ldpm1.lsOwner('req-test', function(err, maintainers){
@@ -307,10 +307,10 @@ describe('ldpm', function(){
 //      datePublished: '2014-01-12T05:11:48.220Z',
       encoding: {
         contentUrl: 'req-test/0.0.0/env/env_.tar.gz',
-        contentSize: 29,
+        contentSize: 351,
         'encodingFormat': 'application/x-gtar',
         hashAlgorithm: 'md5',
-        hashValue: '31f6566d35ccd604be46ed5b1f813cdf'      
+        hashValue: '5df963961d402f4583d513643add17cb'      
       },
       registry: { name: 'Standard Analytics IO', url: 'https://registry.standardanalytics.io/' }
     };

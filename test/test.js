@@ -287,6 +287,7 @@ describe('ldpm', function(){
       '@type': ['Package', 'DataCatalog'],
       name: 'req-test',
       description: 'a test for data dependencies',
+      contentRating: 're-uri-ld',
       about: { name: 'README.md', url: 'req-test/0.0.0/about/README.md' },
       isBasedOnUrl: [ 'mypkg-test/0.0.0' ],
       version: '0.0.0',
@@ -296,6 +297,7 @@ describe('ldpm', function(){
           '@id': 'req-test/0.0.0/dataset/azerty',
           '@type': 'Dataset',
           name: 'azerty',
+          contentRating: 'uri',
           distribution:  {
             '@type': 'DataDownload' ,
             contentUrl: 'mypkg-test/0.0.0/dataset/csv1/x1.csv',

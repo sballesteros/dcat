@@ -599,7 +599,7 @@ Ldpm.prototype.adduser = function(callback){
 
   //chech that we need to add an user
   request.get(this.rOptsAuth(this.url('/auth')), function(err, resAuth, body){
-    if(err) return callback(err, resAuth.headers);
+    if(err) return callback(err, resAuth && resAuth.headers);
 
     if(resAuth.statusCode === 200){
       return callback(null, JSON.parse(body));

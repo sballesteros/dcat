@@ -337,7 +337,7 @@ if (argv._[0] === 'init') {
       pkgName = argv._[3];
       if(!pkgName) _fail(new Error('invalid usage'));
 
-      ldpm.addOwner({username: granted, pkgName: pkgName}, _fail);
+      ldpm.addOwner({username: granted, pkgname: pkgName}, _fail);
 
     } else if (action === 'ls'){
 
@@ -360,7 +360,7 @@ if (argv._[0] === 'init') {
       pkgName = argv._[3];
       if(!pkgName) _fail(new Error('invalid usage'));
 
-      ldpm.rmOwner({username: banned, pkgName: pkgName}, _fail);
+      ldpm.rmOwner({username: banned, pkgname: pkgName}, _fail);
 
     } else {
       _fail(new Error('invalid usage'));

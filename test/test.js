@@ -16,7 +16,7 @@ var root = path.dirname(__filename);
 
 describe('ldpm', function(){
   this.timeout(20000);
-  
+
   var conf = {
     protocol: 'http',
     port: 3000,
@@ -34,7 +34,7 @@ describe('ldpm', function(){
 
   function rm(db, id, cb){
     db['head'](id, function(err, _, headers){
-      var etag = (headers && headers.etag.replace(/^"(.*)"$/, '$1')) || '';    
+      var etag = (headers && headers.etag.replace(/^"(.*)"$/, '$1')) || '';
       db['destroy'](id, etag, function(err, _, _){
         cb();
       });
@@ -58,10 +58,10 @@ describe('ldpm', function(){
     var expected = {
       description: 'my package description',
       license: 'CC0-1.0',
-      dataset: [ 
+      dataset: [
         { name: 'x1',
           distribution: { contentPath: 'x1.csv', encodingFormat: 'text/csv' },
-          about: [ { name: 'a', valueType: 'xsd:integer' }, { name: 'b', valueType: 'xsd:integer' } ] 
+          about: [ { name: 'a', valueType: 'xsd:integer' }, { name: 'b', valueType: 'xsd:integer' } ]
         }
       ],
       code: [
@@ -70,21 +70,21 @@ describe('ldpm', function(){
           targetProduct: {
             //filePath: '/var/folders/7p/587xptpx31d0l7rbb1cxk5y80000gn/T/ldpm-114127-1835-la1g41', always different
             bundlePath: 'C',
-            fileFormat: 'application/x-gzip' 
-          } 
+            fileFormat: 'application/x-gzip'
+          }
         },
         {
           name: 'scripts',
           targetProduct: {
             //filePath: '/var/folders/7p/587xptpx31d0l7rbb1cxk5y80000gn/T/ldpm-114127-1835-7ba56z',
             bundlePath: 'scripts',
-            fileFormat: 'application/x-gzip' 
-          } 
+            fileFormat: 'application/x-gzip'
+          }
         }
       ]
     };
 
-    it('should create a package.jsonld with default values and code bundles', function(done){      
+    it('should create a package.jsonld with default values and code bundles', function(done){
       exec(path.join(path.dirname(root), 'bin', 'ldpm') + ' init "*.csv" -b C -b scripts --defaults', {cwd: path.join(root, 'fixtures', 'init-test') }, function(err, stdout, stderr){
         var pkg = JSON.parse(fs.readFileSync(path.join(root, 'fixtures', 'init-test', 'package.jsonld'), 'utf8'));
 
@@ -98,7 +98,7 @@ describe('ldpm', function(){
       });
     });
 
-    it('should create a package.jsonld with default values and do not include content of node_modules or package.jsonld in case we ask to recursively include everything', function(done){      
+    it('should create a package.jsonld with default values and do not include content of node_modules or package.jsonld in case we ask to recursively include everything', function(done){
       exec(path.join(path.dirname(root), 'bin', 'ldpm') + ' init "**/*" -b C -b scripts --defaults', {cwd: path.join(root, 'fixtures', 'init-test') }, function(err, stdout, stderr){
         var pkg = JSON.parse(fs.readFileSync(path.join(root, 'fixtures', 'init-test', 'package.jsonld'), 'utf8'));
 
@@ -111,7 +111,7 @@ describe('ldpm', function(){
           name: 'pone',
           encoding: { contentPath: 'pone.pdf', encodingFormat: 'application/pdf' }
         }];
-        
+
         assert.deepEqual(pkg, exp);
         done();
       });
@@ -129,7 +129,7 @@ describe('ldpm', function(){
         done()
       });
     });
-    
+
 
     it('should return auth token if user already registered but adduser is called with correct username and password', function(done){
       ldpm.adduser(function(err, auth){
@@ -169,11 +169,11 @@ describe('ldpm', function(){
         done()
       });
     });
-    
+
     it('should publish a package with attachments and raise an error with code if the pkg is republished', function(done){
       ldpm1.publish(function(err, id){
         assert.equal('mypkg-test@0.0.0', id);
-        ldpm1.publish(function(err, id){     
+        ldpm1.publish(function(err, id){
           assert.equal(err.code, 409);
           done();
         });
@@ -193,7 +193,7 @@ describe('ldpm', function(){
 
   });
 
-           
+
   describe('unpublish', function(){
     var ldpm1;
 
@@ -205,7 +205,7 @@ describe('ldpm', function(){
         })
       });
     });
-    
+
     it('should unpublish a pkg', function(done){
       ldpm1.unpublish('mypkg-test', function(err, res){
         assert.deepEqual(res, {ok:true});
@@ -222,7 +222,7 @@ describe('ldpm', function(){
 
   describe('owner', function(){
 
-    var expected = [ 
+    var expected = [
       {name: 'user_a', email: 'user@domain.com'},
       {name: 'user_b', email: 'user@domain.com'}
     ];
@@ -242,14 +242,14 @@ describe('ldpm', function(){
         });
       });
     });
-    
+
     it('should list the maintainers', function(done){
       ldpm1.lsOwner('req-test', function(err, maintainers){
         assert.deepEqual(maintainers, expected.slice(0, 1));
         done();
-      });    
+      });
     });
-    
+
     it('should add a maintainer then remove it', function(done){
       ldpm1.addOwner({username: 'user_b', pkgname: 'req-test'}, function(err){
         ldpm1.lsOwner('req-test', function(err, maintainers){
@@ -268,7 +268,7 @@ describe('ldpm', function(){
       ldpm1.addOwner({username: 'user_c', pkgname: 'req-test'}, function(err){
         assert.equal(err.code, 404);
         done();
-      })      
+      })
     });
 
     after(function(done){
@@ -276,12 +276,12 @@ describe('ldpm', function(){
     });
 
   });
-  
+
   describe('cat', function(){
 
     var ldpm1, ldpm2;
 
-    var expected = { 
+    var expected = {
 //      '@context': 'http://localhost:3000/package.jsonld',
       '@id': 'req-test/0.0.0',
       '@type': ['Package', 'DataCatalog'],
@@ -303,16 +303,16 @@ describe('ldpm', function(){
             contentUrl: 'mypkg-test/0.0.0/dataset/csv1/x1.csv',
             //uploadDate: '2014-01-12T05:11:48.221Z',
           },
-          catalog: { '@type': ['Package', 'DataCatalog'], name: 'req-test', version: '0.0.0', url: 'req-test/0.0.0' } 
+          catalog: { '@type': ['Package', 'DataCatalog'], name: 'req-test', version: '0.0.0', url: 'req-test/0.0.0' }
         }
       ],
 //      datePublished: '2014-01-12T05:11:48.220Z',
       encoding: {
         contentUrl: 'req-test/0.0.0/env/env_.tar.gz',
-        contentSize: 351,
+        contentSize: 29,
         'encodingFormat': 'application/x-gtar',
         hashAlgorithm: 'md5',
-        hashValue: '5df963961d402f4583d513643add17cb'      
+        hashValue: '31f6566d35ccd604be46ed5b1f813cdf'
       },
       registry: { name: 'Standard Analytics IO', url: 'https://registry.standardanalytics.io/' }
     };
@@ -339,6 +339,8 @@ describe('ldpm', function(){
 
     it('should cat the pkg as JSON-LD', function(done){
       ldpm2.cat('req-test@0.0.0', function(err, pkg){
+        console.log(util.inspect(pkg, {depth:null}));
+
         assert('@context' in pkg);
         delete pkg['@context'];
         assert('datePublished' in pkg);
@@ -360,7 +362,7 @@ describe('ldpm', function(){
     after(function(done){
       rmFixtures(done);
     });
-    
+
   });
 
   describe('files', function(){
@@ -383,9 +385,9 @@ describe('ldpm', function(){
         ldpm.install(['req-test@0.0.0'], {top: true, cache: true}, function(err){
           var files = readdirpSync(path.join(dirPath, 'req-test'));
 
-          var expected = [ 
-            path.join('ld_packages', 'mypkg-test', 'package.jsonld'), 
-            path.join('ld_packages', 'mypkg-test', 'x1.csv'), 
+          var expected = [
+            path.join('ld_packages', 'mypkg-test', 'package.jsonld'),
+            path.join('ld_packages', 'mypkg-test', 'x1.csv'),
             path.join('ld_packages', 'mypkg-test', 'x2.csv'),
             path.join('ld_packages', 'mypkg-test', 'scripts', 'test.r'),
             path.join('ld_packages', 'mypkg-test', 'img', 'daftpunk.jpg'),
@@ -409,9 +411,9 @@ describe('ldpm', function(){
         ldpm.install(['req-test@0.0.0'], {cache: true}, function(err){
           var files = readdirpSync(path.join(dirPath, 'ld_packages'));
 
-          var expected = [ 
-            path.join('req-test', 'ld_packages', 'mypkg-test', 'package.jsonld'), 
-            path.join('req-test', 'ld_packages', 'mypkg-test', 'x1.csv'), 
+          var expected = [
+            path.join('req-test', 'ld_packages', 'mypkg-test', 'package.jsonld'),
+            path.join('req-test', 'ld_packages', 'mypkg-test', 'x1.csv'),
             path.join('req-test', 'ld_packages', 'mypkg-test', 'x2.csv'),
             path.join('req-test', 'ld_packages', 'mypkg-test', 'scripts', 'test.r'),
             path.join('req-test', 'ld_packages', 'mypkg-test', 'img', 'daftpunk.jpg'),
@@ -431,14 +433,14 @@ describe('ldpm', function(){
     it('should install mypkg-test at the top level with all env files', function(done){
       temp.mkdir('test-ldpm-', function(err, dirPath) {
         var ldpm = new Ldpm(conf, dirPath);
-        ldpm.install(['mypkg-test@0.0.0'], { top: true, env:true }, function(err, pkgs){          
+        ldpm.install(['mypkg-test@0.0.0'], { top: true, env:true }, function(err, pkgs){
           var files = readdirpSync(path.join(dirPath, 'mypkg-test'));
           var expected = ['package.jsonld',  'env.txt'];
           assert(files.length && difference(files, expected).length === 0);
           done();
         });
       });
-    });    
+    });
 
     it('should install mypkg-test@0.0.0 at the top level, cache data and put inlined data in their own files in ld_resources', function(done){
       temp.mkdir('test-ldpm-', function(err, dirPath) {
@@ -446,9 +448,9 @@ describe('ldpm', function(){
         ldpm.install(['mypkg-test@0.0.0'], {top: true, cache: true, require: true}, function(err){
           var files = readdirpSync(path.join(dirPath, 'mypkg-test'));
 
-          var expected = [ 
-            'package.jsonld', 
-            'x1.csv', 
+          var expected = [
+            'package.jsonld',
+            'x1.csv',
             'x2.csv',
             path.join('scripts', 'test.r'),
             path.join('img', 'daftpunk.jpg'),
@@ -466,7 +468,7 @@ describe('ldpm', function(){
     after(function(done){
       rmFixtures(done);
     });
-    
+
   });
 
 
@@ -479,11 +481,11 @@ describe('ldpm', function(){
           var pkg = {name: 'test-bundle', version: '0.0.0'};
           ldpm.addResources(pkg, resources);
           fs.writeFileSync(path.join(root, 'fixtures', 'init-test', 'package.jsonld'), JSON.stringify(pkg, null, 2));
-          ldpm.publish(function(err, body){                     
+          ldpm.publish(function(err, body){
             done();
-          });       
-        });     
-      });     
+          });
+        });
+      });
     });
 
     it('should properly unpack a codebundle', function(done){
@@ -493,14 +495,14 @@ describe('ldpm', function(){
         ldpm.install(['test-bundle@0.0.0'], { top: true, cache: true }, function(err){
           var files = readdirpSync(path.join(dirPath, 'test-bundle'));
 
-          var expected = [ 
+          var expected = [
             path.join('scripts', 'main.r'),
             path.join('scripts', 'deps', 'dep.r'),
             'x1.csv',
             'package.jsonld',
             'README.md'
           ];
-          
+
           assert(files.length && difference(files, expected).length === 0);
           done();
         });

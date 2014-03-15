@@ -43,7 +43,7 @@ mime.define({
  * rc is optional
  */
 var Ldpm = module.exports = function(rc, root){
-  
+
   if(arguments.length <2){
     root = rc;
     rc = conf;
@@ -70,7 +70,7 @@ Ldpm.prototype.publish = function(pkg, callback){
 
   if(pkg){
     publish.call(this, pkg, callback);
-  } else {   
+  } else {
     fs.readFile(path.resolve(this.root, 'package.jsonld'), function(err, pkg){
       if(err) return callback(err);
       try{
@@ -81,7 +81,7 @@ Ldpm.prototype.publish = function(pkg, callback){
       publish.call(this, pkg, callback);
     }.bind(this));
   }
-  
+
 };
 
 Ldpm.prototype.url = function(path, queryObj){
@@ -141,10 +141,10 @@ Ldpm.prototype.lsOwner = function(pkgName, callback){
       err.code = res.statusCode;
       callback(err);
     }
-    
+
     callback(null, JSON.parse(body));
-  }.bind(this));    
-  
+  }.bind(this));
+
 };
 
 /**
@@ -187,7 +187,7 @@ Ldpm.prototype.unpublish = function(pkgId, callback){
   pkgId = pkgId.replace('@', '/');
 
   var rurl = this.url('/'+ pkgId);
-  this.logHttp('DELETE', rurl);  
+  this.logHttp('DELETE', rurl);
   request.del(this.rOptsAuth(rurl), function(err, res, body){
     if(err) return callback(err);
     this.logHttp(res.statusCode, rurl);
@@ -211,7 +211,7 @@ Ldpm.prototype.cat = function(pkgId, opts, callback){
   var rurl;
   if(isUrl(pkgId)){
 
-    rurl = pkgId;    
+    rurl = pkgId;
     var prurl = url.parse(rurl, true);
     if ( (prurl.hostname === 'registry.standardanalytics.io' || prurl.hostname === 'localhost') && ( (opts.cache && !opts.require) || opts.env)){
       prurl.query = prurl.query || {};
@@ -254,7 +254,7 @@ Ldpm.prototype.cat = function(pkgId, opts, callback){
       err.code = res.statusCode;
       return callback(err);
     }
-    
+
     try{
       var pkg = JSON.parse(pkg);
     } catch(e){
@@ -297,14 +297,14 @@ Ldpm.prototype.cat = function(pkgId, opts, callback){
         jsonld.expand(pkg, {expandContext: context}, function(err, pkgExpanded){
           return callback(err, pkgExpanded, context);
         });
-      } else { 
+      } else {
         pkg['@context'] = contextUrl;
 
         return callback(null, pkg, context);
       }
 
     }.bind(this));
-    
+
   }.bind(this));
 
 };
@@ -315,7 +315,7 @@ Ldpm.prototype.cat = function(pkgId, opts, callback){
  * callback(err)
  */
 Ldpm.prototype.install = function(pkgIds, opts, callback){
-  
+
   async.map(pkgIds, function(pkgId, cb){
     this._install(pkgId, opts, function(err, pkg, context, root){
       if(err) return cb(err);
@@ -323,7 +323,7 @@ Ldpm.prototype.install = function(pkgIds, opts, callback){
       opts.root = root;
       this._installDep(pkg, opts, context, function(err){
         return cb(err, pkg);
-      });     
+      });
     }.bind(this));
 
   }.bind(this), callback);
@@ -343,18 +343,18 @@ Ldpm.prototype._install = function(pkgId, opts, callback){
         //console.log(util.inspect(pkg, {depth:null}));
 
         if(err) return cb(err);
-        
+
         if(!opts.cache){
           cb(null, pkg, context, root);
-        } else {        
+        } else {
           this._cache(pkg, context, root, cb);
         }
-        
-      }.bind(this));    
+
+      }.bind(this));
     }.bind(this),
 
     function(pkg, context, root, cb){
-      
+
       var dest = path.join(root, 'package.jsonld');
       fs.writeFile(dest, JSON.stringify(pkg, null, 2), function(err){
         if(err) return cb(err);
@@ -362,9 +362,9 @@ Ldpm.prototype._install = function(pkgId, opts, callback){
       });
 
     }.bind(this)
-    
+
   ], callback);
-  
+
 };
 
 
@@ -372,13 +372,13 @@ Ldpm.prototype._install = function(pkgId, opts, callback){
  * Install dataDependencies
  */
 Ldpm.prototype._installDep = function(pkg, opts, context, callback){
-  
-  var deps = pkg.isBasedOnUrl || [];  
+
+  var deps = pkg.isBasedOnUrl || [];
   opts = clone(opts);
   delete opts.top;
 
   async.each(deps.map(function(iri){return _expandIri(context['@context']['@base'], iri);}), function(pkgId, cb){
-    this._install(pkgId, opts, cb);    
+    this._install(pkgId, opts, cb);
   }.bind(this), callback);
 
 };
@@ -402,7 +402,7 @@ Ldpm.prototype._get = function(pkgId, opts, callback){
       callback(err, pkg, context, root);
     });
 
-  }.bind(this));  
+  }.bind(this));
 };
 
 
@@ -437,7 +437,7 @@ Ldpm.prototype._getAll = function(pkgId, opts, callback){
 
       var req = request(this.rOpts(rurl));
       req.on('error', callback);
-      req.on('response', function(resp){            
+      req.on('response', function(resp){
 
         this.logHttp(resp.statusCode, rurl);
 
@@ -461,12 +461,12 @@ Ldpm.prototype._getAll = function(pkgId, opts, callback){
             });
 
         }
-      }.bind(this));    
+      }.bind(this));
 
     }.bind(this));
 
   }.bind(this));
-  
+
 };
 
 /**
@@ -520,16 +520,16 @@ Ldpm.prototype._cache = function(pkg, context, root, callback){
   //add README if exists
   if(pkg.about && pkg.about.url){
     toCache.push({
-      url: pkg.about.url, 
+      url: pkg.about.url,
       path: pkg.about.name || 'README.md'  //TODO improve
     });
   }
-  
+
   async.each(toCache, function(r, cb){
     cb = once(cb);
 
     var dirname;
-    if(r.bundlePath){            
+    if(r.bundlePath){
       dirname  = r.bundlePath;
     } else {
       dirname  = (r.path) ? path.dirname(r.path) : 'ld_resources';
@@ -544,7 +544,7 @@ Ldpm.prototype._cache = function(pkg, context, root, callback){
       this.logHttp('GET', iri );
       var req = request(this.rOpts(iri));
       req.on('error', cb);
-      req.on('response', function(resp){            
+      req.on('response', function(resp){
         this.logHttp(resp.statusCode, iri);
 
         if(resp.statusCode >= 400){
@@ -555,7 +555,7 @@ Ldpm.prototype._cache = function(pkg, context, root, callback){
           }));
         } else {
 
-          if(r.bundlePath){            
+          if(r.bundlePath){
 
             resp
               .pipe(zlib.createGunzip())
@@ -581,7 +581,7 @@ Ldpm.prototype._cache = function(pkg, context, root, callback){
                 cb(null);
               }.bind(this));
 
-          }          
+          }
 
         }
       }.bind(this));
@@ -632,19 +632,19 @@ Ldpm.prototype.adduser = function(callback){
         callback(null, body);
       } else if(res.statusCode === 409){
         if(resAuth.statusCode === 401){
-          err = new Error('invalid password for user: ' + this.rc.name);  
+          err = new Error('invalid password for user: ' + this.rc.name);
           err.code = resAuth.statusCode;
         } else {
           err = new Error('username ' + this.rc.name + ' already exists');
           err.code = res.statusCode;
-        }       
+        }
         callback(err, res.headers);
       } else {
         err = new Error(JSON.stringify(body));
         err.code = res.statusCode;
         callback(err, res.headers);
       }
-      
+
     }.bind(this));
 
 
@@ -672,11 +672,11 @@ Ldpm.prototype.paths2resources = function(globs, opts, callback){
 
   async.map(globs, function(pattern, cb){
     glob(path.resolve(this.root, pattern), {matchBase: true}, cb);
-  }.bind(this), function(err, paths){    
+  }.bind(this), function(err, paths){
     if(err) return cb(err);
 
     //filter (TODO find more elegant way (node_modules|.git) does not seem to work...)
-    paths = uniq(flatten(paths))   
+    paths = uniq(flatten(paths))
       .filter(minimatch.filter('!**/.git/**/*', {matchBase: true}))
       .filter(minimatch.filter('!**/node_modules/**/*', {matchBase: true}))
       .filter(minimatch.filter('!**/ld_packages/**/*', {matchBase: true}))
@@ -693,9 +693,9 @@ Ldpm.prototype.paths2resources = function(globs, opts, callback){
 
     async.map(fpaths, function(p, cb){
       var ext = path.extname(p);
-      
-      if(['.csv', '.xls', '.xlsx', '.ods', '.json', '.jsonld', '.ldjson', '.txt', '.xml', '.ttl'].indexOf(ext.toLowerCase()) !== -1){
-        
+
+      if(['.csv', '.tsv', '.xls', '.xlsx', '.ods', '.json', '.jsonld', '.ldjson', '.txt', '.xml', '.ttl'].indexOf(ext.toLowerCase()) !== -1){
+
         var dataset = {
           name: path.basename(p, ext),
           distribution: {
@@ -708,9 +708,12 @@ Ldpm.prototype.paths2resources = function(globs, opts, callback){
           return cb(new Error('only dataset files within ' + this.root + ' can be added (' + dataset.distribution.contentPath +')'));
         }
 
-        if(ext.toLowerCase() === '.csv'){
-          jsonldContextInfer(fs.createReadStream(p).pipe(binaryCSV({json:true})), function(err, context){
-            if(err) return cb(err);            
+        if(ext.toLowerCase() === '.csv' || ext.toLowerCase() === '.tsv'){
+          jsonldContextInfer(fs.createReadStream(p).pipe(binaryCSV({json:true, separator: (ext.toLowerCase() === '.csv') ? ',': '\t'})), function(err, context){
+            if(err) {
+              console.error(err);
+              return cb(null, {type: 'dataset', value: dataset});
+            }
             dataset.about = jsonldContextInfer.about(context);
             cb(null, {type: 'dataset', value: dataset});
           });
@@ -730,9 +733,9 @@ Ldpm.prototype.paths2resources = function(globs, opts, callback){
           return cb(new Error('only figure files within ' + this.root + ' can be added (' + figure.contentPath +')'));
         }
 
-        cb(null, {type: 'figure', value: figure});        
+        cb(null, {type: 'figure', value: figure});
 
-      } else if (['.pdf'].indexOf(ext.toLowerCase()) !== -1){
+      } else if (['.pdf', '.odt', '.doc', '.docx'].indexOf(ext.toLowerCase()) !== -1){
 
         var article = {
           name: path.basename(p, ext),
@@ -746,8 +749,8 @@ Ldpm.prototype.paths2resources = function(globs, opts, callback){
           return cb(new Error('only article files within ' + this.root + ' can be added (' + article.encoding.contentPath +')'));
         }
 
-        cb(null, {type: 'article', value: article});        
-        
+        cb(null, {type: 'article', value: article});
+
       } else if (['.r', '.py', '.m'].indexOf(ext.toLowerCase()) !== -1) { //standalone executable scripts and that only (all the rest should be code bundle)
 
         var lang = {
@@ -770,12 +773,12 @@ Ldpm.prototype.paths2resources = function(globs, opts, callback){
         }
 
         cb(null, {type: 'code', value: code});
-        
+
       } else {
         cb(new Error('non suported file type: ' + path.relative(this.root, p) + " If it is part of a code project, use --codebundle and the directory to be bundled"));
-      }     
+      }
 
-    }.bind(this), function(err, typedResources){      
+    }.bind(this), function(err, typedResources){
 
       if(err) return callback(err);
 
@@ -790,11 +793,11 @@ Ldpm.prototype.paths2resources = function(globs, opts, callback){
         var r = typedResources[i];
         resources[r.type].push(r.value);
       }
-      
+
       if(!absCodeBundles.length){
         return callback(null, resources, paths);
       }
-      
+
       async.map(absCodeBundles, function(absPath, cb){
 
         var tempPath = temp.path({prefix:'ldpm-'});
@@ -812,12 +815,12 @@ Ldpm.prototype.paths2resources = function(globs, opts, callback){
 
       }.bind(this), function(err, codeResources){
         if(err) return callback(err);
-        
+
         resources.code = resources.code.concat(codeResources);
         callback(null, resources, paths);
-        
+
       });
-      
+
     }.bind(this));
 
   }.bind(this));
@@ -852,7 +855,7 @@ Ldpm.prototype.urls2resources = function(urls, callback){
         , mypath = url.parse(myurl).pathname
         , myname = path.basename(mypath, path.extname(mypath));
 
-      if ( [ 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'text/csv', 'application/json', 'application/ld+json', 'application/x-ldjson' ].indexOf(ctype) !== -1 ) { 
+      if ( [ 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'text/csv', 'application/json', 'application/ld+json', 'application/x-ldjson' ].indexOf(ctype) !== -1 ) {
 
         var dataset = {
           value: {
@@ -878,7 +881,7 @@ Ldpm.prototype.urls2resources = function(urls, callback){
           cb(null, dataset);
         }
 
-      } else if ([ 'image/png', 'image/jpeg', 'image/tiff', 'image/gif', 'image/svg+xml' ].indexOf(ctype) !== -1) { 
+      } else if ([ 'image/png', 'image/jpeg', 'image/tiff', 'image/gif', 'image/svg+xml' ].indexOf(ctype) !== -1) {
 
         var figure = {
           value: {
@@ -888,10 +891,10 @@ Ldpm.prototype.urls2resources = function(urls, callback){
           },
           type: 'figure'
         };
-        
+
         cb(null, figure);
 
-      } else if ([ 'application/pdf' ].indexOf(ctype) !== -1) { 
+      } else if ([ 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.oasis.opendocument.text' ].indexOf(ctype) !== -1) {
 
         var article = {
           value: {
@@ -903,12 +906,12 @@ Ldpm.prototype.urls2resources = function(urls, callback){
           },
           type: 'article'
         };
-        
+
         cb(null, article);
 
       } else {
 
-        res.destroy();        
+        res.destroy();
         cb(new Error('unsuported MIME type (' + ctype + '). It might be that the host is not setting MIME type properly'));
 
       }
@@ -919,14 +922,14 @@ Ldpm.prototype.urls2resources = function(urls, callback){
 
   }, function (err, typedResources){
     if(err) return callback(err);
-    
+
     var resources = {
       dataset: [],
       code: [],
       figure: [],
       article: []
     };
-    
+
     for(var i=0; i<typedResources.length; i++){
       var r = typedResources[i];
       resources[r.type].push(r.value);
@@ -952,7 +955,7 @@ Ldpm.prototype.addResources = function(pkg, resources){
       var names = resources[type].map(function(r) {return r.name;});
       pkg[type] = (pkg[type] || [])
         .filter(function(r){ return names.indexOf(r.name) === -1; })
-        .concat(resources[type]);     
+        .concat(resources[type]);
     }
   }
 
@@ -975,13 +978,13 @@ function _createDir(dirPath, opts, callback){
       if(opts.force) {
         rimraf(dirPath, function(err){
           if(err) return callback(err);
-          mkdirp(dirPath, callback);                
+          mkdirp(dirPath, callback);
         });
       } else {
         callback(new Error(dirPath + ' already exists, run with --force to overwrite'));
       }
     } else {
-      mkdirp(dirPath, callback);      
+      mkdirp(dirPath, callback);
     }
   });
 

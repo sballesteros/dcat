@@ -15,7 +15,7 @@ Usage:
     Usage: ldpm <command> [options] where command is:
       - init [globs] [urls] [-d, --defaults] [-b --codebundle <relative/path/to/code/directory>] Interactively create a package.jsonld file and add the files listed as globs (*.csv ... and urls) as dataset. Be sure to double quote the glob so that the shell does not expand them
       - cat       <package name>[@<version>] [-e, --expand]
-      - install   <package name 1>[@<version>] <package name 2>[@<version>] <package url> ... [-t, --top] [-a, --env] [-c, --cache] [-r, --require] [-s, --save]
+      - install   <package name 1>[@<version>] <package name 2>[@<version>] <package url> ... [-t, --top] [-c, --cache] [-r, --require] [-s, --save]
       - publish
       - unpublish <package name>[@<version>]
       - adduser
@@ -30,7 +30,6 @@ Usage:
       -f, --force       overwrite previous if exists
       -d, --defaults    bypass the promzard prompt
       -t, --top         install in the current working directory (and not within ld_packages/)
-      -a, --env         install all the environment files present in the directory at publication time
       -e, --expand      expand the JSON-LD document
       -s, --save        data packages will appear in your dataDependencies
       -c, --cache       force the inlined dataset (contentData) to be stored in their own file in ld_resources/
@@ -59,7 +58,7 @@ Registry
 ========
 
 By default, ```ldpm``` uses [Standard Analytics IO](http://standardanalytics.io)
-[data registry](https://github.com/standard-analytics/linked-data-registry)
+[linked data registry](https://github.com/standard-analytics/linked-data-registry)
 hosted on [cloudant](https://sballesteros.cloudant.com).
 
 License

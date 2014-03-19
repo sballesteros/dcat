@@ -28,7 +28,7 @@ var argv = optimist
       'Usage: ldpm <command> [options] where command is:',
       '  - init [globs] [urls] [-d, --defaults] [-b --codebundle <relative/path/to/code/directory>] Interactively create a package.jsonld file and add the files listed as globs (*.csv ... and urls) as dataset. Be sure to double quote the glob so that the shell does not expand them',
       '  - cat       <package name>[@<version>] [-e, --expand]',
-      '  - install   <package name 1>[@<version>] <package name 2>[@<version>] <package url> ... [-t, --top] [-a, --env] [-c, --cache] [-r, --require] [-s, --save]',
+      '  - install   <package name 1>[@<version>] <package name 2>[@<version>] <package url> ... [-t, --top] [-c, --cache] [-r, --require] [-s, --save]',
       '  - publish',
       '  - unpublish <package name>[@<version>]',
       '  - adduser',
@@ -43,7 +43,6 @@ var argv = optimist
   .alias('f', 'force').describe('f', 'overwrite previous if exists')
   .alias('d', 'defaults').describe('d', 'bypass the promzard prompt')
   .alias('t', 'top').describe('t', 'install in the current working directory (and not within ld_packages/)')
-  .alias('a', 'env').describe('a', 'install all the environment files present in the directory at publication time')
   .alias('e', 'expand').describe('e', 'expand the JSON-LD document')
   .alias('s', 'save').describe('s', 'data packages will appear in your dataDependencies')
   .alias('c', 'cache').describe('c', 'store the dataset content on the disk (inlined data will stay in the package.jsonld see -r, --require to change this behavior)')
@@ -87,7 +86,7 @@ if (argv._[0] === 'init') {
         .replace(/\.$/, '')
       ;
     } catch (e) { }
-    
+
     //taken from https://github.com/maxogden/datapackage-json/blob/master/prompt.js
     try { var gconf = fs.readFileSync('.git/config').toString() }
     catch (e) { gconf = null }
@@ -114,7 +113,7 @@ if (argv._[0] === 'init') {
             authorEmail: ldpm.rc.email,
             description: description,
             codeRepository: codeRepository
-          }; 
+          };
           cb(null, defaults);
         }
       ];
@@ -133,7 +132,7 @@ if (argv._[0] === 'init') {
           read({prompt: 'keywords: '}, function(err, prompted, _){cb(err, prompted.split(/[\s,]+/));});
         },
         description: function(cb){
-          read({ prompt: 'package description: ', default: description }, function(err, prompted, _){cb(err, prompted);});        
+          read({ prompt: 'package description: ', default: description }, function(err, prompted, _){cb(err, prompted);});
         },
         codeRepository: function(cb){
           read({ prompt: 'code repository URL: ', default: codeRepository }, function(err, prompted, _){cb(err, prompted);});
@@ -164,9 +163,9 @@ if (argv._[0] === 'init') {
       if(prompted.codeRepository){
         pkg.codeRepository = prompted.codeRepository;
       }
-      
+
       var inputs = argv._.slice(1);
-      var codeBundles = (Array.isArray(argv.codebundle)) ? argv.codebundle : 
+      var codeBundles = (Array.isArray(argv.codebundle)) ? argv.codebundle :
         ((argv.codebundle)? [ argv.codebundle ] : []);
 
       ldpm.paths2resources(inputs.filter(function(x){return !(isUrl(x) || githubUrl(x));}), { codeBundles: codeBundles } , function(err, resourcesFromPath){
@@ -175,7 +174,7 @@ if (argv._[0] === 'init') {
 
         ldpm.urls2resources(inputs.filter(function(x){return ( isUrl(x) || githubUrl(x) );}), function(err, resourcesFromUrls){
           if(err) _fail(err);
-                   
+
           for (var type in resourcesFromPath){
             resourcesFromPath[type] = resourcesFromPath[type].concat(resourcesFromUrls[type]); //merge
             ldpm.addResources(pkg, resourcesFromPath);
@@ -188,11 +187,11 @@ if (argv._[0] === 'init') {
 
 
     });
-    
+
   })();
 
 } else if (argv._[0] === 'cat') {
-  
+
   (function(){
     var pkgId = argv._[1];
     if(!pkgId) _fail(new Error('invalid usage'));
@@ -220,7 +219,7 @@ if (argv._[0] === 'init') {
       delete argv.top;
     }
 
-    ldpm.install(pkgIds, { top: argv.top, env: argv.env, cache: argv.cache, force: argv.force }, function(err, pkgs){
+    ldpm.install(pkgIds, { top: argv.top, cache: argv.cache, force: argv.force }, function(err, pkgs){
       if(err) _fail(err);
 
       if(argv.save){
@@ -235,12 +234,12 @@ if (argv._[0] === 'init') {
           return names.indexOf(p.split(path.sep)[(argv.top) ? 0: 1]) !== -1;
         })
         .map(function(p){return '.' + path.sep + p;});
-      
+
       if(paths.length){
         console.log(tree(paths));
       }
 
-    });    
+    });
 
   })();
 
@@ -261,7 +260,7 @@ if (argv._[0] === 'init') {
     if(!pkgId) _fail(new Error('invalid usage'));
     ldpm.unpublish(pkgId, _fail);
   })();
-  
+
 } else if (argv._[0] === 'adduser') {
 
   (function(){
@@ -320,7 +319,7 @@ if (argv._[0] === 'init') {
       }
       ldpm.adduser(_fail);
     });
-    
+
   })();
 
 } else if (argv._[0] === 'owner'){
@@ -343,7 +342,7 @@ if (argv._[0] === 'init') {
 
       pkgName = argv._[2];
       if(!pkgName) _fail(new Error('invalid usage'));
-      
+
       ldpm.lsOwner(pkgName, function(err, maintainers){
         if(err) _fail(err);
         if(!Array.isArray(maintainers)) _fail(new Error('no maintainers'));
@@ -396,16 +395,16 @@ if (argv._[0] === 'init') {
               return row.value._id.underline + ' [' + row.key.cyan + ']: ' + row.value.description + os.EOL;
             }
           }))
-          .pipe(process.stdout);    
+          .pipe(process.stdout);
       }})
       .on('error', _fail)
       .end();
   })();
-  
+
 } else if (argv._[0] === 'help'){
-  
+
   console.log(optimist.help());
-  
+
 } else {
 
   _fail(new Error('invalid command'));

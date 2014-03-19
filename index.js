@@ -213,7 +213,7 @@ Ldpm.prototype.cat = function(pkgId, opts, callback){
 
     rurl = pkgId;
     var prurl = url.parse(rurl, true);
-    if ( (prurl.hostname === 'registry.standardanalytics.io' || prurl.hostname === 'localhost') && ( (opts.cache && !opts.require) || opts.env)){
+    if ( (prurl.hostname === 'registry.standardanalytics.io' || prurl.hostname === 'localhost') && (opts.cache && !opts.require) ){
       prurl.query = prurl.query || {};
       prurl.query.contentData = true;
       delete prurl.search;
@@ -235,7 +235,7 @@ Ldpm.prototype.cat = function(pkgId, opts, callback){
       version = 'latest'
     }
 
-    rurl = this.url('/' + name + '/' + version, ((opts.cache && !opts.require) || opts.env) ? {contentData: true} : undefined);
+    rurl = this.url('/' + name + '/' + version, (opts.cache && !opts.require) ? {contentData: true} : undefined);
 
   }
 
@@ -339,7 +339,7 @@ Ldpm.prototype._install = function(pkgId, opts, callback){
   async.waterfall([
 
     function(cb){
-      this[(opts.env) ? '_getAll' : '_get'](pkgId, opts, function(err, pkg, context, root){
+      this._get(pkgId, opts, function(err, pkg, context, root){
         //console.log(util.inspect(pkg, {depth:null}));
 
         if(err) return cb(err);
@@ -405,69 +405,6 @@ Ldpm.prototype._get = function(pkgId, opts, callback){
   }.bind(this));
 };
 
-
-/**
- * get package.jsonld and create a directory populated by (env_.tar.gz)
- */
-Ldpm.prototype._getAll = function(pkgId, opts, callback){
-
-  callback = once(callback);
-
-  if(arguments.length === 2){
-    callback = opts;
-    opts = {};
-  }
-
-  this.cat(pkgId, opts, function(err, pkg, context){
-
-    if(err) return callback(err);
-
-    var root = (opts.top) ? path.join(opts.root || this.root, pkg.name) : path.join(opts.root || this.root, 'ld_packages', pkg.name);
-    _createDir(root, opts, function(err){
-      if(err) {
-        return callback(err);
-      }
-
-      if(!pkg.encoding || !(pkg.encoding && pkg.encoding.contentUrl)){
-        return callback(new Error('--all cannot be satisfied'));
-      }
-
-      var rurl = _expandIri(context['@context']['@base'], pkg.encoding.contentUrl);
-      this.logHttp('GET', rurl);
-
-      var req = request(this.rOpts(rurl));
-      req.on('error', callback);
-      req.on('response', function(resp){
-
-        this.logHttp(resp.statusCode, rurl);
-
-        if(resp.statusCode >= 400){
-          resp.pipe(concat(function(body){
-            var err = new Error(body.toString);
-            err.code = resp.statusCode;
-            callback(err);
-          }));
-        } else {
-
-          resp
-            .pipe(zlib.createGunzip())
-            .pipe(new tar.Extract({
-              path: root,
-              strip: 1
-            }))
-            .on('error', callback)
-            .on('end', function(){
-              callback(null, pkg, context, root);
-            });
-
-        }
-      }.bind(this));
-
-    }.bind(this));
-
-  }.bind(this));
-
-};
 
 /**
  * cache all the resources at their path (when it exists or in ld_resources when they dont)

@@ -32,15 +32,6 @@ describe('ldpm', function(){
     return conf.protocol + '://' + conf.hostname + ((conf.port !== 80) ? ':' + conf.port: '') + path;
   };
 
-  function rm(db, id, cb){
-    db['head'](id, function(err, _, headers){
-      var etag = (headers && headers.etag.replace(/^"(.*)"$/, '$1')) || '';
-      db['destroy'](id, etag, function(err, _, _){
-        cb();
-      });
-    });
-  };
-
   function rmFixtures (cb){
     request.del( { url: rurl('/mypkg-test'), auth: {user: conf.name, pass: conf.password} }, function(err, resp, body){
       request.del( { url: rurl('/req-test'), auth: {user: conf.name, pass: conf.password} }, function(err, resp, body){
@@ -53,7 +44,7 @@ describe('ldpm', function(){
     });
   };
 
-  describe('init', function(){
+  describe.skip('init', function(){
 
     var expected = {
       description: 'my package description',
@@ -120,7 +111,7 @@ describe('ldpm', function(){
   });
 
 
-  describe('adduser', function(){
+  describe.skip('adduser', function(){
     var ldpm;
 
     before(function(done){
@@ -194,7 +185,7 @@ describe('ldpm', function(){
   });
 
 
-  describe('unpublish', function(){
+  describe.skip('unpublish', function(){
     var ldpm1;
 
     before(function(done){
@@ -220,7 +211,7 @@ describe('ldpm', function(){
   });
 
 
-  describe('owner', function(){
+  describe.skip('owner', function(){
 
     var expected = [
       {name: 'user_a', email: 'user@domain.com'},
@@ -277,7 +268,7 @@ describe('ldpm', function(){
 
   });
 
-  describe('cat', function(){
+  describe.skip('cat', function(){
 
     var ldpm1, ldpm2;
 
@@ -339,7 +330,6 @@ describe('ldpm', function(){
 
     it('should cat the pkg as JSON-LD', function(done){
       ldpm2.cat('req-test@0.0.0', function(err, pkg){
-        console.log(util.inspect(pkg, {depth:null}));
 
         assert('@context' in pkg);
         delete pkg['@context'];
@@ -365,7 +355,7 @@ describe('ldpm', function(){
 
   });
 
-  describe('files', function(){
+  describe.skip('files', function(){
     var ldpm1, ldpm2;
     before(function(done){
       ldpm1 = new Ldpm(conf, path.join(root, 'fixtures', 'req-test'));
@@ -472,7 +462,7 @@ describe('ldpm', function(){
   });
 
 
-  describe('code bundles', function(){
+  describe.skip('code bundles', function(){
 
     before(function(done){
       var ldpm = new Ldpm(conf, path.join(root, 'fixtures', 'init-test'));

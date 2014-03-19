@@ -163,6 +163,7 @@ describe('ldpm', function(){
 
     it('should publish a package with attachments and raise an error with code if the pkg is republished', function(done){
       ldpm1.publish(function(err, id){
+        if(err) throw err;
         assert.equal('mypkg-test@0.0.0', id);
         ldpm1.publish(function(err, id){
           assert.equal(err.code, 409);

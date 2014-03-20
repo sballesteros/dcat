@@ -44,7 +44,7 @@ describe('ldpm', function(){
     });
   };
 
-  describe.skip('init', function(){
+  describe('init', function(){
 
     var expected = {
       description: 'my package description',
@@ -111,7 +111,7 @@ describe('ldpm', function(){
   });
 
 
-  describe.skip('adduser', function(){
+  describe('adduser', function(){
     var ldpm;
 
     before(function(done){
@@ -186,7 +186,7 @@ describe('ldpm', function(){
   });
 
 
-  describe.skip('unpublish', function(){
+  describe('unpublish', function(){
     var ldpm1;
 
     before(function(done){
@@ -212,7 +212,7 @@ describe('ldpm', function(){
   });
 
 
-  describe.skip('owner', function(){
+  describe('owner', function(){
 
     var expected = [
       {name: 'user_a', email: 'user@domain.com'},
@@ -269,7 +269,7 @@ describe('ldpm', function(){
 
   });
 
-  describe.skip('cat', function(){
+  describe('cat', function(){
 
     var ldpm1, ldpm2;
 
@@ -292,20 +292,12 @@ describe('ldpm', function(){
           contentRating: 'uri',
           distribution:  {
             '@type': 'DataDownload' ,
-            contentUrl: 'mypkg-test/0.0.0/dataset/csv1/x1.csv',
-            //uploadDate: '2014-01-12T05:11:48.221Z',
+            contentUrl: 'r/f9b634be34cb3f2af4fbf4395e3f24b3834da926',
           },
           catalog: { '@type': ['Package', 'DataCatalog'], name: 'req-test', version: '0.0.0', url: 'req-test/0.0.0' }
         }
       ],
 //      datePublished: '2014-01-12T05:11:48.220Z',
-      encoding: {
-        contentUrl: 'req-test/0.0.0/env/env_.tar.gz',
-        contentSize: 29,
-        'encodingFormat': 'application/x-gtar',
-        hashAlgorithm: 'md5',
-        hashValue: '31f6566d35ccd604be46ed5b1f813cdf'
-      },
       registry: { name: 'Standard Analytics IO', url: 'https://registry.standardanalytics.io/' }
     };
 
@@ -331,13 +323,10 @@ describe('ldpm', function(){
 
     it('should cat the pkg as JSON-LD', function(done){
       ldpm2.cat('req-test@0.0.0', function(err, pkg){
-
         assert('@context' in pkg);
         delete pkg['@context'];
         assert('datePublished' in pkg);
         delete pkg.datePublished;
-        assert('uploadDate' in pkg.dataset[0].distribution);
-        delete pkg.dataset[0].distribution.uploadDate;
         assert.deepEqual(expected, pkg);
         done();
       });
@@ -356,7 +345,7 @@ describe('ldpm', function(){
 
   });
 
-  describe.skip('files', function(){
+  describe('files', function(){
     var ldpm1, ldpm2;
     before(function(done){
       ldpm1 = new Ldpm(conf, path.join(root, 'fixtures', 'req-test'));
@@ -421,17 +410,6 @@ describe('ldpm', function(){
       });
     });
 
-    it('should install mypkg-test at the top level with all env files', function(done){
-      temp.mkdir('test-ldpm-', function(err, dirPath) {
-        var ldpm = new Ldpm(conf, dirPath);
-        ldpm.install(['mypkg-test@0.0.0'], { top: true, env:true }, function(err, pkgs){
-          var files = readdirpSync(path.join(dirPath, 'mypkg-test'));
-          var expected = ['package.jsonld',  'env.txt'];
-          assert(files.length && difference(files, expected).length === 0);
-          done();
-        });
-      });
-    });
 
     it('should install mypkg-test@0.0.0 at the top level, cache data and put inlined data in their own files in ld_resources', function(done){
       temp.mkdir('test-ldpm-', function(err, dirPath) {
@@ -463,7 +441,7 @@ describe('ldpm', function(){
   });
 
 
-  describe.skip('code bundles', function(){
+  describe('code bundles', function(){
 
     before(function(done){
       var ldpm = new Ldpm(conf, path.join(root, 'fixtures', 'init-test'));

@@ -120,7 +120,10 @@ if (argv._[0] === 'init') {
     } else {
       prompt = {
         name: function(cb){
-          read({prompt: 'data package name: '}, function(err, prompted, _){cb(err, prompted);});
+          read({prompt: 'linked data package name: '}, function(err, prompted, _){cb(err, prompted);});
+        },
+        version: function(cb){
+          read({prompt: 'linked data package version: ', default: '0.0.0'}, function(err, prompted, _){cb(err, prompted);});
         },
         authorName: function(cb){
           read({ prompt: 'your name: ', default: ldpm.rc.name }, function(err, prompted, _){cb(err, prompted);});
@@ -148,11 +151,15 @@ if (argv._[0] === 'init') {
       prompted = Array.isArray(prompted) ? prompted[0]: prompted;
 
       var pkg = {};
-      [ 'name', 'description', 'keywords' ,'license' ].forEach(function(key){
+      [ 'name', 'version', 'description', 'license' ].forEach(function(key){
         if(prompted[key]){
           pkg[key] = prompted[key];
         }
       });
+
+      if(prompted.keywords && (prompted.keywords.filter(function(x){return x;})).length){
+        pkg.keywords = prompted.keywords;
+      }
 
       if(prompted.authorName || prompted.authorEmail){
         pkg.author = {};

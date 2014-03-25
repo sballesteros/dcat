@@ -701,7 +701,7 @@ Ldpm.prototype.paths2resources = function(globs, opts, callback){
           programmingLanguage: { name: lang },
           targetProduct: {
             filePath: path.relative(this.root, p),
-            fileFormat: 'plain/text'
+            fileFormat: 'text/plain'
           }
         };
 

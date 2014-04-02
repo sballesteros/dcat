@@ -46,7 +46,7 @@ var argv = optimist
   .alias('e', 'expand').describe('e', 'expand the JSON-LD document')
   .alias('s', 'save').describe('s', 'data packages will appear in your dataDependencies')
   .alias('c', 'cache').describe('c', 'store the dataset content on the disk (inlined data will stay in the package.jsonld see -r, --require to change this behavior)')
-  .alias('r', 'require').describe('c', 'force the inlined dataset (contentData) to be stored in their own file in ld_resources/')
+  .alias('r', 'require').describe('r', 'force the inlined dataset (contentData) to be stored in their own file in ld_resources/')
   .alias('b', 'codebundle').describe('b', 'treat the listed directory as a code project')
   .alias('h', 'help').describe('h', 'print usage')
   .alias('v', 'version').describe('v', 'print version number')

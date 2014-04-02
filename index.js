@@ -61,7 +61,7 @@ util.inherits(Ldpm, EventEmitter);
 /**
  * if no pkg is provided, will be read from package.jsonld
  */
-Ldpm.prototype.publish = function(pkg, callback){
+Ldpm.prototype.publish = function(pkg, attachments, callback){
 
   if(arguments.length === 1){
     callback = pkg;
@@ -69,7 +69,7 @@ Ldpm.prototype.publish = function(pkg, callback){
   }
 
   if(pkg){
-    publish.call(this, pkg, callback);
+    publish.call(this, pkg, attachments, callback);
   } else {
     fs.readFile(path.resolve(this.root, 'package.jsonld'), function(err, pkg){
       if(err) return callback(err);
@@ -78,7 +78,7 @@ Ldpm.prototype.publish = function(pkg, callback){
       } catch(e){
         return callback(e);
       }
-      publish.call(this, pkg, callback);
+      publish.call(this, pkg, attachments, callback);
     }.bind(this));
   }
 

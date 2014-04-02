@@ -1,6 +1,6 @@
 {
   "name": "ldpm",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "linked data container manager",
   "main": "index.js",
   "bin": {

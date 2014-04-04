@@ -8,6 +8,8 @@ Linked Data package manager.
 Usage:
 ======
 
+See [here](https://standardanalytics.io/ldpm) for documentation.
+
 ##CLI
 
     Usage: ldpm <command> [options] where command is:
@@ -25,15 +27,16 @@ Usage:
       - help [command]
     
     Options:
-      -f, --force       overwrite previous if exists
-      -d, --defaults    bypass the promzard prompt
-      -t, --top         install in the current working directory (and not within ld_packages/)
-      -e, --expand      expand the JSON-LD document
-      -s, --save        data packages will appear in your dataDependencies
-      -c, --cache       force the inlined dataset (contentData) to be stored in their own file in ld_resources/
-      -b, --codebundle  treat the listed directory as a code project
-      -h, --help        print usage
-      -v, --version     print version number
+      -f, --force       overwrite previous if exists                                                                                                  
+      -d, --defaults    bypass the promzard prompt                                                                                                    
+      -t, --top         install in the current working directory (and not within ld_packages/)                                                        
+      -e, --expand      expand the JSON-LD document                                                                                                   
+      -s, --save        data packages will appear in your dataDependencies                                                                            
+      -c, --cache       store the dataset content on the disk (inlined data will stay in the package.jsonld see -r, --require to change this behavior)
+      -r, --require     force the inlined dataset (contentData) to be stored in their own file in ld_resources/                                       
+      -b, --codebundle  treat the listed directory as a code project                                                                                  
+      -h, --help        print usage                                                                                                                   
+      -v, --version     print version number                                                                                                          
 
 
 ## Using ldpm programaticaly

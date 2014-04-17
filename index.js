@@ -80,7 +80,7 @@ Ldpm.prototype.publish = function(pkg, attachments, callback){
       }
       publish.call(this, pkg, attachments, callback);
     }.bind(this));
-  }
+  }url
 
 };
 
@@ -451,6 +451,26 @@ Ldpm.prototype._cache = function(pkg, context, root, callback){
             url: r.encoding.contentUrl,
             path: r.encoding.contentPath
           }
+        }),
+      (pkg.audio || [])
+        .filter(function(r){return r.encoding && r.encoding.contentUrl ;})
+        .map(function(r){
+          return {
+            name: r.name,
+            type: 'audio',
+            url: r.encoding.contentUrl,
+            path: r.encoding.contentPath
+          }
+        }),
+      (pkg.video || [])
+        .filter(function(r){return r.encoding && r.encoding.contentUrl ;})
+        .map(function(r){
+          return {
+            name: r.name,
+            type: 'video',
+            url: r.encoding.contentUrl,
+            path: r.encoding.contentPath
+          }
         })
     );
 
@@ -711,6 +731,38 @@ Ldpm.prototype.paths2resources = function(globs, opts, callback){
 
         cb(null, {type: 'code', value: code});
 
+      } else if (['.wav', '.mp3', '.aif', '.aiff', '.aifc', '.m4a', '.wma', '.aac'].indexOf(ext.toLowerCase()) !== -1) {
+
+        var audio = {
+          name: path.basename(p, ext),
+          encoding: {
+            contentPath: path.relative(this.root, p),
+            encodingFormat: mime.lookup(ext)
+          }
+        };
+
+        if(audio.encoding.contentPath.indexOf('..') !== -1){
+          return cb(new Error('only audio files within ' + this.root + ' can be added (' + article.encoding.contentPath +')'));
+        }
+
+        cb(null, {type: 'audio', value: audio});
+
+      } else if (['.avi', '.mpeg', '.mov'].indexOf(ext.toLowerCase()) !== -1) {
+
+        var video = {
+          name: path.basename(p, ext),
+          encoding: {
+            contentPath: path.relative(this.root, p),
+            encodingFormat: mime.lookup(ext)
+          }
+        };
+
+        if(audio.encoding.contentPath.indexOf('..') !== -1){
+          return cb(new Error('only video files within ' + this.root + ' can be added (' + article.encoding.contentPath +')'));
+        }
+
+        cb(null, {type: 'video', value: video});
+
       } else {
         cb(new Error('non suported file type: ' + path.relative(this.root, p) + " If it is part of a code project, use --codebundle and the directory to be bundled"));
       }
@@ -723,7 +775,9 @@ Ldpm.prototype.paths2resources = function(globs, opts, callback){
         dataset: [],
         code: [],
         figure: [],
-        article: []
+        article: [],
+        audio: [],
+        video: []
       };
 
       for(var i=0; i<typedResources.length; i++){
@@ -846,6 +900,36 @@ Ldpm.prototype.urls2resources = function(urls, callback){
 
         cb(null, article);
 
+      } else if ([ 'audio/basic', 'audio/L24', 'audio/mp4', 'audio/mpeg', 'audio/ogg', 'audio/opus', 'audio/orbis', 'audio/vorbis', 'audio/vnd.rn-realaudio', 'audio/vnd.wave', 'audio/webl', 'audio/example' ].indexOf(ctype) !== -1) {
+
+          var audio = {
+            value: {
+              name: myname,
+              encoding: {
+                encodingFormat: ctype,
+                contentUrl: myurl
+              }
+            },
+            type: 'audio'
+          };
+
+          cb(null, audio);
+
+      } else if ([ 'video/avi', 'video/example', 'video/mpeg', 'video/mp4', 'video/ogg', 'video/quicktime', 'video/webm', 'video/x-matroska', 'video/x-ms-wmv', 'audio/x-flv' ].indexOf(ctype) !== -1) {
+
+          var video = {
+            value: {
+              name: myname,
+              encoding: {
+                encodingFormat: ctype,
+                contentUrl: myurl
+              }
+            },
+            type: 'video'
+          };
+
+          cb(null, video);
+
       } else {
 
         res.destroy();
@@ -883,7 +967,7 @@ Ldpm.prototype.urls2resources = function(urls, callback){
 /**
  * add resources by taking care of removing previous
  * resources with conflicting names
- * !! resources is {dataset: [], code: [], figure: []}
+ * !! resources is {dataset: [], code: [], figure: [], article: [], audio: [], video: []}
  */
 Ldpm.prototype.addResources = function(pkg, resources){
 

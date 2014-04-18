@@ -236,11 +236,13 @@ if (argv._[0] === 'init') {
 
       //print tree
       var names = pkgs.map(function(x){return x.name;});
+      //TODO fix that as too much recursion if run in HOME or co....
       var paths = readdirpSync(ldpm.root)
         .filter(function(p){
           return names.indexOf(p.split(path.sep)[(argv.top) ? 0: 1]) !== -1;
         })
         .map(function(p){return '.' + path.sep + p;});
+      console.log(paths);
 
       if(paths.length){
         console.log(tree(paths));

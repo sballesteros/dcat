@@ -80,7 +80,7 @@ Ldpm.prototype.publish = function(pkg, attachments, callback){
       }
       publish.call(this, pkg, attachments, callback);
     }.bind(this));
-  }url
+  }
 
 };
 
@@ -245,7 +245,6 @@ Ldpm.prototype.cat = function(pkgId, opts, callback){
   { headers: {'Accept': 'application/ld+json;profile="http://www.w3.org/ns/json-ld#compacted"'} };
 
   request(this.rOpts(rurl, headers), function(err, res, pkg){
-
     if(err) return callback(err);
 
     this.logHttp(res.statusCode, rurl);
@@ -453,23 +452,23 @@ Ldpm.prototype._cache = function(pkg, context, root, callback){
           }
         }),
       (pkg.audio || [])
-        .filter(function(r){return r.encoding && r.encoding.contentUrl ;})
+        .filter(function(r){return !!r.contentUrl ;})
         .map(function(r){
           return {
             name: r.name,
             type: 'audio',
-            url: r.encoding.contentUrl,
-            path: r.encoding.contentPath
+            url: r.contentUrl,
+            path: r.contentPath
           }
         }),
       (pkg.video || [])
-        .filter(function(r){return r.encoding && r.encoding.contentUrl ;})
+        .filter(function(r){return !!r.contentUrl ;})
         .map(function(r){
           return {
             name: r.name,
             type: 'video',
-            url: r.encoding.contentUrl,
-            path: r.encoding.contentPath
+            url: r.contentUrl,
+            path: r.contentPath
           }
         })
     );
@@ -735,14 +734,12 @@ Ldpm.prototype.paths2resources = function(globs, opts, callback){
 
         var audio = {
           name: path.basename(p, ext),
-          encoding: {
-            contentPath: path.relative(this.root, p),
-            encodingFormat: mime.lookup(ext)
-          }
+          contentPath: path.relative(this.root, p),
+          encodingFormat: mime.lookup(ext)
         };
 
-        if(audio.encoding.contentPath.indexOf('..') !== -1){
-          return cb(new Error('only audio files within ' + this.root + ' can be added (' + article.encoding.contentPath +')'));
+        if(audio.contentPath.indexOf('..') !== -1){
+          return cb(new Error('only audio files within ' + this.root + ' can be added (' + audio.contentPath +')'));
         }
 
         cb(null, {type: 'audio', value: audio});
@@ -751,14 +748,12 @@ Ldpm.prototype.paths2resources = function(globs, opts, callback){
 
         var video = {
           name: path.basename(p, ext),
-          encoding: {
-            contentPath: path.relative(this.root, p),
-            encodingFormat: mime.lookup(ext)
-          }
+          contentPath: path.relative(this.root, p),
+          encodingFormat: mime.lookup(ext)
         };
 
-        if(audio.encoding.contentPath.indexOf('..') !== -1){
-          return cb(new Error('only video files within ' + this.root + ' can be added (' + article.encoding.contentPath +')'));
+        if(video.contentPath.indexOf('..') !== -1){
+          return cb(new Error('only video files within ' + this.root + ' can be added (' + video.contentPath +')'));
         }
 
         cb(null, {type: 'video', value: video});
@@ -902,33 +897,29 @@ Ldpm.prototype.urls2resources = function(urls, callback){
 
       } else if ([ 'audio/basic', 'audio/L24', 'audio/mp4', 'audio/mpeg', 'audio/ogg', 'audio/opus', 'audio/orbis', 'audio/vorbis', 'audio/vnd.rn-realaudio', 'audio/vnd.wave', 'audio/webl', 'audio/example' ].indexOf(ctype) !== -1) {
 
-          var audio = {
-            value: {
-              name: myname,
-              encoding: {
-                encodingFormat: ctype,
-                contentUrl: myurl
-              }
-            },
-            type: 'audio'
-          };
+        var audio = {
+          value: {
+            name: myname,
+            encodingFormat: ctype,
+            contentUrl: myurl
+          },
+          type: 'audio'
+        };
 
-          cb(null, audio);
+        cb(null, audio);
 
       } else if ([ 'video/avi', 'video/example', 'video/mpeg', 'video/mp4', 'video/ogg', 'video/quicktime', 'video/webm', 'video/x-matroska', 'video/x-ms-wmv', 'audio/x-flv' ].indexOf(ctype) !== -1) {
 
-          var video = {
-            value: {
-              name: myname,
-              encoding: {
-                encodingFormat: ctype,
-                contentUrl: myurl
-              }
-            },
-            type: 'video'
-          };
+        var video = {
+          value: {
+            name: myname,
+            encodingFormat: ctype,
+            contentUrl: myurl
+          },
+          type: 'video'
+        };
 
-          cb(null, video);
+        cb(null, video);
 
       } else {
 
@@ -948,7 +939,9 @@ Ldpm.prototype.urls2resources = function(urls, callback){
       dataset: [],
       code: [],
       figure: [],
-      article: []
+      article: [],
+      audio: [],
+      video: []
     };
 
     for(var i=0; i<typedResources.length; i++){

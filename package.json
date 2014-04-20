@@ -52,8 +52,6 @@
     "archy": "0.0.2",
     "flat": "~1.0.0",
     "fs-readdir-recursive": "0.0.1",
-    "lodash.uniq": "~2.4.1",
-    "lodash.flatten": "~2.4.1",
     "binary-csv": "~0.1.6",
     "is-url": "^1.0.0",
     "split": "^0.3.0",
@@ -72,7 +70,6 @@
     "underscore": "^1.6.0"
   },
   "devDependencies": {
-    "mocha": "~1.15.1",
-    "lodash.difference": "~2.4.1"
+    "mocha": "~1.15.1"
   }
 }

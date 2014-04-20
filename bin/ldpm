@@ -3,8 +3,8 @@
 var path = require('path')
   , util = require('util')
   , isUrl = require('is-url')
+  , _ = require('underscore')
   , request = require('request')
-  , flatten = require('lodash.flatten')
   , fs = require('fs')
   , Ldpm = require('..')
   , optimist = require('optimist')
@@ -17,7 +17,6 @@ var path = require('path')
   , querystring = require('querystring')
   , tree = require('../lib/tree')
   , readdirpSync = require('fs-readdir-recursive')
-  , uniq = require('lodash.uniq')
   , githubUrl = require('github-url')
   , pone = require('../plugin/pone')
   , os = require('os')
@@ -234,19 +233,23 @@ if (argv._[0] === 'init') {
       if(err) _fail(err);
 
       if(argv.save){
-        pkg.isBasedOnUrl = uniq( pkgs.map(function(x){return x['@id'];}).concat(pkg.isBasedOnUrl || []) );
+        pkg.isBasedOnUrl = _.uniq( pkgs.map(function(x){return x['@id'];}).concat(pkg.isBasedOnUrl || []) );
         fs.writeFileSync(path.join(ldpm.root, 'package.jsonld'), JSON.stringify(pkg, null, 2));
       }
 
       //print tree
-      var names = pkgs.map(function(x){return x.name;});
-      //TODO fix that as too much recursion if run in HOME or co....
-      var paths = readdirpSync(ldpm.root)
-        .filter(function(p){
-          return names.indexOf(p.split(path.sep)[(argv.top) ? 0: 1]) !== -1;
-        })
-        .map(function(p){return '.' + path.sep + p;});
-      console.log(paths);
+      var pkgNames = pkgs.map(function(x){return x.name;});
+
+      var paths = [];
+      pkgNames.forEach(function(pkgName){
+        var p = (argv.top)? path.join(ldpm.root, pkgName) : path.join(ldpm.root, 'ld_packages', pkgName);
+        var lpaths = readdirpSync(p).map(function(p){
+          var prefix = (argv.top) ? '.': ('.'  + path.sep + 'ld_packages');
+          return prefix + path.sep + pkgName + path.sep + p;
+        });
+
+        paths = paths.concat(lpaths);
+      });
 
       if(paths.length){
         console.log(tree(paths));
@@ -384,7 +387,7 @@ if (argv._[0] === 'init') {
 
   (function(){
     var keys = argv._.slice(1);
-    var qs = (keys.length) ?  '?keys=' + JSON.stringify(flatten(keys.map(function(x){return x.split('-');}))): '';
+    var qs = (keys.length) ?  '?keys=' + JSON.stringify(_.flatten(keys.map(function(x){return x.split('-');}))): '';
 
     //var qs = '?q=' + argv._.slice(1);
     var rpath = '/search' + qs

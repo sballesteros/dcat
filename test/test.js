@@ -6,7 +6,7 @@ var util = require('util')
   , request = require('request')
   , Ldpm = require('..')
   , readdirpSync = require('fs-readdir-recursive')
-  , difference = require('lodash.difference')
+  , _ = require('underscore')
   , exec = require('child_process').exec
   , path = require('path');
 
@@ -378,7 +378,7 @@ describe('ldpm', function(){
             'README.md'
           ];
 
-          assert(files.length && difference(files, expected).length === 0);
+          assert(files.length && _.difference(files, expected).length === 0);
           done();
         });
       });
@@ -404,7 +404,7 @@ describe('ldpm', function(){
             path.join('req-test', 'README.md')
           ];
 
-          assert(files.length && difference(files, expected).length === 0);
+          assert(files.length && _.difference(files, expected).length === 0);
           done();
         });
       });
@@ -428,7 +428,7 @@ describe('ldpm', function(){
             'README.md'
           ];
 
-          assert(files.length && difference(files, expected).length === 0);
+          assert(files.length && _.difference(files, expected).length === 0);
           done();
         });
       });
@@ -472,7 +472,7 @@ describe('ldpm', function(){
             'README.md'
           ];
 
-          assert(files.length && difference(files, expected).length === 0);
+          assert(files.length && _.difference(files, expected).length === 0);
           done();
         });
       });

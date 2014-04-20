@@ -1,10 +1,9 @@
 var crypto = require('crypto')
   , url = require('url')
+  , _ = require('underscore')
   , isUrl = require('is-url')
   , Ignore = require("fstream-ignore")
   , semver = require('semver')
-  , uniq = require('lodash.uniq')
-  , flatten = require('lodash.flatten')
   , glob = require('glob')
   , minimatch = require('minimatch')
   , querystring = require('querystring')
@@ -633,7 +632,7 @@ Ldpm.prototype.paths2resources = function(globs, opts, callback){
     if(err) return cb(err);
 
     //filter (TODO find more elegant way (node_modules|.git) does not seem to work...)
-    paths = uniq(flatten(paths))
+    paths = _.uniq(_.flatten(paths))
       .filter(minimatch.filter('!**/.git/**/*', {matchBase: true}))
       .filter(minimatch.filter('!**/node_modules/**/*', {matchBase: true}))
       .filter(minimatch.filter('!**/ld_packages/**/*', {matchBase: true}))
@@ -823,7 +822,7 @@ Ldpm.prototype.paths2resources = function(globs, opts, callback){
  * from urls to resources
  */
 Ldpm.prototype.urls2resources = function(urls, callback){
-  urls = uniq(urls);
+  urls = _.uniq(urls);
 
   async.map(urls, function(myurl, cb){
 

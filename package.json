@@ -33,6 +33,8 @@
   },
   "homepage": "https://github.com/standard-analytics/ldpm",
   "dependencies": {
+    "preview-tabular-data": "*",
+    "jsonld-context-infer": "*",
     "temp": "^0.6.0",
     "fstream-ignore": "0.0.7",
     "tar": "~0.1.18",
@@ -52,7 +54,6 @@
     "fs-readdir-recursive": "0.0.1",
     "lodash.uniq": "~2.4.1",
     "lodash.flatten": "~2.4.1",
-    "jsonld-context-infer": "*",
     "binary-csv": "~0.1.6",
     "is-url": "^1.0.0",
     "split": "^0.3.0",

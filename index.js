@@ -29,7 +29,7 @@ var crypto = require('crypto')
   , split = require('split')
   , temp = require('temp')
   , githubUrl = require('github-url')
-  , aboutTabularData = require('./lib/about')
+  , previewTabularData = require('preview-tabular-data').preview
   , jsonldContextInfer = require('jsonld-context-infer');
 
 var conf = require('rc')('ldpm', {protocol: 'https', port: 443, hostname: 'registry.standardanalytics.io', strictSSL: false, sha:true});
@@ -873,7 +873,7 @@ Ldpm.prototype.urls2resources = function(urls, callback){
               return cb(new Error('could not GET ' + myurl + ' code (' + respData.statusCode + ')'));
             }
 
-            aboutTabularData(respData, respData.headers, 100, function(err, about){
+            previewTabularData(respData, respData.headers, {nSample:100}, function(err, preview, about){
               if(err) return cb(null, dataset);
 
               dataset.value.about = about;

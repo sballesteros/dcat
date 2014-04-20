@@ -59,10 +59,12 @@
     "binary-csv": "~0.1.6",
     "is-url": "^1.0.0",
     "async": "^0.2.10",
+    "jsdom": "0.10.4",
     "rimraf": "^2.2.6",
     "glob": "^3.2.8",
     "split": "^0.3.0",
     "concat-stream": "^1.4.1",
+    "underscore": "*",
     "minimatch": "^0.2.14",
     "github-url": "^1.1.0"
   },

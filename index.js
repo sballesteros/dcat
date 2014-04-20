@@ -649,15 +649,18 @@ Ldpm.prototype.paths2resources = function(globs, opts, callback){
     var fpaths = (opts.fFilter) ? paths.filter(opts.fFilter) : paths;
 
     async.map(fpaths, function(p, cb){
-      var ext = path.extname(p);
+      var ext = path.extname(p)
+        , mypath = path.relative(this.root, p)
+        , myformat = mime.lookup(ext)
+        , myname = path.basename(p, ext);
 
       if(['.csv', '.tsv', '.xls', '.xlsx', '.ods', '.json', '.jsonld', '.ldjson', '.txt', '.xml', '.ttl'].indexOf(ext.toLowerCase()) !== -1){
 
         var dataset = {
-          name: path.basename(p, ext),
+          name: myname,
           distribution: {
-            contentPath: path.relative(this.root, p),
-            encodingFormat: mime.lookup(ext)
+            contentPath: mypath,
+            encodingFormat: myformat
           }
         };
 
@@ -665,14 +668,15 @@ Ldpm.prototype.paths2resources = function(globs, opts, callback){
           return cb(new Error('only dataset files within ' + this.root + ' can be added (' + dataset.distribution.contentPath +')'));
         }
 
-        if(ext.toLowerCase() === '.csv' || ext.toLowerCase() === '.tsv'){
-          jsonldContextInfer(fs.createReadStream(p).pipe(binaryCSV({json:true, separator: (ext.toLowerCase() === '.csv') ? ',': '\t'})), {nSample: 100}, function(err, context){
-            if(err) {
-              console.error(err);
-              return cb(null, {type: 'dataset', value: dataset});
-            }
-            dataset.about = jsonldContextInfer.about(context);
-            cb(null, {type: 'dataset', value: dataset});
+        //about
+        if(['.tsv', '.csv', '.ldjson', '.xls', '.xlsx' ].indexOf(ext.toLowerCase()) !== -1){
+          fs.stat(p, function(err, stats){
+            previewTabularData(fs.createReadStream(p), {'content-type': myformat, 'content-length': stats.size}, {nSample:100}, function(err, preview, about){
+              if(err) return cb(null, {type: 'dataset', value: dataset});
+
+              dataset.about = about;
+              cb(null, {type: 'dataset', value: dataset});
+            });
           });
         } else {
           cb(null, {type: 'dataset', value: dataset});
@@ -681,9 +685,9 @@ Ldpm.prototype.paths2resources = function(globs, opts, callback){
       } else if (['.png', '.jpg', '.jpeg', '.gif', '.tiff', '.eps'].indexOf(ext.toLowerCase()) !== -1){
 
         var figure = {
-          name: path.basename(p, ext),
-          contentPath: path.relative(this.root, p),
-          encodingFormat: mime.lookup(ext)
+          name: myname,
+          contentPath: mypath,
+          encodingFormat: myformat
         };
 
         if(figure.contentPath.indexOf('..') !== -1){
@@ -695,10 +699,10 @@ Ldpm.prototype.paths2resources = function(globs, opts, callback){
       } else if (['.pdf', '.odt', '.doc', '.docx'].indexOf(ext.toLowerCase()) !== -1){
 
         var article = {
-          name: path.basename(p, ext),
+          name: myname,
           encoding: {
-            contentPath: path.relative(this.root, p),
-            encodingFormat: mime.lookup(ext)
+            contentPath: mypath,
+            encodingFormat: myformat
           }
         };
 
@@ -717,10 +721,10 @@ Ldpm.prototype.paths2resources = function(globs, opts, callback){
         }[ext.toLowerCase()];
 
         var code = {
-          name: path.basename(p, ext),
+          name: myname,
           programmingLanguage: { name: lang },
           targetProduct: {
-            filePath: path.relative(this.root, p),
+            filePath: mypath,
             fileFormat: 'text/plain'
           }
         };
@@ -734,9 +738,9 @@ Ldpm.prototype.paths2resources = function(globs, opts, callback){
       } else if (['.wav', '.mp3', '.aif', '.aiff', '.aifc', '.m4a', '.wma', '.aac'].indexOf(ext.toLowerCase()) !== -1) {
 
         var audio = {
-          name: path.basename(p, ext),
-          contentPath: path.relative(this.root, p),
-          encodingFormat: mime.lookup(ext)
+          name: myname,
+          contentPath: mypath,
+          encodingFormat: myformat
         };
 
         if(audio.contentPath.indexOf('..') !== -1){
@@ -748,9 +752,9 @@ Ldpm.prototype.paths2resources = function(globs, opts, callback){
       } else if (['.avi', '.mpeg', '.mov'].indexOf(ext.toLowerCase()) !== -1) {
 
         var video = {
-          name: path.basename(p, ext),
-          contentPath: path.relative(this.root, p),
-          encodingFormat: mime.lookup(ext)
+          name: myname,
+          contentPath: mypath,
+          encodingFormat: myformat
         };
 
         if(video.contentPath.indexOf('..') !== -1){
@@ -838,7 +842,7 @@ Ldpm.prototype.urls2resources = function(urls, callback){
         return cb(new Error('could not HEAD ' + myurl + ' code (' + resp.statusCode + ')'));
       }
 
-      var ctype = resp.headers['content-type'].split(';')[0]
+      var ctype = resp.headers['content-type'].split(';')[0].trim()
         , mypath = url.parse(myurl).pathname
         , myname = path.basename(mypath, path.extname(mypath));
 
@@ -848,7 +852,7 @@ Ldpm.prototype.urls2resources = function(urls, callback){
           value: {
             name: myname,
             distribution: {
-              encodingFormat: ctype,
+              encodingFormat: resp.headers['content-type'],
               contentUrl: myurl,
             }
           },
@@ -888,12 +892,12 @@ Ldpm.prototype.urls2resources = function(urls, callback){
 
         }
 
-      } else if ([ 'image/png', 'image/jpeg', 'image/tiff', 'image/gif', 'image/svg+xml' ].indexOf(ctype) !== -1) {
+      } else if ([ 'image/png', 'image/jpeg', 'image/tiff', 'image/gif', 'image/svg+xml', 'application/postscript' ].indexOf(ctype) !== -1) {
 
         var figure = {
           value: {
             name: myname,
-            encodingFormat: ctype,
+            encodingFormat: resp.headers['content-type'],
             contentUrl: myurl
           },
           type: 'figure'
@@ -915,7 +919,7 @@ Ldpm.prototype.urls2resources = function(urls, callback){
         var audio = {
           value: {
             name: myname,
-            encodingFormat: ctype,
+            encodingFormat: resp.headers['content-type'],
             contentUrl: myurl
           },
           type: 'audio'
@@ -932,12 +936,12 @@ Ldpm.prototype.urls2resources = function(urls, callback){
 
         cb(null, audio);
 
-      } else if ([ 'video/avi', 'video/example', 'video/mpeg', 'video/mp4', 'video/ogg', 'video/quicktime', 'video/webm', 'video/x-matroska', 'video/x-ms-wmv', 'audio/x-flv' ].indexOf(ctype) !== -1) {
+      } else if ([ 'video/avi', 'video/mpeg', 'video/mp4', 'video/ogg', 'video/quicktime', 'video/webm', 'video/x-matroska', 'video/x-ms-wmv', 'audio/x-flv' ].indexOf(ctype) !== -1) {
 
         var video = {
           value: {
             name: myname,
-            encodingFormat: ctype,
+            encodingFormat: resp.headers['content-type'],
             contentUrl: myurl
           },
           type: 'video'
@@ -960,7 +964,7 @@ Ldpm.prototype.urls2resources = function(urls, callback){
           value: {
             name: myname,
             encoding: {
-              encodingFormat: ctype,
+              encodingFormat: resp.headers['content-type'],
               contentUrl: myurl
             }
           },
@@ -980,12 +984,11 @@ Ldpm.prototype.urls2resources = function(urls, callback){
 
       } else {
 
-        cb(new Error('unsuported MIME type (' + ctype + '). It might be that the host is not setting MIME type properly'));
+        cb(new Error('unsuported MIME type (' + resp.headers['content-type'] + '). It might be that the host is not setting MIME type properly'));
 
       }
 
     }); //end request.head
-
 
   }, function (err, typedResources){
     if(err) return callback(err);
@@ -1031,14 +1034,12 @@ Ldpm.prototype.addResources = function(pkg, resources){
   return pkg;
 };
 
-
 function _expandIri(base, iri){
   if(!isUrl(iri)){
     return url.resolve(base, iri);
   }
   return iri;
 };
-
 
 function _createDir(dirPath, opts, callback){
 

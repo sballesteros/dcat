@@ -29,6 +29,7 @@ var crypto = require('crypto')
   , split = require('split')
   , temp = require('temp')
   , githubUrl = require('github-url')
+  , aboutTabularData = require('./lib/about')
   , jsonldContextInfer = require('jsonld-context-infer');
 
 var conf = require('rc')('ldpm', {protocol: 'https', port: 443, hostname: 'registry.standardanalytics.io', strictSSL: false, sha:true});
@@ -665,7 +666,7 @@ Ldpm.prototype.paths2resources = function(globs, opts, callback){
         }
 
         if(ext.toLowerCase() === '.csv' || ext.toLowerCase() === '.tsv'){
-          jsonldContextInfer(fs.createReadStream(p).pipe(binaryCSV({json:true, separator: (ext.toLowerCase() === '.csv') ? ',': '\t'})), function(err, context){
+          jsonldContextInfer(fs.createReadStream(p).pipe(binaryCSV({json:true, separator: (ext.toLowerCase() === '.csv') ? ',': '\t'})), {nSample: 100}, function(err, context){
             if(err) {
               console.error(err);
               return cb(null, {type: 'dataset', value: dataset});
@@ -830,41 +831,61 @@ Ldpm.prototype.urls2resources = function(urls, callback){
       return cb(null, { value: { name: gh.project, codeRepository: myurl }, type: 'code' });
     }
 
-    var r = request(myurl);
-    r.on('response', function(res){
+    request.head(myurl, function(err, resp){
+      if(err) return cb(err);
 
-      if(res.statusCode >= 400){
-        return cb(new Error('could not process ' + myurl + ' code (' + res.statusCode + ')'));
+      if(resp.statusCode >= 400){
+        return cb(new Error('could not HEAD ' + myurl + ' code (' + resp.statusCode + ')'));
       }
 
-      var ctype = res.headers['content-type']
+      var ctype = resp.headers['content-type'].split(';')[0]
         , mypath = url.parse(myurl).pathname
         , myname = path.basename(mypath, path.extname(mypath));
 
-      if ( [ 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'text/csv', 'application/json', 'application/ld+json', 'application/x-ldjson' ].indexOf(ctype) !== -1 ) {
+      if ( [ 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'text/csv', 'text/tab-separated-values', 'application/json', 'application/ld+json', 'application/x-ldjson', 'text/plain' ].indexOf(ctype) !== -1 ) {
 
         var dataset = {
           value: {
             name: myname,
             distribution: {
               encodingFormat: ctype,
-              contentUrl: myurl
+              contentUrl: myurl,
             }
           },
           type: 'dataset'
         };
 
-        if(dataset.value.distribution.encodingFormat === 'text/csv'){
+        if('content-encoding' in resp.headers){
+          dataset.value.distribution.encoding = { encodingFormat: resp.headers['content-encoding']};
+          if('content-length' in resp.headers){
+            dataset.value.distribution.encoding.contentSize = resp.headers['content-length'];
+          }
+        } else if('content-length' in resp.headers){
+          dataset.value.distribution.contentSize = resp.headers['content-length'];
+        }
 
-          jsonldContextInfer(res.pipe(binaryCSV({json:true})), function(err, context){
-            if(err) return cb(err);
-            dataset.value.about = jsonldContextInfer.about(context);
-            cb(null, dataset);
+        //auto generate about template
+        if([ 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'text/csv', 'text/tab-separated-values', 'application/x-ldjson' ].indexOf(ctype) !== -1){
+          var r = request(myurl);
+          r.on('error', cb);
+          r.on('response', function(respData){
+            if(respData.statusCode >= 400){
+              return cb(new Error('could not GET ' + myurl + ' code (' + respData.statusCode + ')'));
+            }
+
+            aboutTabularData(respData, respData.headers, 100, function(err, about){
+              if(err) return cb(null, dataset);
+
+              dataset.value.about = about;
+              cb(null, dataset);
+            });
+
           });
 
         } else {
-          res.destroy();
+
           cb(null, dataset);
+
         }
 
       } else if ([ 'image/png', 'image/jpeg', 'image/tiff', 'image/gif', 'image/svg+xml' ].indexOf(ctype) !== -1) {
@@ -878,22 +899,16 @@ Ldpm.prototype.urls2resources = function(urls, callback){
           type: 'figure'
         };
 
+        if('content-encoding' in resp.headers){
+          figure.value.encoding = { encodingFormat: resp.headers['content-encoding']};
+          if('content-length' in resp.headers){
+            figure.value.encoding.contentSize = resp.headers['content-length'];
+          }
+        } else if('content-length' in resp.headers){
+          figure.value.contentSize = resp.headers['content-length'];
+        }
+
         cb(null, figure);
-
-      } else if ([ 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.oasis.opendocument.text' ].indexOf(ctype) !== -1) {
-
-        var article = {
-          value: {
-            name: myname,
-            encoding: {
-              encodingFormat: ctype,
-              contentUrl: myurl
-            }
-          },
-          type: 'article'
-        };
-
-        cb(null, article);
 
       } else if ([ 'audio/basic', 'audio/L24', 'audio/mp4', 'audio/mpeg', 'audio/ogg', 'audio/opus', 'audio/orbis', 'audio/vorbis', 'audio/vnd.rn-realaudio', 'audio/vnd.wave', 'audio/webl', 'audio/example' ].indexOf(ctype) !== -1) {
 
@@ -905,6 +920,15 @@ Ldpm.prototype.urls2resources = function(urls, callback){
           },
           type: 'audio'
         };
+
+        if('content-encoding' in resp.headers){
+          audio.value.encoding = { encodingFormat: resp.headers['content-encoding']};
+          if('content-length' in resp.headers){
+            audio.value.encoding.contentSize = resp.headers['content-length'];
+          }
+        } else if('content-length' in resp.headers){
+          audio.value.contentSize = resp.headers['content-length'];
+        }
 
         cb(null, audio);
 
@@ -919,18 +943,49 @@ Ldpm.prototype.urls2resources = function(urls, callback){
           type: 'video'
         };
 
+        if('content-encoding' in resp.headers){
+          video.value.encoding = { encodingFormat: resp.headers['content-encoding']};
+          if('content-length' in resp.headers){
+            video.value.encoding.contentSize = resp.headers['content-length'];
+          }
+        } else if('content-length' in resp.headers){
+          video.value.contentSize = resp.headers['content-length'];
+        }
+
         cb(null, video);
+
+      } else if ([ 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.oasis.opendocument.text' ].indexOf(ctype) !== -1) {
+
+        var article = {
+          value: {
+            name: myname,
+            encoding: {
+              encodingFormat: ctype,
+              contentUrl: myurl
+            }
+          },
+          type: 'article'
+        };
+
+        if('content-encoding' in resp.headers){
+          article.value.encoding.encoding = { encodingFormat: resp.headers['content-encoding']};
+          if('content-length' in resp.headers){
+            article.value.encoding.encoding.contentSize = resp.headers['content-length'];
+          }
+        } else if('content-length' in resp.headers){
+          article.value.encoding.contentSize = resp.headers['content-length'];
+        }
+
+        cb(null, article);
 
       } else {
 
-        res.destroy();
         cb(new Error('unsuported MIME type (' + ctype + '). It might be that the host is not setting MIME type properly'));
 
       }
 
-    });
+    }); //end request.head
 
-    r.on('error', cb);
 
   }, function (err, typedResources){
     if(err) return callback(err);
@@ -938,8 +993,8 @@ Ldpm.prototype.urls2resources = function(urls, callback){
     var resources = {
       dataset: [],
       code: [],
-      figure: [],
       article: [],
+      figure: [],
       audio: [],
       video: []
     };

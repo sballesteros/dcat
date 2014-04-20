@@ -19,6 +19,7 @@ var path = require('path')
   , readdirpSync = require('fs-readdir-recursive')
   , uniq = require('lodash.uniq')
   , githubUrl = require('github-url')
+  , pone = require('../plugin/pone')
   , os = require('os')
   , colors = require('colors');
 
@@ -37,6 +38,9 @@ var argv = optimist
       '    - add <user> <package name>',
       '    - rm  <user> <package name>[@<version>]',
       '  - search [search terms]',
+      '  - markup <api> <target> where target is:',
+      '    - <url>',
+      '    - <doi>',
       '  - help [command]',
     ].join(os.EOL)
   )
@@ -408,6 +412,24 @@ if (argv._[0] === 'init') {
       }})
       .on('error', _fail)
       .end();
+  })();
+
+} else if (argv._[0] === 'markup'){
+
+  (function(){
+    var api = argv._[1];
+
+    if (api === 'plosone'){
+
+      if(isUrl(argv._[2])){
+        pone(argv._[2]);
+      } else {
+        pone('http://doi.org/'+argv._[2]);
+      }
+
+    } else {
+      _fail(new Error('unkown api'));
+    }
   })();
 
 } else if (argv._[0] === 'help'){

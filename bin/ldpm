@@ -272,9 +272,15 @@ if (argv._[0] === 'init') {
 } else if (argv._[0] === 'unpublish') {
 
   (function(){
+
     var pkgId = argv._[1];
     if(!pkgId) _fail(new Error('invalid usage'));
-    ldpm.unpublish(pkgId, _fail);
+    ldpm.unpublish(pkgId, function(err, body){
+      if(err) _fail(err);
+
+      console.log('- ' + pkgId);
+    });
+
   })();
 
 } else if (argv._[0] === 'adduser') {

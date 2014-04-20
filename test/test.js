@@ -12,6 +12,8 @@ var util = require('util')
 
 temp.track();
 
+//!!!!!! NOTE: all the tests assume that only the proxy of the linked data registry is running, not the post-publish addition....
+
 var root = path.dirname(__filename);
 
 describe('ldpm', function(){
@@ -279,8 +281,6 @@ describe('ldpm', function(){
       '@type': ['Package', 'DataCatalog'],
       name: 'req-test',
       description: 'a test for data dependencies',
-      contentRating: 're-uri-ld',
-      about: { name: 'README.md', url: 'req-test/0.0.0/about/README.md' },
       isBasedOnUrl: [ 'mypkg-test/0.0.0' ],
       version: '0.0.0',
       keywords: [ 'test', 'package' ],
@@ -289,7 +289,6 @@ describe('ldpm', function(){
           '@id': 'req-test/0.0.0/dataset/azerty',
           '@type': 'Dataset',
           name: 'azerty',
-          contentRating: 'uri',
           distribution:  {
             '@type': 'DataDownload' ,
             contentUrl: 'r/f9b634be34cb3f2af4fbf4395e3f24b3834da926',
@@ -297,7 +296,6 @@ describe('ldpm', function(){
           catalog: { '@type': ['Package', 'DataCatalog'], name: 'req-test', version: '0.0.0', url: 'req-test/0.0.0' }
         }
       ],
-//      datePublished: '2014-01-12T05:11:48.220Z',
       registry: { name: 'Standard Analytics IO', url: 'https://registry.standardanalytics.io/' }
     };
 
@@ -325,8 +323,6 @@ describe('ldpm', function(){
       ldpm2.cat('req-test@0.0.0', function(err, pkg){
         assert('@context' in pkg);
         delete pkg['@context'];
-        assert('datePublished' in pkg);
-        delete pkg.datePublished;
         assert.deepEqual(expected, pkg);
         done();
       });

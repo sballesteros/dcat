@@ -339,7 +339,6 @@ Ldpm.prototype._install = function(pkgId, opts, callback){
 
     function(cb){
       this._get(pkgId, opts, function(err, pkg, context, root){
-        //console.log(util.inspect(pkg, {depth:null}));
 
         if(err) return cb(err);
 

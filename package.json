@@ -1,7 +1,7 @@
 {
   "name": "ldpm",
-  "version": "0.3.3",
-  "description": "linked data container manager",
+  "version": "0.4.0",
+  "description": "linked data package manager",
   "main": "index.js",
   "bin": {
     "ldpm": "bin/ldpm"
@@ -20,10 +20,12 @@
     "hyperdata",
     "linked-data",
     "datapackage",
-    "container",
     "client",
     "data",
     "registry",
+    "science",
+    "schema.org",
+    "CreativeWork",
     "JSON-LD"
   ],
   "author": "Sebastien Ballesteros",

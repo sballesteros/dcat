@@ -34,8 +34,8 @@ function pone(uri, opts, callback){
   var articleScrap;
   var uris = [];
 
-  if(uri.slice(0,35)!='http://www.plosone.org/article/info'){
-    var err = new Error('please enter a plosone url');
+  if( (uri.slice(0,35)!='http://www.plosone.org/article/info') && (uri.slice(0,15)!='http://doi.org/') ){
+    var err = new Error('please enter a plosone url or a doi');
     err.code = '400';
     callback(err);
   }
@@ -45,7 +45,7 @@ function pone(uri, opts, callback){
     if(err) return callback(err);
 
     // Check if article exists and has not been written by the PLOS staff
-    if( (body.indexOf('Sorry, the article')==-1) & (body.indexOf('The PLOS ONE Staff')==-1) & (body.indexOf('href="mailto')>-1) ){
+    if( (body.indexOf('Sorry, the article')==-1) && (body.indexOf('The PLOS ONE Staff')==-1) && (body.indexOf('href="mailto')>-1) ){
 
       // Scrap
       articleScrap = _scrap(uri,body);
@@ -58,7 +58,7 @@ function pone(uri, opts, callback){
 
       that.urls2resources(uris,function(err,resources){
 
-        if(err) callback(err);
+        if(err) return callback(err);
 
         var pkg = _initPkg(uri,articleScrap);
 
@@ -68,7 +68,7 @@ function pone(uri, opts, callback){
           pkg = that.addResources(pkg,resources);
         }
 
-        callback(null, pkg);
+        return callback(null, pkg);
 
       });
 

@@ -492,6 +492,7 @@ describe('ldpm', function(){
     it('should return a pkg with name haseleu-2014 when asked for finger-wrinkles paper', function(done){
       var ldpm = new Ldpm(conf);
       pone.call(ldpm, 'http://www.plosone.org/article/info%3Adoi%2F10.1371%2Fjournal.pone.0084949', function(err,pkg){
+        console.log(util.inspect(pkg, {depth:null}));
         assert.equal(pkg.name,'haseleu-2014');
         done();
       });

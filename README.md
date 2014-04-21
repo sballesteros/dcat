@@ -43,7 +43,7 @@ See [here](https://standardanalytics.io/ldpm) for documentation.
 
 You can also use ```ldpm``` programaticaly.
 
-    var Ldpm = require('ldpm);
+    var Ldpm = require('ldpm');
     var ldpm = new Ldpm(conf);
     
     ldpm.install(['mypkg/0.0.0', 'mydata/1.0.0', 'http://example.com/mydata'], {cache: true}, function(err, pkgs){

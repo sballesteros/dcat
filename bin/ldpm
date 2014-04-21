@@ -427,14 +427,20 @@ if (argv._[0] === 'init') {
 
   (function(){
     var api = argv._[1];
+    var uri;
 
     if (api === 'plosone'){
 
       if(isUrl(argv._[2])){
-        pone(argv._[2]);
+        uri = argv._[2];
       } else {
-        pone('http://doi.org/'+argv._[2]);
+        uri = 'http://doi.org/'+argv._[2];
       }
+
+      pone.call(ldpm, uri, function(err,pkg){
+        if(err) _fail(err);
+        fs.writeFileSync(path.resolve(ldpm.root, 'package.jsonld'), JSON.stringify(pkg, null, 2));
+      });
 
     } else {
       _fail(new Error('unkown api'));

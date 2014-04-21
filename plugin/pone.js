@@ -13,11 +13,82 @@ var request = require('request')
   , events = require('events')
   , Ldpm = require('../index');
 
+
+
+module.exports = pone;
+
+
+/**
+ * 'this' is an Ldpm instance
+ */
+
+function pone(uri, opts, callback){
+  events.EventEmitter.call(this);
+
+  if(arguments.length === 2){
+    callback = opts;
+    opts = {};
+  }
+
+  var that = this;
+  var articleScrap;
+  var uris = [];
+
+  if(uri.slice(0,35)!='http://www.plosone.org/article/info'){
+    var err = new Error('please enter a plosone url');
+    err.code = '400';
+    callback(err);
+  }
+
+  request( uri, function (error, response, body) {
+
+    if(err) return callback(err);
+
+    // Check if article exists and has not been written by the PLOS staff
+    if( (body.indexOf('Sorry, the article')==-1) & (body.indexOf('The PLOS ONE Staff')==-1) & (body.indexOf('href="mailto')>-1) ){
+
+      // Scrap
+      articleScrap = _scrap(uri,body);
+      articleScrap.figures.forEach(function(x){
+        uris.push(x.link);
+      });
+      articleScrap.supplementary.forEach(function(x){
+        uris.push('http://doi.org/'+x.doi);
+      });
+
+      that.urls2resources(uris,function(err,resources){
+
+        if(err) callback(err);
+
+        var pkg = _initPkg(uri,articleScrap);
+
+        if(resources!=undefined){
+          resources.article.push(_wrapArticle(articleScrap));
+          resources = _wrapResources(articleScrap,resources);
+          pkg = that.addResources(pkg,resources);
+        }
+
+        callback(null, pkg);
+
+      });
+
+    } else {
+      var err = new Error('article not found');
+      err.code = '404';
+      callback(err);
+    }
+
+  });
+
+};
+
+
 function _extractBetween(str,str_beg,str_end){
   var beg = str.indexOf(str_beg) + str_beg.length;
   var end = beg + str.slice(beg,str.length).indexOf(str_end);
   return str.slice(beg,end);
 }
+
 
 function _extractAuthors(document){
 
@@ -192,8 +263,6 @@ function _extractCitations(document){
       ref.url = 'http://doi.org/' + ref.doi;
     } else if(tmp.indexOf('nolinks')===0){
       ref.url = _extractBetween(x.innerHTML,'href="','"');
-    } else {
-      ref.url = 'http://example.com';
     }
     if(ind>-1){
       ref.sameAs = _extractBetween(x.innerHTML.slice(x.innerHTML.indexOf('</li>')),'href="','"');
@@ -209,7 +278,7 @@ function _extractPdfUrl(document){
 }
 
 
-function _scrap(url,body){
+function _scrap(uri,body){
   var document = jsdom();
   document.body.innerHTML = body;
 
@@ -223,10 +292,10 @@ function _scrap(url,body){
   contact.name = _extractBetween(author,'foaf:Person','<').replace('\n','').trim();
 
   article.pdfUrl = _extractPdfUrl(document);
-  article.url = url;
+  article.url = uri;
   article.title = title;
   article.authors = _extractAuthors(document);
-  article.firstAuthorName = removeDiacritics(article['authors'][0]['name'].split(" ")[article['authors'][0]['name'].split(" ").length-1]);
+  article.firstAuthorName = removeDiacritics(article['authors'][0]['name'].split(" ")[article['authors'][0]['name'].split(" ").length-1]).toLowerCase();
   article.abstract = _extractAbstract(document);
   article.doi = _extractBetween(header,'DOI:','</li>').trim();
   article.name = article.doi.split('/')[1];
@@ -247,7 +316,7 @@ function _scrap(url,body){
 
 }
 
-function _initPkg(url,article){
+function _initPkg(uri,article){
   var organisations = [];
   var pkg = {
     name: article.firstAuthorName + '-' + article.year,
@@ -255,7 +324,7 @@ function _initPkg(url,article){
     keywords: article.keywords,
     description: article.title,
     license: "CC0-1.0",
-    sameAs: url
+    sameAs: uri
   };
 
   pkg.contributor = [];
@@ -325,20 +394,20 @@ function _wrapResources(article,resources){
       ['figure','code','dataset'].forEach(function(type){
         resources[type].forEach(function(r){
           var doi;
-          var url = r.contentUrl;
+          var uri = r.contentUrl;
           var beg;
           var end;
-          if(url==undefined){
-            url = r.distribution.contentUrl;
+          if(uri==undefined){
+            uri = r.distribution.contentUrl;
           }
-          if(url.indexOf('http://doi.org/')>-1){
+          if(uri.indexOf('http://doi.org/')>-1){
             beg = 15;
-            end = url.length;
-            doi = url.slice(beg,end);
+            end = uri.length;
+            doi = uri.slice(beg,end);
           } else {
-            beg = url.indexOf('info:doi')+9;
-            end = url.indexOf('/originalimage');
-            doi = url.slice(beg,end);
+            beg = uri.indexOf('info:doi')+9;
+            end = uri.indexOf('/originalimage');
+            doi = uri.slice(beg,end);
           }
           if(doi==x.doi){
             if(type=='figure'){
@@ -474,96 +543,3 @@ function removeDiacritics (str) {
     }
     return str;
 }
-
-
-
-
-function pone(url, conf){
-  events.EventEmitter.call(this);
-
-  if(arguments.length <2){
-    var conf = {
-      protocol: 'https' ,
-      port: 443,
-      hostname: "registry.standardanalytics.io",
-      strictSSL: false,
-      sha:true
-    };
-  }
-
-  var $HOME = process.env.HOME || process.env.HOMEPATH || process.env.USERPROFILE;
-
-  fs.readFile(path.resolve($HOME, '.ldpmrc'), 'utf8', function (err, credentials) {
-    if (err) {
-      _fail('you need to be registered on standard analytics');
-      return;
-    }
-
-    credentials = JSON.parse(credentials);
-    conf.name = credentials.name;
-    conf.email = credentials.email;
-    conf.password = credentials.password;
-
-    var ldpm = new Ldpm(conf,process.cwd());
-    var articleScrap;
-    var urls = [];
-
-    request( url, function (error, response, body) {
-
-      // Check if article exists and has not been written by the PLOS staff
-      if( (body.indexOf('Sorry, the article')==-1) & (body.indexOf('The PLOS ONE Staff')==-1) & (body.indexOf('href="mailto')>-1) ){
-
-        // Scrap
-        articleScrap = _scrap(url,body);
-        articleScrap.figures.forEach(function(x){
-          urls.push(x.link);
-        });
-        articleScrap.supplementary.forEach(function(x){
-          urls.push('http://doi.org/'+x.doi);
-        });
-        console.log('Srap OK');
-
-        ldpm.urls2resources(urls,function(err,resources){
-
-          console.log('urls2resource OK');
-
-
-          if(err) _fail(err);
-          var pkg = _initPkg(url,articleScrap);
-
-          if(resources!=undefined){
-            resources.article.push(_wrapArticle(articleScrap));
-            resources = _wrapResources(articleScrap,resources);
-            pkg = ldpm.addResources(pkg,resources);
-          }
-
-          // Publish
-          ldpm.publish(pkg,[],function(err){
-            if(err) {
-              _fail(err);
-            } else {
-              console.log('Success');
-            }
-          });
-
-
-        });
-
-      } else {
-        _fail('Article not found');
-      }
-
-    });
-
-  });
-
-};
-
-function _fail(err){
-  if(err){
-    console.error('pone'.grey +  ' ERR! '.red + err);
-    process.exit(1);
-  }
-};
-
-module.exports = pone;

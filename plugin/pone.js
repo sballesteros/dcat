@@ -116,10 +116,9 @@ function _extractAuthors(document){
         }
       })
       author.affiliations = tmp;
-      if(author.name == _extractBetween(auth,'foaf:Person','<').replace('\n','').trim()){
-        author.email = contact.email;
+      if(author.name == _extractBetween(auth,'foaf:Person">','<').replace('\n','').trim()){
+        author.email = _extractBetween(document.body.innerHTML,'mailto:','">');
         author.corresponding = true;
-        contact.affiliations = author.affiliations;
       } else {
         author.corresponding = false;
       }
@@ -302,7 +301,7 @@ function _scrap(uri,body){
   article.figures = _extractFigures(document,article.doi);
   article.supplementary = _extractSupplementary(document);
   article.keywords = [];
-  _extractBetween(document.innerHTML,'<meta name="keywords"','""').split(',').forEach(function(x){
+  _extractBetween(document.innerHTML,'<meta name="keywords" content="','"').split(',').forEach(function(x){
     article.keywords.push(x.trim());
   });
   beg = document.innerHTML.indexOf('<ul class="date-doi-line">');
@@ -333,7 +332,7 @@ function _initPkg(uri,article){
     author.name = x.name;
     author.affiliation = [];
     x.affiliations.forEach(function(a){
-      author.affiliation.push({ name: a })
+      author.affiliation.push({ description: a })
       organisations.push(a);
     })
     if(x.email){
@@ -370,7 +369,8 @@ function _wrapArticle(article){
       sameAs: ['http://www.plos.org/','http://en.wikipedia.org/wiki/PLOS']
     },
     journal: {
-      name: 'PLOS ONE'
+      name: 'PLOS ONE',
+      '@id': 'urn:issn:1932-6203'
     },
     encoding: {
       contentUrl: article.pdfUrl,
@@ -379,7 +379,7 @@ function _wrapArticle(article){
   };
   tmparticle['@type']= "ScholarlyArticle";
 
-  tmparticle.journal['@id'] = "urn:issn:1932-6203";
+  // tmparticle.journal['@id'] = "urn:issn:1932-6203";
 
   return tmparticle;
 
@@ -433,9 +433,12 @@ function _wrapResources(article,resources){
           r.publisher = {
             name: 'PLOS',
             sameAs: ['http://www.plos.org/','http://en.wikipedia.org/wiki/PLOS']
-          },
-          r.publishingPrinciples = 'http://www.plosone.org/static/information',
-          r.datePublished = article['datePublished']
+          };
+          r.journal= {
+            name: 'PLOS ONE',
+            '@id': 'urn:issn:1932-6203'
+          };
+          r.datePublished = article['datePublished'];
         });
       })
     })

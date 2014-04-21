@@ -24,6 +24,7 @@ var crypto = require('crypto')
   , jsonld = require('jsonld')
   , clone = require('clone')
   , publish = require('./lib/publish')
+  , pone = require('./plugin/pone')
   , binaryCSV = require('binary-csv')
   , split = require('split')
   , temp = require('temp')
@@ -200,6 +201,34 @@ Ldpm.prototype.unpublish = function(pkgId, callback){
   }.bind(this));
 
 };
+
+
+Ldpm.prototype.markup = function(api, uri, opts, callback){
+
+  if(arguments.length === 3){
+    callback = opts;
+    opts = {};
+  }
+
+  if (api === 'plosone'){
+
+    if(!isUrl(uri)){
+      uri = 'http://doi.org/'+uri;
+    }
+
+    pone.call(this, uri, function(err,pkg){
+      if(err) return callback(err);
+      callback(null,pkg);
+    });
+
+  } else {
+    err = new Error('unkown api');
+    err.code = '404';
+    callback(err);
+  }
+
+};
+
 
 Ldpm.prototype.cat = function(pkgId, opts, callback){
 

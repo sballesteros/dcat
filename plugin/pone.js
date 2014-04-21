@@ -34,8 +34,8 @@ function pone(uri, opts, callback){
   var articleScrap;
   var uris = [];
 
-  if(uri.slice(0,35)!='http://www.plosone.org/article/info'){
-    var err = new Error('please enter a plosone url');
+  if( (uri.slice(0,35)!='http://www.plosone.org/article/info') && (uri.slice(0,15)!='http://doi.org/') ){
+    var err = new Error('please enter a plosone url or a doi');
     err.code = '400';
     callback(err);
   }
@@ -45,7 +45,7 @@ function pone(uri, opts, callback){
     if(err) return callback(err);
 
     // Check if article exists and has not been written by the PLOS staff
-    if( (body.indexOf('Sorry, the article')==-1) & (body.indexOf('The PLOS ONE Staff')==-1) & (body.indexOf('href="mailto')>-1) ){
+    if( (body.indexOf('Sorry, the article')==-1) && (body.indexOf('The PLOS ONE Staff')==-1) && (body.indexOf('href="mailto')>-1) ){
 
       // Scrap
       articleScrap = _scrap(uri,body);
@@ -58,7 +58,7 @@ function pone(uri, opts, callback){
 
       that.urls2resources(uris,function(err,resources){
 
-        if(err) callback(err);
+        if(err) return callback(err);
 
         var pkg = _initPkg(uri,articleScrap);
 
@@ -68,7 +68,7 @@ function pone(uri, opts, callback){
           pkg = that.addResources(pkg,resources);
         }
 
-        callback(null, pkg);
+        return callback(null, pkg);
 
       });
 
@@ -165,7 +165,7 @@ function _extractFigures(document,doi){
     });
     figure.caption = tmp;
 
-    figure.doi = _extractBetween(x.innerHTML,':doi','&').trim();
+    figure.doi = _extractBetween(x.innerHTML,':doi/','&').trim();
     figure.extension = _extractBetween(x.innerHTML,'originalimage">','</a>').replace('\n','').trim();
 
     figures.push(figure);
@@ -318,8 +318,8 @@ function _scrap(uri,body){
 function _initPkg(uri,article){
   var organisations = [];
   var pkg = {
-    name: article.firstAuthorName + '-' + article.year,
-    version: '1.0.0',
+    name: 'pone-' + article.firstAuthorName + '-' + article.year,
+    version: '0.0.0',
     keywords: article.keywords,
     description: article.title,
     license: "CC0-1.0",
@@ -412,33 +412,53 @@ function _wrapResources(article,resources){
           if(doi==x.doi){
             if(type=='figure'){
               if(x.id!=undefined){
-                r.name = x.id;
+                r.name = x.id.replace(/\./g,'-');
               } else {
-                r.name = x.doi.slice(x.doi.indexOf('pone.'),x.doi.length);
+                r.name = x.doi.slice(x.doi.indexOf('pone.'),x.doi.length).replace(/\./g,'-');
               }
               r.doi = x.doi,
               r.description = x.name;
               r.caption = x.caption;
             } else if (type=='dataset'){
               if(x.id!=undefined){
-                r.name = x.id;
+                r.name = x.id.replace(/\./g,'-');
               } else {
-                r.name = x.doi.slice(x.doi.indexOf('pone.'),x.doi.length);
+                r.name = x.doi.slice(x.doi.indexOf('pone.'),x.doi.length).replace(/\./g,'-');
               }
               r.description = x.name + ' ' + x.caption;
               r.doi = x.doi
             }
             found = true;
+            r.publisher = {
+              name: 'PLOS',
+              sameAs: ['http://www.plos.org/','http://en.wikipedia.org/wiki/PLOS']
+            };
+            r.journal= {
+              name: 'PLOS ONE',
+              '@id': 'urn:issn:1932-6203'
+            };
+
+            r.contributor = [];
+            article.authors.forEach(function(x,i){
+              var author = {};
+              author.name = x.name;
+              author.affiliation = [];
+              x.affiliations.forEach(function(a){
+                author.affiliation.push({ description: a })
+              })
+              if(x.email){
+                author.email = x.email;
+              }
+              if(i==0){
+                r.author = author;
+              } else {
+                r.contributor.push(author);
+              }
+            });
+
+            r.datePublished = article['datePublished'];
+
           }
-          r.publisher = {
-            name: 'PLOS',
-            sameAs: ['http://www.plos.org/','http://en.wikipedia.org/wiki/PLOS']
-          };
-          r.journal= {
-            name: 'PLOS ONE',
-            '@id': 'urn:issn:1932-6203'
-          };
-          r.datePublished = article['datePublished'];
         });
       })
     })

@@ -8,8 +8,7 @@ var util = require('util')
   , readdirpSync = require('fs-readdir-recursive')
   , _ = require('underscore')
   , exec = require('child_process').exec
-  , path = require('path')
-  , pone = require('../plugin/pone');
+  , path = require('path');
 
 temp.track();
 
@@ -18,7 +17,7 @@ temp.track();
 var root = path.dirname(__filename);
 
 describe('ldpm', function(){
-  this.timeout(20000);
+  this.timeout(40000);
 
   var conf = {
     protocol: 'http',
@@ -484,36 +483,6 @@ describe('ldpm', function(){
         });
       });
     });
-  });
-
-
-  describe('pone', function(){
-
-    it('should return a pkg with name haseleu-2014 when asked for finger-wrinkles paper', function(done){
-      var ldpm = new Ldpm(conf);
-      pone.call(ldpm, 'http://www.plosone.org/article/info%3Adoi%2F10.1371%2Fjournal.pone.0084949', function(err,pkg){
-        console.log(util.inspect(pkg, {depth:null}));
-        assert.equal(pkg.name,'haseleu-2014');
-        done();
-      });
-    });
-
-    it('should error 404 if article does not exist', function(done){
-      var ldpm = new Ldpm(conf);
-      pone.call(ldpm,'http://www.plosone.org/article/info%3Adoi%2F10.1371%2Fjournal.pone.9999999', function(err,pkg){
-        assert.equal(err.code, '404');
-        done();
-      });
-    });
-
-    it('should error 400 if url does not start with http://www.plosone.org/article/info', function(done){
-      var ldpm = new Ldpm(conf);
-      pone.call(ldpm, 'http://google.com', function(err,pkg){
-        assert.equal(err.code, '400');
-        done();
-      });
-    });
-
   });
 
 });

@@ -165,7 +165,7 @@ function _extractFigures(document,doi){
     });
     figure.caption = tmp;
 
-    figure.doi = _extractBetween(x.innerHTML,':doi','&').trim();
+    figure.doi = _extractBetween(x.innerHTML,':doi/','&').trim();
     figure.extension = _extractBetween(x.innerHTML,'originalimage">','</a>').replace('\n','').trim();
 
     figures.push(figure);
@@ -318,8 +318,8 @@ function _scrap(uri,body){
 function _initPkg(uri,article){
   var organisations = [];
   var pkg = {
-    name: article.firstAuthorName + '-' + article.year,
-    version: '1.0.0',
+    name: 'pone-' + article.firstAuthorName + '-' + article.year,
+    version: '0.0.0',
     keywords: article.keywords,
     description: article.title,
     license: "CC0-1.0",
@@ -412,33 +412,53 @@ function _wrapResources(article,resources){
           if(doi==x.doi){
             if(type=='figure'){
               if(x.id!=undefined){
-                r.name = x.id;
+                r.name = x.id.replace(/\./g,'-');
               } else {
-                r.name = x.doi.slice(x.doi.indexOf('pone.'),x.doi.length);
+                r.name = x.doi.slice(x.doi.indexOf('pone.'),x.doi.length).replace(/\./g,'-');
               }
               r.doi = x.doi,
               r.description = x.name;
               r.caption = x.caption;
             } else if (type=='dataset'){
               if(x.id!=undefined){
-                r.name = x.id;
+                r.name = x.id.replace(/\./g,'-');
               } else {
-                r.name = x.doi.slice(x.doi.indexOf('pone.'),x.doi.length);
+                r.name = x.doi.slice(x.doi.indexOf('pone.'),x.doi.length).replace(/\./g,'-');
               }
               r.description = x.name + ' ' + x.caption;
               r.doi = x.doi
             }
             found = true;
+            r.publisher = {
+              name: 'PLOS',
+              sameAs: ['http://www.plos.org/','http://en.wikipedia.org/wiki/PLOS']
+            };
+            r.journal= {
+              name: 'PLOS ONE',
+              '@id': 'urn:issn:1932-6203'
+            };
+
+            r.contributor = [];
+            article.authors.forEach(function(x,i){
+              var author = {};
+              author.name = x.name;
+              author.affiliation = [];
+              x.affiliations.forEach(function(a){
+                author.affiliation.push({ description: a })
+              })
+              if(x.email){
+                author.email = x.email;
+              }
+              if(i==0){
+                r.author = author;
+              } else {
+                r.contributor.push(author);
+              }
+            });
+
+            r.datePublished = article['datePublished'];
+
           }
-          r.publisher = {
-            name: 'PLOS',
-            sameAs: ['http://www.plos.org/','http://en.wikipedia.org/wiki/PLOS']
-          };
-          r.journal= {
-            name: 'PLOS ONE',
-            '@id': 'urn:issn:1932-6203'
-          };
-          r.datePublished = article['datePublished'];
         });
       })
     })

@@ -357,7 +357,7 @@ function _initPkg(uri,article){
 function _wrapArticle(article){
 
   var tmparticle = {
-    name: article.name,
+    name: article.name.replace(/\./g,'-'),
     doi: article.doi,
     headline: article.title,
     abstract: article.abstract,
@@ -427,6 +427,8 @@ function _wrapResources(article,resources){
               }
               r.description = x.name + ' ' + x.caption;
               r.doi = x.doi
+            } else if ( (type=='article') && (r.abstract==undefined) ){
+              console.log(x.id);
             }
             found = true;
             r.publisher = {
@@ -459,8 +461,68 @@ function _wrapResources(article,resources){
             r.datePublished = article['datePublished'];
 
           }
+
         });
-      })
+      });
+      resources['article'].forEach(function(r){
+        var doi;
+        var uri = r.contentUrl;
+        var beg;
+        var end;
+        if(uri==undefined){
+          uri = r.encoding.contentUrl;
+        }
+        if(uri.indexOf('http://doi.org/')>-1){
+          beg = 15;
+          end = uri.length;
+          doi = uri.slice(beg,end);
+        } else {
+          beg = uri.indexOf('info:doi')+9;
+          end = uri.indexOf('/originalimage');
+          doi = uri.slice(beg,end);
+        }
+        if(doi==x.doi){
+          if(x.id!=undefined){
+            r.name = x.id.replace(/\./g,'-');
+          } else {
+            r.name = x.doi.slice(x.doi.indexOf('pone.'),x.doi.length).replace(/\./g,'-');
+          }
+          r.doi = x.doi,
+          r.description = x.name;
+          r.caption = x.caption;
+          found = true;
+          r.publisher = {
+            name: 'PLOS',
+            sameAs: ['http://www.plos.org/','http://en.wikipedia.org/wiki/PLOS']
+          };
+          r.journal= {
+            name: 'PLOS ONE',
+            '@id': 'urn:issn:1932-6203'
+          };
+
+          r.contributor = [];
+          article.authors.forEach(function(x,i){
+            var author = {};
+            author.name = x.name;
+            author.affiliation = [];
+            x.affiliations.forEach(function(a){
+              author.affiliation.push({ description: a })
+            })
+            if(x.email){
+              author.email = x.email;
+            }
+            if(i==0){
+              r.author = author;
+            } else {
+              r.contributor.push(author);
+            }
+          });
+
+          r.datePublished = article['datePublished'];
+
+        }
+
+      });
     })
   }
 

@@ -889,10 +889,10 @@ Ldpm.prototype.urls2resources = function(urls, callback){
         if('content-encoding' in resp.headers){
           dataset.value.distribution.encoding = { encodingFormat: resp.headers['content-encoding']};
           if('content-length' in resp.headers){
-            dataset.value.distribution.encoding.contentSize = resp.headers['content-length'];
+            dataset.value.distribution.encoding.contentSize = parseInt(resp.headers['content-length'],10);
           }
         } else if('content-length' in resp.headers){
-          dataset.value.distribution.contentSize = resp.headers['content-length'];
+          dataset.value.distribution.contentSize = parseInt(resp.headers['content-length'],10);
         }
 
         //auto generate about template
@@ -933,10 +933,10 @@ Ldpm.prototype.urls2resources = function(urls, callback){
         if('content-encoding' in resp.headers){
           figure.value.encoding = { encodingFormat: resp.headers['content-encoding']};
           if('content-length' in resp.headers){
-            figure.value.encoding.contentSize = resp.headers['content-length'];
+            figure.value.encoding.contentSize = parseInt(resp.headers['content-length'],10);
           }
         } else if('content-length' in resp.headers){
-          figure.value.contentSize = resp.headers['content-length'];
+          figure.value.contentSize = parseInt(resp.headers['content-length'],10);
         }
 
         cb(null, figure);
@@ -955,10 +955,10 @@ Ldpm.prototype.urls2resources = function(urls, callback){
         if('content-encoding' in resp.headers){
           audio.value.encoding = { encodingFormat: resp.headers['content-encoding']};
           if('content-length' in resp.headers){
-            audio.value.encoding.contentSize = resp.headers['content-length'];
+            audio.value.encoding.contentSize = parseInt(resp.headers['content-length'],10);
           }
         } else if('content-length' in resp.headers){
-          audio.value.contentSize = resp.headers['content-length'];
+          audio.value.contentSize = parseInt(resp.headers['content-length'],10);
         }
 
         cb(null, audio);
@@ -977,10 +977,10 @@ Ldpm.prototype.urls2resources = function(urls, callback){
         if('content-encoding' in resp.headers){
           video.value.encoding = { encodingFormat: resp.headers['content-encoding']};
           if('content-length' in resp.headers){
-            video.value.encoding.contentSize = resp.headers['content-length'];
+            video.value.encoding.contentSize = parseInt(resp.headers['content-length'],10);
           }
         } else if('content-length' in resp.headers){
-          video.value.contentSize = resp.headers['content-length'];
+          video.value.contentSize = parseInt(resp.headers['content-length'],10);
         }
 
         cb(null, video);
@@ -1001,10 +1001,10 @@ Ldpm.prototype.urls2resources = function(urls, callback){
         if('content-encoding' in resp.headers){
           article.value.encoding.encoding = { encodingFormat: resp.headers['content-encoding']};
           if('content-length' in resp.headers){
-            article.value.encoding.encoding.contentSize = resp.headers['content-length'];
+            article.value.encoding.encoding.contentSize = parseInt(resp.headers['content-length'],10);
           }
         } else if('content-length' in resp.headers){
-          article.value.encoding.contentSize = resp.headers['content-length'];
+          article.value.encoding.contentSize = parseInt(resp.headers['content-length'],10);
         }
 
         cb(null, article);

@@ -308,7 +308,7 @@ function _scrap(uri,body){
   beg = beg + document.innerHTML.slice(beg,document.innerHTML.length).indexOf(', ')+2;
   end = beg + document.innerHTML.slice(beg,document.innerHTML.length).indexOf('</li>');
   article.year = document.innerHTML.slice(beg,end);
-  article.datePublished = _extractDatePublished(document, article.year);
+  article.datePublished = (new Date(_extractDatePublished(document, article.year))).toISOString();
   article.citation = _extractCitations(document);
 
   return article;
@@ -322,6 +322,7 @@ function _initPkg(uri,article){
     version: '0.0.0',
     keywords: article.keywords,
     description: article.title,
+    datePublished: article.datePublished,
     license: "CC0-1.0",
     sameAs: uri
   };

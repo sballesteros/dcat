@@ -25,6 +25,7 @@ var crypto = require('crypto')
   , clone = require('clone')
   , publish = require('./lib/publish')
   , pone = require('./plugin/pone')
+  , pubmed = require('./plugin/pubmed')
   , binaryCSV = require('binary-csv')
   , split = require('split')
   , temp = require('temp')
@@ -205,6 +206,8 @@ Ldpm.prototype.unpublish = function(pkgId, callback){
 
 Ldpm.prototype.markup = function(api, uri, opts, callback){
 
+  var that = this;
+
   if(arguments.length === 3){
     callback = opts;
     opts = {};
@@ -216,10 +219,38 @@ Ldpm.prototype.markup = function(api, uri, opts, callback){
       uri = 'http://doi.org/'+uri;
     }
 
-    pone.call(this, uri, function(err,pkg){
+    pone.call(that, uri, function(err,pkg){
       if(err) return callback(err);
       callback(null,pkg);
     });
+
+  } else if (api === 'pubmed'){
+
+    if(isUrl(uri)){
+
+      pubmed.call(that,uri, function(err,pkg){
+        if(err) return callback(err);
+        callback(null,pkg);
+      });
+
+    } else {
+
+      request('http://www.pubmedcentral.nih.gov/utils/idconv/v1.0/?ids='+uri+'&format=json', function (error, response, body) {
+        var res = JSON.parse(body);
+
+        if(res.status!='ok'){
+          callback(new Error('the article identifier cannot be recognized'));
+        } else {
+          uri = 'http://www.pubmedcentral.nih.gov/utils/oa/oa.fcgi?id=' + res.records[0].pmcid;
+        }
+
+        pubmed.call(that, uri, function(err,pkg){
+          if(err) return callback(err);
+          callback(null,pkg);
+        });
+      });
+
+    }
 
   } else {
     err = new Error('unkown api');
@@ -654,6 +685,7 @@ Ldpm.prototype.paths2resources = function(globs, opts, callback){
   //supposes that codeBundles are relative path to code project directories
   var absCodeBundles = (opts.codeBundles || []).map(function(x){return path.resolve(this.root, x)}, this);
 
+
   async.map(globs, function(pattern, cb){
     glob(path.resolve(this.root, pattern), {matchBase: true}, cb);
   }.bind(this), function(err, paths){
@@ -681,7 +713,7 @@ Ldpm.prototype.paths2resources = function(globs, opts, callback){
         , myformat = mime.lookup(ext)
         , myname = path.basename(p, ext);
 
-      if(['.csv', '.tsv', '.xls', '.xlsx', '.ods', '.json', '.jsonld', '.ldjson', '.txt', '.xml', '.ttl'].indexOf(ext.toLowerCase()) !== -1){
+      if(['.csv', '.tsv', '.xls', '.xlsx', '.ods', '.json', '.jsonld', '.ldjson', '.txt', '.xml', '.nxml', '.ttl'].indexOf(ext.toLowerCase()) !== -1){
 
         var dataset = {
           name: myname,
@@ -709,7 +741,7 @@ Ldpm.prototype.paths2resources = function(globs, opts, callback){
           cb(null, {type: 'dataset', value: dataset});
         }
 
-      } else if (['.png', '.jpg', '.jpeg', '.gif', '.tiff', '.eps'].indexOf(ext.toLowerCase()) !== -1){
+      } else if (['.png', '.jpg', '.jpeg', '.gif', '.tif', '.tiff', '.eps'].indexOf(ext.toLowerCase()) !== -1){
 
         var figure = {
           name: myname,

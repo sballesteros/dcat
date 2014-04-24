@@ -318,7 +318,7 @@ function _scrap(uri,body){
 function _initPkg(uri,article){
   var organisations = [];
   var pkg = {
-    name: 'pone-' + article.firstAuthorName + '-' + article.year,
+    name: 'plosone-' + article.firstAuthorName + '-' + article.year,
     version: '0.0.0',
     keywords: article.keywords,
     description: article.title,

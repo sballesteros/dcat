@@ -12,11 +12,14 @@ var request = require('request')
   , emitter = require('events').EventEmitter
   , events = require('events')
   , tar = require('tar')
+  , targz = require('tar.gz')
   , Client = require('ftp')
   , xml2js = require('xml2js')
   , zlib = require('zlib')
+  , traverse = require('traverse')
   , recursiveReaddir = require('recursive-readdir')
-  , Ldpm = require('../index');
+  , Ldpm = require('../index')
+  , DOMParser = require('xmldom').DOMParser;
 
 
 
@@ -53,40 +56,66 @@ function pubmed(uri, opts, callback){
         if(err) return callback(err);
         _fetchPdfName(body, function(err,mainArticleName){
           if(err) return callback(err);
-          that.paths2resources(files,function(err,resources){
-            if(err) return callback(err);
-            if(mainArticleName!=undefined){
-              resources.dataset.forEach(function(x,i){
-                if(x.name===path.basename(mainArticleName,'.pdf').slice(0,path.basename(mainArticleName,'.pdf').lastIndexOf('.'))){
-                  resources.dataset.splice(i,1);
-                  resources.article.forEach(function(y,i){
-                    if(x.name==y.name){
-                      var tmp = [ y.encoding ];
-                      tmp.push(x.distribution);
-                      resources.article[i].encoding = tmp;
+          var codeBundles = [];
+          var compressedBundles = [];
+          files.forEach(function(file,i){
+            if(['.gz', '.gzip', '.tgz'].indexOf(path.extname(file))>-1){
+              codeBundles.push(path.basename(file,path.extname(file)));
+              compressedBundles.push(file);
+              files.splice(i,1);
+            }
+          })
+          var opts = { codeBundles: codeBundles };
+          var ind = 0;
+          async.each(compressedBundles,
+            function(f,cb){
+              if(path.extname(f)=='.tgz'){
+                gzip = new targz();
+                gzip.extract(path.join(that.root,f),path.join(that.root,path.basename(f,path.extname(f))), function(err) {
+                  cb(err);
+                });
+              } else {
+                zlib.unzip(f, cb);
+              }
+            },
+            function(err){
+              if(err) return callback(err);
+              that.paths2resources(files,opts, function(err,resources){
+                if(err) return callback(err);
+                if(mainArticleName!=undefined){
+                  resources.dataset.forEach(function(x,i){
+                    if(x.name===path.basename(mainArticleName,'.pdf').slice(0,path.basename(mainArticleName,'.pdf').lastIndexOf('.'))){
+                      resources.dataset.splice(i,1);
+                      resources.article.forEach(function(y,i){
+                        // if(x.name==y.name){
+                        //   var tmp = [ y.encoding ];
+                        //   tmp.push(x.distribution);
+                        //   resources.article[i].encoding = tmp;
+                        // }
+                      });
+                    }
+                  });
+                } else {
+                  resources.dataset.forEach(function(x,i){
+                    if(path.ext(x.distribution.contentPath) == 'nxml'){
+                      resources.dataset.splice(i,1);
+                      resources.article.push(x);
+                      mainArticleName = x.name;
                     }
                   });
                 }
-              });
-            } else {
-              resources.dataset.forEach(function(x,i){
-                if(path.ext(x.distribution.contentPath) == 'nxml'){
-                  resources.dataset.splice(i,1);
-                  resources.article.push(x);
-                  mainArticleName = x.name;
-                }
-              });
-            }
 
-            var pkg = _initPkg();
-            if(resources!=undefined){
-              pkg = that.addResources(pkg,resources);
+                var pkg = _initPkg();
+                if(resources!=undefined){
+                  pkg = that.addResources(pkg,resources);
+                }
+                _addMetadata(pkg,mainArticleName,uri,function(err,pkg){
+                  if(err) return callback(err);
+                  callback(null,pkg);
+                });
+              });
             }
-            _addMetadata(pkg,mainArticleName,uri,function(err,pkg){
-              if(err) return callback(err);
-              callback(null,pkg);
-            });
-          });
+          );
         });
       });
     }
@@ -160,198 +189,402 @@ function _initPkg(uri,article){
 }
 
 
+function _findNodePaths(obj,names){
+  var paths = {};
+  traverse(obj).forEach(function(x){
+    if(names.indexOf(this.key)>-1){
+      paths[this.key] = this.path;
+    }
+  });
+  return paths;
+}
+
+function _findFigures(xmlBody){
+  var doc = new DOMParser().parseFromString(xmlBody,'text/xml');
+  var figures = [];
+  Array.prototype.forEach.call(doc.getElementsByTagName('fig'),function(x){
+    var fig = {};
+    if(x.getElementsByTagName('label')[0]!=undefined){
+      fig.label = x.getElementsByTagName('label')[0].textContent;
+    }
+    if(fig.label){
+      if(fig.label.match(/\d+$/)){
+        fig.num = fig.label.match(/\d+$/)[0];
+      }
+    }
+    if(x.getElementsByTagName('caption')[0] != undefined){
+      fig.caption = x.getElementsByTagName('caption')[0].textContent.replace(/\n/g,'').trim();
+    }
+    fig.id = x.getAttribute('id');
+    if(x.getElementsByTagName('graphic')[0] != undefined){
+      fig.href = x.getElementsByTagName('graphic')[0].getAttribute('xlink:href');
+    } else {
+      fig.href = undefined
+    }
+    figures.push(fig);
+  });
+  Array.prototype.forEach.call(doc.getElementsByTagName('table-wrap'),function(x){
+    var fig = {};
+    if(x.getElementsByTagName('label')[0]!=undefined){
+      fig.label = x.getElementsByTagName('label')[0].textContent;
+    }
+    if(fig.label){
+      if(fig.label.match(/\d+$/)){
+        fig.num = fig.label.match(/\d+$/)[0];
+      }
+    }
+    if(x.getElementsByTagName('caption')[0] != undefined){
+      fig.caption = x.getElementsByTagName('caption')[0].textContent.replace(/\n/g,'').trim();
+    } else if (x.getElementsByTagName('title')[0] != undefined){
+      fig.caption = x.getElementsByTagName('title')[0].textContent.replace(/\n/g,'').trim();
+    }
+    fig.id = x.getAttribute('id');
+    if(x.getElementsByTagName('graphic')[0] != undefined){
+      fig.href = x.getElementsByTagName('graphic')[0].getAttribute('xlink:href');
+    } else {
+      fig.href = undefined
+    }
+    figures.push(fig);
+  });
+  return figures;
+}
+
 function _addMetadata(pkg,mainArticleName,uri,callback){
   var pmcid = _extractBetween(uri,'PMC');
   var parser = new xml2js.Parser();
   var meta = {};
+  var relPaths;
 
   request('http://www.pubmedcentral.nih.gov/oai/oai.cgi?verb=GetRecord&identifier=oai:pubmedcentral.nih.gov:'+pmcid+'&metadataPrefix=pmc',
     function(error,response,body){
       if(error) return callback(error);
+      var xmlBody = body;
+
+      var figures = _findFigures(xmlBody);
+
       parser.parseString(body,function(err,body){
         if(err) return callback(error);
 
+        classicArticle = ['research-article','review-article','book-review'];
+
+        var pathArt = _findNodePaths(body,['article']);
+
+        var pubTypes = {
+          'case-report': 'Case Report',
+          'review-article': 'Review',
+          'book-review': 'Book Review',
+          'editorial': 'Editorial',
+          'letter': 'Letter'
+        } // http://www.nlm.nih.gov/mesh/pubtypes.html
+
         //scrap
-        var data = body['OAI-PMH']['GetRecord'][0]['record'][0]['metadata'][0]['article'][0];
-        if (data['$']['article-type'] == 'research-article'){
-          pkg.article[0]['@type'] = 'ScholarlyArticle';
-        } else if (data['$']['article-type'] == 'case-report'){
-          pkg.article[0]['@type'] = 'MedicalScholarlyArticle';
-          pkg.article[0].publicationType = 'Case Report'; // http://www.nlm.nih.gov/mesh/pubtypes.html
-        } else {
-          callback(new Error('unrecognized article type '+data['$']['article-type']));
+        var data = traverse(body).get(pathArt['article'])[0];
+        pkg.article[0]['@type'] = 'ScholarlyArticle';
+        if(pubTypes[data['$']['article-type']] != undefined){
+          pkg.article[0].publicationType = data['$']['article-type'].replace(/-/g,' ');
         }
 
-        meta.publisher = {
-          name: data.front[0]['journal-meta'][0]['publisher'][0]['publisher-name'][0]
-        };
-        if(data.front[0]['journal-meta'][0]['publisher'][0]['publisher-loc'] != undefined){
+        var absPaths = _findNodePaths(data,['journal-meta','article-meta']);
+
+
+        var $journalMeta = traverse(data).get(absPaths['journal-meta']);
+        relPaths = _findNodePaths($journalMeta,['publisher-name','publisher-loc','journal-title','journal-id','issn']);
+
+        if(relPaths['publisher-name']){
+          meta.publisher = {
+            name: traverse($journalMeta).get(relPaths['publisher-name'])[0]
+          };
+        }
+        if(relPaths['publisher-loc'] != undefined){
           meta.publisher.location = {
-            description: data.front[0]['journal-meta'][0]['publisher'][0]['publisher-loc'][0]
+            description: traverse($journalMeta).get(relPaths['publisher-loc'])[0]
           }
         }
-        meta.journal = {
-          name: data.front[0]['journal-meta'][0]['journal-title-group'][0]['journal-title'][0]
-        }
-        data.front[0]['journal-meta'][0]['journal-id'].forEach(function(x,i){
-          if(x['$']['journal-id-type']=='pmc'){
-            meta.journalShortName = x['_'];
+        if(relPaths['journal-title']){
+          meta.journal = {
+            name: traverse($journalMeta).get(relPaths['journal-title'])[0]
           }
-        });
+        }
+
+        if(relPaths['journal-id']){
+          traverse($journalMeta).get(relPaths['journal-id']).forEach(function(x,i){
+            if(x['$']['journal-id-type']=='nlm-ta'){
+              meta.journalShortName = x['_'].replace(/ /g,'-').replace(/\./g,'-').toLowerCase();
+            }
+          });
+        }
         if(meta.journalShortName==undefined){
           meta.journalShortName = meta.journal.name.replace(/ /g,'-').replace(/\./g,'-').toLowerCase();
         }
-        meta.journal['@id'] = data.front[0]['journal-meta'][0]['issn'][0]['_'];
 
-        data.front[0]['article-meta'][0]['article-id'].forEach(function(x,i){
-          if(x['$']['pub-id-type']=='doi'){
-            meta.doi = x['_'];
-          }
-        });
-
-        var keywords = [];
-        data.front[0]['article-meta'][0]['article-categories'][0]['subj-group'].forEach(function(x){
-          if(x['$']['subj-group-type'] != 'heading'){
-            keywords = keywords.concat(_extractKeywords(x));
-          }
-        })
-        meta.keywords = keywords;
-
-        meta.title = data.front[0]['article-meta'][0]['title-group'][0]['article-title'][0];
-
-        if(data.front[0]['article-meta'][0]['title-group'][0]['alt-title']!=undefined){
-          meta.shortTitle = data.front[0]['article-meta'][0]['title-group'][0]['alt-title'][0]['_'];
+        if(relPaths['issn']){
+          meta.journal['@id'] = traverse($journalMeta).get(relPaths['issn'])[0]['_'];
         }
 
 
-        var affiliations = {};
-        data.front[0]['article-meta'][0]['aff'].forEach(
-          function(x){
-            if(x['addr-line'] != undefined){
-              affiliations[x['$']['id']] = x['addr-line'][0];
-            } else {
-              affiliations[x['$']['id']] = x['_'];
-            }
-          }
+        var $articleMeta = traverse(data).get(absPaths['article-meta']);
+        relPaths = _findNodePaths($articleMeta,
+          [
+            'article-id',
+            'subj-group',
+            'article-title',
+            'alt-title',
+            'aff',
+            'author-notes',
+            'contrib-group',
+            'pub-date',
+            'volume',
+            'issue',
+            'fpage',
+            'lpage',
+            'permissions',
+            'abstract',
+            'page-count',
+            'copyright-year',
+            'copyright-holder',
+            'copyright-statement',
+            'license',
+            'year',
+            'month',
+            'day',
+            'doi',
+            'email'
+          ]
         );
 
-        var emails = {};
-        data.front[0]['article-meta'][0]['author-notes'].forEach(
-          function(x){
-            if (x['corresp'][0]['$']){
-              emails[x['corresp'][0]['$']['id']] = x['corresp'][0]['email'][0];
-            } else {
-              emails['unknown'] = x['corresp'][0]['email'][0];
+        if(relPaths['article-id']){
+          traverse($articleMeta).get(relPaths['article-id']).forEach(function(x,i){
+            if(x['$']['pub-id-type']=='doi'){
+              meta.doi = x['_'];
+            } else if (x['$']['pub-id-type']=='pmid'){
+              meta.pmid = x['_'];
             }
+          });
+        }
+
+        if(relPaths['subj-group']){
+          var keywords = [];
+          traverse($articleMeta).get(relPaths['subj-group']).forEach(function(x){
+            keywords = keywords.concat(_extractKeywords(x));
+          })
+          meta.keywords = keywords;
+        }
+
+        if(relPaths['article-title']){
+          if(typeof traverse($articleMeta).get(relPaths['article-title'])[0] === 'string'){
+            meta.title = traverse($articleMeta).get(relPaths['article-title'])[0];
+          } else {
+            var doc = new DOMParser().parseFromString(
+                '<xml xmlns="a" xmlns:c="./lite">'+
+                _extractBetween(xmlBody,'<article-title>','</article-title>') +
+                '</xml>'
+                ,'text/xml');
+            meta.title = doc.lastChild.textContent;
           }
-        );
+        }
+
+        if(relPaths['alt-title']){
+          meta.shortTitle = traverse($articleMeta).get(relPaths['alt-title'])[0]['_'];
+        }
+
+        var affiliations = {};
+        if(relPaths['aff']){
+          traverse($articleMeta).get(relPaths['aff']).forEach(
+            function(x){
+              var key;
+              if(x['$']){
+                key = x['$']['id'];
+              } else {
+                key = 'unknown';
+              }
+              affiliations[key] =  {};
+              var tmp = '';
+              if(x['institution']){
+                affiliations[key].name = x['institution'][0];
+                tmp = x['institution'][0] + '. ';
+              }
+              if(x['addr-line']){
+                affiliations[key].address = {};
+                affiliations[key].address.name = x['addr-line'][0];
+                tmp += x['addr-line'][0] + '. ';
+              }
+              if(x['country']){
+                if(affiliations[key].address == undefined){
+                  affiliations[key].address = {};
+                }
+                affiliations[key].address.addressCountry = x['country'][0];
+                tmp += x['country'][0] + '. ';
+              }
+              if(tmp!=''){
+                affiliations[key].description = tmp;
+              } else {
+                affiliations[key].description = x['_'];
+              }
+            }
+          );
+        }
+
+        var emails = {};
+        if(relPaths['author-notes']){
+          var found = false;
+          traverse($articleMeta).get(relPaths['author-notes']).forEach(
+            function(x){
+              if(x['corresp']){
+                if (x['corresp'][0]['$']){
+                  emails[x['corresp'][0]['$']['id']] = x['corresp'][0]['email'][0];
+                  found = true;
+                }
+              }
+            }
+          );
+        }
+
+        if(relPaths['email']){
+          emails.unkwon = relPaths['email'][0];
+        }
 
         var author;
         var contributor = [];
-        var editor = [];
         var accountablePerson = [];
         var sourceOrganisation = [];
         var sourceNames = [];
-        data.front[0]['article-meta'][0]['contrib-group'].forEach(
-          function(x){
-            if(x['contrib'][0]['$']['contrib-type']=='author'){
-              x['contrib'].forEach(function(y,i){
-                var corresp = false;
-                var givenName = y['name'][0]['given-names'][0];
-                var familyName = y['name'][0]['surname'][0];
-                var affiliation = [];
-                var email = '';
-                y.xref.forEach(function(z){
-                  if (z['$']['ref-type'] == 'aff'){
-                    affiliation.push({ description: affiliations[z['$']['rid']] });
-                  } else if (z['$']['ref-type'] == 'corresp'){
-                    if(emails[z['$']['rid']]){
-                      email = emails[z['$']['rid']];
-                    } else {
-                      email = emails['unknown'];
+        var editor = [];
+        if(relPaths['contrib-group']){
+          traverse($articleMeta).get(relPaths['contrib-group']).forEach(
+            function(x){
+              if(x['contrib'][0]['$']['contrib-type']=='author'){
+                x['contrib'].forEach(function(y,i){
+                  var corresp = false;
+                  var givenName = y['name'][0]['given-names'][0];
+                  var familyName = y['name'][0]['surname'][0];
+                  var affiliation = [];
+                  var email = '';
+                  if(y.xref){
+                    y.xref.forEach(function(z){
+                      if(z['$']['ref-type']){
+                        if (z['$']['ref-type'] == 'aff'){
+                          if(affiliations.unknown != undefined){
+                            affiliation.push( affiliations.unknown );
+                          } else {
+                            affiliation.push( affiliations[z['$']['rid']] );
+                          }
+                        } else if (z['$']['ref-type'] == 'corresp'){
+                          if(emails[z['$']['rid']]){
+                            email = emails[z['$']['rid']];
+                          } else {
+                            email = emails['unknown'];
+                          }
+                          corresp = true;
+                        }
+                      } else {
+                        if(affiliations.unknown){
+                          affiliation.push( affiliations.unknown );
+                        }
+                      }
+                    });
+                  } else {
+                    if(affiliations.unknown){
+                      affiliation.push( affiliations.unknown );
                     }
-                    corresp = true;
+                  }
+                  if(affiliation.length == 0){
+                    if(affiliations.unknown){
+                      affiliation.push( affiliations.unknown );
+                    }
+                  }
+
+                  if(y['email']){
+                    email = y['email'][0]
+                    if(y['$']['corresp']=='yes'){
+                      corresp = true;
+                    }
+                  }
+
+                  affiliation.forEach(function(y){
+                    if(sourceNames.indexOf(y.description)==-1){
+                      sourceOrganisation.push(y);
+                      sourceNames.push(y.description);
+                    }
+                  });
+
+                  if(i==0){
+                    author = {
+                      familyName: familyName,
+                      givenName: givenName,
+                      name: givenName + ' ' + familyName
+                    }
+                    if (email != ''){
+                      author.email = email
+                    }
+                    if(affiliation.length){
+                      if(affiliation.length==1){
+                        author.affiliation = affiliation[0];
+                      } else {
+                        author.affiliation = affiliation;
+                      }
+                    }
+                  } else {
+                    contributor.push({
+                      familyName: familyName,
+                      givenName: givenName,
+                      name: givenName + ' ' + familyName
+                    });
+                    if(affiliation.length){
+                      if(affiliation.length==1){
+                        contributor[contributor.length-1].affiliation = affiliation[0];
+                      } else {
+                        contributor[contributor.length-1].affiliation = affiliation;
+                      }
+                    }
+                    if(email!=''){
+                      contributor[contributor.length-1].email = email;
+                    }
+                  }
+                  if (corresp){
+                    accountablePerson.push({
+                      familyName: familyName,
+                      givenName: givenName,
+                      name: givenName + ' ' + familyName
+                    });
+                    if(affiliation.length){
+                      if(affiliation.length==1){
+                        accountablePerson[accountablePerson.length-1].affiliation = affiliation[0];
+                      } else {
+                        accountablePerson[accountablePerson.length-1].affiliation = affiliation;
+                      }
+                    }
+                    if(email!=''){
+                      accountablePerson[accountablePerson.length-1].email = email;
+                    }
                   }
                 });
-
-                if(y['$']['corresp'] ==='yes'){
-                  email = emails['unknown'];
-                  corresp = true;
-                }
-                affiliation.forEach(function(y){
-                  if(sourceNames.indexOf(y.description)==-1){
-                    sourceOrganisation.push(y);
-                    sourceNames.push(y.description);
-                  }
-                });
-
-                if(i==0){
-                  author = {
+              } else if (x['contrib'][0]['$']['contrib-type']=='editor'){
+                x['contrib'].forEach(function(y,i){
+                  var givenName = y['name'][0]['given-names'][0];
+                  var familyName = y['name'][0]['surname'][0];
+                  var affiliation = [];
+                  y.xref.forEach(function(z){
+                    if (z['$']['ref-type'] == 'aff'){
+                      affiliation.push( affiliations[z['$']['rid']] );
+                    }
+                  });
+                  editor.push({
                     familyName: familyName,
                     givenName: givenName,
-                    name: givenName + ' ' + familyName,
-                    affiliation: affiliation
-                  }
-                  if (email != ''){
-                    author.email = email
-                  }
-                } else {
-                  if (email != ''){
-                    contributor.push({
-                      familyName: familyName,
-                      givenName: givenName,
-                      name: givenName + ' ' + familyName,
-                      affiliation: affiliation,
-                      email: email
-                    });
-                  } else {
-                    contributor.push({
-                      familyName: familyName,
-                      givenName: givenName,
-                      name: givenName + ' ' + familyName,
-                      affiliation: affiliation
-                    });
-                  }
-                }
-                if (corresp){
-                  if (email != ''){
-                    accountablePerson.push({
-                      familyName: familyName,
-                      givenName: givenName,
-                      name: givenName + ' ' + familyName,
-                      affiliation: affiliation,
-                      email: email
-                    });
-                  } else {
-                    accountablePerson.push({
-                      familyName: familyName,
-                      givenName: givenName,
-                      name: givenName + ' ' + familyName,
-                      affiliation: affiliation
-                    });
-                  }
-                }
-              });
-            } else if (x['contrib'][0]['$']['contrib-type']=='editor'){
-              x['contrib'].forEach(function(y,i){
-                var givenName = y['name'][0]['given-names'][0];
-                var familyName = y['name'][0]['surname'][0];
-                var affiliation = [];
-                y.xref.forEach(function(z){
-                  if (z['$']['ref-type'] == 'aff'){
-                    affiliation.push({ description: affiliations[z['$']['rid']] });
+                    name: givenName + ' ' + familyName
+                  })
+                  if(affiliation.length){
+                    if(affiliation.length==1){
+                      editor[editor.length-1].affiliation = affiliation[0];
+                    } else {
+                      editor[editor.length-1].affiliation = affiliation;
+                    }
                   }
                 });
-                editor = {
-                  familyName: familyName,
-                  givenName: givenName,
-                  name: givenName + ' ' + familyName,
-                  affiliation: affiliation
-                }
-              });
+              }
             }
-          }
-        );
+          );
+        }
 
         meta.author = author;
         meta.contributor = contributor;
@@ -359,228 +592,411 @@ function _addMetadata(pkg,mainArticleName,uri,callback){
         meta.accountablePerson = accountablePerson;
         meta.sourceOrganisation = sourceOrganisation;
 
-        data.front[0]['article-meta'][0]['pub-date'].forEach(function(x){
-          if(x['$']['pub-type']=='epub'){
-            meta.publicationDate = (new Date(x['year'][0]+'-'+x['month'][0]+'-'+x['day'][0]).toISOString());
-            meta.year = x['year'][0];
+        var tmpDate = traverse($articleMeta).get(relPaths['year'])[0];
+        if(relPaths['month']){
+          tmpDate += '-'+ traverse($articleMeta).get(relPaths['month'])[0];
+        }
+        if(relPaths['day']){
+          tmpDate += '-'+ traverse($articleMeta).get(relPaths['day'])[0];
+        }
+        meta.publicationDate = (new Date(tmpDate).toISOString());
+        meta.year = traverse($articleMeta).get(relPaths['year'])[0];
+
+        if(relPaths['volume']){
+          meta.volume = parseInt(traverse($articleMeta).get(relPaths['volume'])[0],10);
+        }
+        if(relPaths['issue']){
+          meta.issue = parseInt(traverse($articleMeta).get(relPaths['issue'])[0],10);
+        }
+        if(relPaths['fpage']){
+          meta.pageStart = parseInt(traverse($articleMeta).get(relPaths['fpage'])[0],10);
+        }
+        if(relPaths['lpage']){
+          meta.pageEnd = parseInt(traverse($articleMeta).get(relPaths['lpage'])[0],10);
+        }
+        if(relPaths['copyright-year']){
+          meta.copyrightYear = traverse($articleMeta).get(relPaths['copyright-year'])[0];
+        }
+        if(relPaths['copyright-holder']){
+          meta.copyrightHolder = {
+            description: traverse($articleMeta).get(relPaths['copyright-holder'])[0]
           }
-        });
-
-        meta.volume = data.front[0]['article-meta'][0]['volume'];
-        meta.issue = data.front[0]['article-meta'][0]['issue'];
-        meta.copyrightYear = data.front[0]['article-meta'][0]['permissions'][0]['copyright-year'];
-        meta.copyrightHolder = {
-          description: data.front[0]['article-meta'][0]['permissions'][0]['copyright-holder']
         }
 
-        if(data.front[0]['article-meta'][0]['permissions'][0]['license']){
-          meta.license = data.front[0]['article-meta'][0]['permissions'][0]['license'][0]['$']['xlink:href'];
+        if(relPaths['license']){
+          meta.license = traverse($articleMeta).get(relPaths['license'])[0]['$']['xlink:href'];
         } else {
-          meta.license = data.front[0]['article-meta'][0]['permissions'][0]['copyright-statement'][0];
+          if(relPaths['copyright-statement']){
+            meta.license = traverse($articleMeta).get(relPaths['copyright-statement'])[0];
+          }
         }
 
-        if(data.front[0]['article-meta'][0]['abstract']){
-          if(data.front[0]['article-meta'][0]['abstract'][0]['p']){
-            meta.abstract = data.front[0]['article-meta'][0]['abstract'][0]['p'][0];
-          } else if(data.front[0]['article-meta'][0]['abstract'][0]['sec']){
-            meta.abstract = '';
-            data.front[0]['article-meta'][0]['abstract'][0]['sec'].forEach(function(x){
-              meta.abstract = '<h3>'+x.title[0]+'</h3>' + '<p>' + x.p[0] + '</p>';
+        if(relPaths['abstract']){
+          if(xmlBody.indexOf('<abstract>')>-1){
+            var doc = new DOMParser().parseFromString(
+                '<xml xmlns="a" xmlns:c="./lite">'+
+                _extractBetween(xmlBody,'<abstract>','</abstract>') +
+                '</xml>'
+                ,'text/xml');
+            meta.abstract = doc.lastChild.textContent;
+          }
+        }
+
+        if(relPaths['page-count']){
+          meta.numPages = traverse($articleMeta).get(relPaths['page-count'])[0]['$']['count'];
+        }
+
+        references = [];
+
+        if(data.back){
+
+          if(data.back[0]['ref-list']){
+            data.back[0]['ref-list'][0]['ref'].forEach(function(x){
+
+              Object.keys(x).forEach(function(k){
+                if(k.indexOf('citation')>-1){
+                  y = x[k][0];
+                }
+              })
+
+
+              // if (y['$']['publication-type'] == 'journal'){
+
+                var ref = {
+                  '@type': 'ScholarlyArticle',
+                  header: y['article-title']
+                };
+
+                if(relPaths['year']){
+                  ref.publicationDate = (new Date(traverse($articleMeta).get(relPaths['year'])[0])).toISOString();
+                }
+
+                ref.header = '';
+                if(typeof y['article-title'] === 'string'){
+                  ref.header = y['article-title'];
+                } else {
+                  var id = x['$']['id'];
+                  var tmp = _extractBetween(xmlBody,'<ref id="'+id+'">','</ref>');
+                  if(tmp.indexOf('<article-title>')>-1){
+                    tmp = _extractBetween(tmp,'<article-title>','</article-title>');
+                    var doc = new DOMParser().parseFromString(
+                        '<xml xmlns="a" xmlns:c="./lite">'+
+                        tmp+
+                        '</xml>'
+                        ,'text/xml');
+                    ref.header = doc.lastChild.textContent;
+                  } else if(y['source']){
+                      ref.header = y['source'];
+                  }
+                }
+
+                if( y['source']){
+                  ref.journal = y['source'];
+                }
+                if( y['volume']){
+                  ref.volume = y['volume'];
+                }
+                if( y['fpage']){
+                  ref.pageStart = y['fpage'];
+                }
+                if( y['fpage']){
+                  ref.pageEnd = y['lpage'];
+                }
+                if( y['comment']){
+                  y['comment'].forEach(function(y){
+                    if(typeof y != 'string'){
+                      if(y['_'] == 'doi:'){
+                        ref.doi = y['ext-link'][0]['_'];
+                      }
+                      if(y['_'] == 'pmid:'){
+                        ref.pmid = y['ext-link'][0]['_'];
+                      }
+                    }
+                  });
+                }
+                if(ref.doi == undefined){
+                  if(y['pub-id']){
+                    y['pub-id'].forEach(function(z){
+                      if(z['$']['pub-id-type']=='doi'){
+                        ref.doi = z['_'];
+                      }
+                      if(z['$']['pub-id-type']=='pmid'){
+                        ref.pmid = z['_'];
+                      }
+                    });
+                  }
+                }
+
+                if(ref.doi != undefined){
+                  ref.url = 'http://doi.org/'+ref.doi;
+                  if(ref.pmid){
+                    ref.sameAs = 'http://www.ncbi.nlm.nih.gov/pubmed/?term=' + ref.pmid;
+                  }
+                } else {
+                  if(ref.pmid){
+                    ref.url = 'http://www.ncbi.nlm.nih.gov/pubmed/?term=' + ref.pmid;
+                  }
+                }
+
+                var tmpName;
+                if(y['name']){
+                  tmpName = y['name'];
+                } else if (y['person-group']){
+                  tmpName = y['person-group'][0]['name'];
+                }
+                if(tmpName){
+                  tmpName.forEach(function(z,i){
+                    var givenName  = z['given-names'];
+                    var familyName = z['surname'];
+                    if(i==0){
+                      ref.author = {
+                        familyName: familyName,
+                        givenName: givenName,
+                        name: givenName + ' ' + familyName
+                      };
+                    } else {
+                      if(ref.contributor == undefined){
+                        ref.contributor = [];
+                      }
+                      ref.contributor.push({
+                        familyName: familyName,
+                        givenName: givenName,
+                        name: givenName + ' ' + familyName
+                      });
+                    }
+                  });
+                }
+
+                var descr = '';
+
+                if(ref.author){
+                  descr += ref.author.familyName + ' ' + ref.author.givenName ;
+                }
+                if(ref.contributor){
+                  ref.contributor.forEach(function(x,i){
+                    if (i<4){
+                      descr += ', ' + ref.author.familyName + ' ' + ref.author.givenName ;
+                    } else if (i==5){
+                      descr += ', et al.';
+                    }
+                  });
+                }
+                if(y['year']){
+                  descr += ' ('+y['year']+') ';
+                }
+                if(ref.header){
+                  descr += ref.header;
+                  if(ref.header[ref.header.length-1]!='.'){
+                    descr += '.';
+                  };
+                  descr += ' ';
+                }
+                if (ref.journal){
+                  descr += ref.journal + ' ';
+                }
+                if (ref.volume){
+                  descr += ref.volume + ': ';
+                }
+                if (ref.pageStart){
+                  descr += ref.pageStart;
+                }
+                if (ref.pageEnd){
+                  descr += '-'+ref.pageEnd;
+                }
+                descr += '.';
+                ref.description = descr;
+
+                if(ref.header){
+                  references.push(ref);
+                }
+              // }
             });
           }
         }
 
-        if(data.front[0]['article-meta'][0]['counts']){
-          if(data.front[0]['article-meta'][0]['counts'][0]['page-count']){
-            meta.numPages = data.front[0]['article-meta'][0]['counts'][0]['page-count'][0]['$']['count'];
-          }
+        if(references.length){
+          meta.references = references;
         }
-
-        references = [];
-        data.back[0]['ref-list'][0]['ref'].forEach(function(x){
-
-          if(x['mixed-citation']){
-            y = x['mixed-citation'][0];
-          } else if(x['element-citation']){
-            y = x['element-citation'][0];
-          }
-
-          if (y['$']['publication-type'] == 'journal'){
-
-            var ref = {
-              '@type': 'ScholarlyArticle',
-              header: y['article-title'],
-              publicationDate: (new Date(y['year'])).toISOString(),
-              contributor: []
-            };
-            if( y['source'] != undefined){
-              ref.journal = y['source'];
-            }
-            if( y['volume'] != undefined){
-              ref.volume = y['volume'];
-            }
-            if( y['fpage'] != undefined){
-              ref.pageStart = y['fpage'];
-            }
-            if( y['fpage'] != undefined){
-              ref.pageEnd = y['lpage'];
-            }
-            if( y['comment'] != undefined){
-              y['comment'].forEach(function(y){
-                if(y['_'] = 'doi:'){
-                  ref.doi = y['ext-link'][0]['_'];
-                }
-              });
-            }
-            ref.sameAs = [];
-
-            if(ref.doi != undefined){
-              ref.url = 'http://doi.org/'+ref.doi;
-              if(y['pub-id'] != undefined){
-                if (y['pub-id'][0] != undefined){
-                  if(y['pub-id'][0]['$']['pub-id-type'] === 'pmid'){
-                    ref.sameAs = 'http://www.ncbi.nlm.nih.gov/pubmed/?term=' + y['pub-id'][0]['_']
-                  }
-                }
-              }
-            } else {
-              if(y['pub-id'] != undefined){
-                if (y['pub-id'][0] != undefined){
-                  if(y['pub-id'][0]['$']['pub-id-type'] === 'pmid'){
-                    ref.url = 'http://www.ncbi.nlm.nih.gov/pubmed/?term=' + y['pub-id'][0]['_']
-                  }
-                }
-              }
-            }
-
-            var tmpName
-            if(y['name']){
-              tmpName = y['name'];
-            } else if (y['person-group']){
-              tmpName = y['person-group'][0]['name'];
-            }
-            if(tmpName){
-              tmpName.forEach(function(z,i){
-                var givenName  = z['given-names'];
-                var familyName = z['surname'];
-                if(i==0){
-                  ref.author = {
-                    familyName: familyName,
-                    givenName: givenName,
-                    name: givenName + ' ' + familyName
-                  };
-                } else {
-                  ref.contributor.push({
-                    familyName: familyName,
-                    givenName: givenName,
-                    name: givenName + ' ' + familyName
-                  });
-                }
-              });
-            }
-
-            var descr = '';
-
-            if(ref.author){
-              descr += ref.author.familyName + ' ' + ref.author.givenName ;
-            }
-            ref.contributor.forEach(function(x,i){
-              if (i<4){
-                descr += ', ' + ref.author.familyName + ' ' + ref.author.givenName ;
-              } else if (i==5){
-                descr += ', et al.';
-              }
-            })
-            descr += ' ('+y['year']+') ';
-            descr += ref.header + '. ';
-            if (ref.journal){
-              descr += ref.journal + ' ';
-            }
-            if (ref.volume){
-              descr += ref.volume + ': ';
-            }
-            if (ref.pageStart){
-              descr += ref.pageStart;
-            }
-            if (ref.pageEnd){
-              descr += '-'+ref.pageEnd;
-            }
-            descr += '.';
-            ref.description = descr;
-
-            references.push(ref);
-          }
-        });
-
-        meta.references = references;
 
         // Fill pkg, controlling the order
         var newpkg = {};
+        newpkg.name = '';
         if(meta.journalShortName){
-          newpkg.name = meta.journalShortName + '-' + meta.author.familyName.toLowerCase() + '-' + meta.year;
-        } else {
-          newpkg.name = meta.author.familyName.toLowerCase() + '-' + meta.year;
+          newpkg.name += meta.journalShortName;
         }
+        if(meta.author){
+          if(meta.author.familyName){
+            newpkg.name += '-' + removeDiacritics(meta.author.familyName.toLowerCase());
+          } else {
+            callback(new Error('did not find the author family name'));
+          }
+        } else {
+          newpkg.name += '-' + removeDiacritics(meta.title.split(' ')[0].toLowerCase());
+        }
+
+        if(meta.year){
+          newpkg.name += '-' + meta.year;
+        } else {
+          callback(new Error('did not find the year'));
+        }
+
         newpkg.version = pkg.version;
+
         if(meta.keywords){
           newpkg.keywords = meta.keywords;
         }
-        newpkg.description = meta.title;
-        newpkg.datePublished = meta.publicationDate;
-        newpkg.license = meta.license;
+        if(meta.title){
+          newpkg.description = meta.title;
+        }
+        newpkg.datePublished = (new Date()).toISOString();
+
+        if(meta.license){
+          newpkg.license = 'CC0-1.0';
+        }
         if(meta.url){
           newpkg.sameAs = meta.url;
         }
-        newpkg.author = meta.author;
-        newpkg.contributor = meta.contributor;
-        newpkg.accountablePerson = meta.accountablePerson;
-        newpkg.sourceOrganisation = meta.sourceOrganisation;
-        newpkg.editor = meta.editor;
-        newpkg.publisher = meta.publisher;
+        if(meta.author){
+          newpkg.author =  {
+            '@type': 'Organization',
+            name: 'Standard Analytics IO',
+            email: 'contact@standardanalytics.io'
+          };
+        }
+
+        if(meta.accountablePerson.length){
+          newpkg.accountablePerson = meta.accountablePerson;
+        }
+
+        if( meta.copyrightHolder ){
+          newpkg.copyrightHolder = meta.copyrightHolder;
+        } else if (meta.publisher) {
+          newpkg.copyrightHolder = meta.publisher;
+        }
+
+
         ['dataset','code','figure','audio','video','article'].forEach(function(type){
           if (pkg[type] != undefined){
             pkg[type].forEach(function(x,i){
               x.name = x.name.replace(/\./g,'-');
-              x.author = meta.author;
-              x.contributor = meta.contributor;
+              if(meta.author){
+                x.author = meta.author;
+              }
+              if(meta.contributor.length){
+                x.contributor = meta.contributor;
+              }
               if (meta.accountablePerson.length){
                 x.accountablePerson = meta.accountablePerson;
               }
-              x.sourceOrganisation = meta.sourceOrganisation;
+              if(meta.sourceOrganisation.length){
+                x.sourceOrganisation = meta.sourceOrganisation;
+              }
               if (meta.editor.length){
                 x.editor = meta.editor;
               }
-              x.publisher = meta.publisher;
-              x.datePublished = meta.publicationDate;
-              x.journal = meta.journal;
+              if(meta.publisher){
+                x.publisher = meta.publisher;
+              }
+              if(meta.publicationDate){
+                x.datePublished = meta.publicationDate;
+              }
+              if(meta.journal){
+                x.journal = meta.journal;
+              }
+              if(meta.publisher){
+                x.copyrightHolder = meta.publisher;
+              }
               pkg[type][i] = x;
             });
           }
+          newpkg[type] = pkg[type];
         });
-        newpkg.dataset = pkg.dataset;
-        newpkg.code = pkg.code;
-        newpkg.figure = pkg.figure;
+
+        if (pkg['figure'] != undefined){
+          pkg['figure'].forEach(function(x,i){
+            figures.forEach(function(fig){
+              if( (x.name === fig.id) || (x.name === fig.href) ){
+                if (fig.caption){
+                  x.caption = fig.caption;
+                }
+                if (fig.label){
+                  x.description = fig.label;
+                }
+              }
+            });
+          });
+        }
+
         if (mainArticleName != undefined){
           pkg.article.forEach(function(x,i){
             if(x.name==mainArticleName.slice(0,path.basename(mainArticleName,'.pdf').lastIndexOf('.')).replace(/\./g,'-')){
               var article = x;
-              article.journal = meta.journal;
-              article.doi = meta.doi;
-              article.headline = meta.title;
+              if(meta.journal){
+                article.journal = meta.journal;
+              }
+              if(meta.doi){
+                article.doi = meta.doi;
+              }
+              if(meta.pmid){
+                article.pmid = meta.pmid;
+              }
+              if(meta.title){
+                article.headline = meta.title;
+              }
               if (meta.abstract){
                 article.abstract = meta.abstract;
               }
-              article.citation = meta.references;
+              if(meta.references){
+                article.citation = meta.references;
+              }
+              if(meta.issue){
+                article.issue = meta.issue;
+              }
+              if(meta.volume){
+                article.volume = meta.volume;
+              }
+              if(meta.pageStart){
+                article.pageStart = meta.pageStart;
+              }
+              if(meta.pageEnd){
+                article.pageEnd = meta.pageEnd;
+              }
               pkg.article[i] = article;
             }
-          })
+          });
         } else {
+          // in case there is no pdf
           var article = {};
-          article.journal = meta.journal;
-          article.doi = meta.doi;
-          article.headline = meta.title;
-          article.abstract = meta.abstract;
-          article.citation = meta.references;
+          if(meta.journal){
+            article.journal = meta.journal;
+          }
+          if(meta.doi){
+            article.doi = meta.doi;
+          }
+          if(meta.pmid){
+            article.pmid = meta.pmid;
+          }
+          if(meta.title){
+            article.headline = meta.title;
+          }
+          if (meta.abstract){
+            article.abstract = meta.abstract;
+          }
+          if(meta.reference.length){
+            article.citation = meta.references;
+          }
+          if(meta.issue){
+            article.issue = meta.issue;
+          }
+          if(meta.volume){
+            article.volume = meta.volume;
+          }
+          if(meta.pageStart){
+            article.pageStart = meta.pageStart;
+          }
+          if(meta.pageEnd){
+            article.pageEnd = meta.pageEnd;
+          }
           pkg.article = [article];
         }
         newpkg.article = pkg.article;
@@ -590,6 +1006,7 @@ function _addMetadata(pkg,mainArticleName,uri,callback){
     }
   );
 }
+
 
 function _extractKeywords(obj){
   if(obj['subj-group']!=undefined){

@@ -31,7 +31,8 @@ var crypto = require('crypto')
   , temp = require('temp')
   , githubUrl = require('github-url')
   , previewTabularData = require('preview-tabular-data').preview
-  , jsonldContextInfer = require('jsonld-context-infer');
+  , jsonldContextInfer = require('jsonld-context-infer')
+  , targz = require('tar.gz');
 
 var conf = require('rc')('ldpm', {protocol: 'https', port: 443, hostname: 'registry.standardanalytics.io', strictSSL: false, sha:true});
 
@@ -755,7 +756,7 @@ Ldpm.prototype.paths2resources = function(globs, opts, callback){
 
         cb(null, {type: 'figure', value: figure});
 
-      } else if (['.pdf', '.odt', '.doc', '.docx'].indexOf(ext.toLowerCase()) !== -1){
+      } else if (['.pdf', '.odt', '.doc', '.docx', '.html'].indexOf(ext.toLowerCase()) !== -1){
 
         var article = {
           name: myname,

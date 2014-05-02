@@ -714,7 +714,7 @@ Ldpm.prototype.paths2resources = function(globs, opts, callback){
       var ext = path.extname(p)
         , mypath = path.relative(this.root, p)
         , myformat = mime.lookup(ext)
-        , myname = path.basename(p, ext);
+        , myname = path.basename(p, ext).replace(/ /g, '-');
 
       if(['.csv', '.tsv', '.xls', '.xlsx', '.ods', '.json', '.jsonld', '.ldjson', '.txt', '.xml', '.nxml', '.ttl'].indexOf(ext.toLowerCase()) !== -1){
 
@@ -912,7 +912,7 @@ Ldpm.prototype.urls2resources = function(urls, callback){
 
       var ctype = resp.headers['content-type'].split(';')[0].trim()
         , mypath = url.parse(myurl).pathname
-        , myname = path.basename(mypath, path.extname(mypath));
+        , myname = path.basename(mypath, path.extname(mypath)).replace(/ /g, '-');
 
       if ( [ 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'text/csv', 'text/tab-separated-values', 'application/json', 'application/ld+json', 'application/x-ldjson', 'text/plain' ].indexOf(ctype) !== -1 ) {
 

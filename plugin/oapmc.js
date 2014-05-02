@@ -60,7 +60,9 @@ function oapmc(uri, opts, callback){
           });
         });
       } else {
-        callback(new Error('this identifier does not belong to the Open Access subset of Pubmed Central'));
+        var err = new Error('this identifier does not belong to the Open Access subset of Pubmed Central');
+        err.code = 404; 
+        callback(err);
       }
     });
   } else {
@@ -78,7 +80,9 @@ function _parseOAcontent(uri,doi,that,cb){
 
     if(error) return cb(error);
     if(body.indexOf('idDoesNotExist')>-1){
-      cb(new Error('this identifier does not belong to the Open Access subset of Pubmed Central'));
+      var err = new Error('this identifier does not belong to the Open Access subset of Pubmed Central');
+      err.code = 404; 
+      cb(err);
     }
 
     if(body.indexOf('format="tgz"')){
@@ -155,6 +159,7 @@ function _parseOAcontent(uri,doi,that,cb){
               that.paths2resources(files,opts, function(err,resources){
                 if(err) return cb(err);
                 that.urls2resources(urls, function(err,resourcesFromUrls){
+                  if(err) return cb(err);
 
                   resourcesFromUrls.figure.forEach(function(x){
                     x.name = x.figure[0].contentUrl.split('/')[x.figure[0].contentUrl.split('/').length-2].slice(8);
@@ -1163,13 +1168,15 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,callback){
         
 
         var plosJournalsList = ['pone-','pbio-','pmed-','pgen-','pcbi-','ppat-','pntd-'];
-        newpkg.figure.forEach(function(x){
-          plosJournalsList.forEach(function(p,j){
-            if(x.name.slice(0,p.length)===p){
-              x.doi = meta.doi + '.' + x.name.split('-')[x.name.split('-').length-1];
-            }
+        if(newpkg.figure){
+          newpkg.figure.forEach(function(x){
+            plosJournalsList.forEach(function(p,j){
+              if(x.name.slice(0,p.length)===p){
+                x.doi = meta.doi + '.' + x.name.split('-')[x.name.split('-').length-1];
+              }
+            });
           });
-        });
+        }
 
         if (mainArticleName != undefined){
           pkg.article.forEach(function(x,i){

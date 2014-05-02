@@ -18,8 +18,9 @@ var path = require('path')
   , tree = require('../lib/tree')
   , readdirpSync = require('fs-readdir-recursive')
   , githubUrl = require('github-url')
-  , pone = require('../plugin/pone')
+  , plos = require('../plugin/plos')
   , pubmed = require('../plugin/pubmed')
+  , oapmc = require('../plugin/oapmc')
   , os = require('os')
   , colors = require('colors');
 
@@ -430,7 +431,7 @@ if (argv._[0] === 'init') {
     var api = argv._[1];
     var uri;
 
-    if (api === 'plosone'){
+    if (api === 'plos'){
 
       if(isUrl(argv._[2])){
         uri = argv._[2];
@@ -438,45 +439,40 @@ if (argv._[0] === 'init') {
         uri = 'http://doi.org/'+argv._[2];
       }
 
-      pone.call(ldpm, uri, function(err,pkg){
+      plos.call(ldpm, uri, function(err,pkg){
+        if(err) _fail(err);
+        fs.writeFileSync(path.resolve(ldpm.root, 'package.jsonld'), JSON.stringify(pkg, null, 2));
+      });
+
+    } else if (api === 'oapmc'){
+
+      // oapmc api consumes PMCID's
+
+      if(argv._[2].slice(0,3)!='PMC'){
+        pmcid = 'PMC' + argv._[2];
+      } else {
+        pmcid = argv._[2];
+      }
+
+      uri = 'http://www.pubmedcentral.nih.gov/utils/oa/oa.fcgi?id=' + pmcid;
+      oapmc.call(ldpm, uri, function(err,pkg){
         if(err) _fail(err);
         fs.writeFileSync(path.resolve(ldpm.root, 'package.jsonld'), JSON.stringify(pkg, null, 2));
       });
 
     } else if (api === 'pubmed'){
 
-      if(isUrl(argv._[2])){
-        uri = argv._[2];
-        pubmed.call(ldpm,uri, function(err,pkg){
-          if(err) _fail(err);
-          fs.writeFileSync(path.resolve(ldpm.root, 'package.jsonld'), JSON.stringify(pkg, null, 2));
-        });
-      } else {
+      var uri = 'http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id='+argv._[2]+'&rettype=abstract&retmode=xml';
 
-        // var pmcid = argv._[2].toString();
-        // if(pmcid.slice(0,3)==='PMC'){
-        //   pmcid = pmcid.slice(3,pmcid.length);
-        // }
-        // uri = 'http://www.pubmedcentral.nih.gov/oai/oai.cgi?verb=GetRecord&identifier=oai:pubmedcentral.nih.gov:'+pmcid+'&metadataPrefix=pmc';
-
-        request('http://www.pubmedcentral.nih.gov/utils/idconv/v1.0/?ids='+argv._[2]+'&format=json', function (error, response, body) {
-          var res = JSON.parse(body);
-          if(res.status!='ok'){
-            _fail(new Error('the article identifier cannot be recognized'));
-          } else {
-            uri = 'http://www.pubmedcentral.nih.gov/utils/oa/oa.fcgi?id=' + res.records[0].pmcid;
-          }
-          pubmed.call(ldpm,uri, function(err,pkg){
-            if(err) _fail(err);
-            fs.writeFileSync(path.resolve(ldpm.root, 'package.jsonld'), JSON.stringify(pkg, null, 2));
-          });
-        });
-        
-      }
-
+      pubmed.call(ldpm, uri, function(err,pkg){
+        if(err) _fail(err);
+        fs.writeFileSync(path.resolve(ldpm.root, 'package.jsonld'), JSON.stringify(pkg, null, 2));
+      });
 
     } else {
+
       _fail(new Error('unkown api'));
+      
     }
   })();
 

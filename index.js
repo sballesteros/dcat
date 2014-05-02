@@ -24,8 +24,9 @@ var crypto = require('crypto')
   , jsonld = require('jsonld')
   , clone = require('clone')
   , publish = require('./lib/publish')
-  , pone = require('./plugin/pone')
+  , plos = require('./plugin/plos')
   , pubmed = require('./plugin/pubmed')
+  , oapmc = require('./plugin/oapmc')
   , binaryCSV = require('binary-csv')
   , split = require('split')
   , temp = require('temp')
@@ -214,44 +215,27 @@ Ldpm.prototype.markup = function(api, uri, opts, callback){
     opts = {};
   }
 
-  if (api === 'plosone'){
+  if (api === 'oapmc'){
 
-    if(!isUrl(uri)){
-      uri = 'http://doi.org/'+uri;
+    if(uri.slice(0,3)!='PMC'){
+      uri = 'PMC' + uri;
     }
 
-    pone.call(that, uri, function(err,pkg){
+    // oapmc api consumes PMCID's
+    uri = 'http://www.pubmedcentral.nih.gov/utils/oa/oa.fcgi?id=' + uri;
+    oapmc.call(that, uri, function(err,pkg){
       if(err) return callback(err);
       callback(null,pkg);
     });
 
   } else if (api === 'pubmed'){
 
-    if(isUrl(uri)){
-
-      pubmed.call(that,uri, function(err,pkg){
-        if(err) return callback(err);
-        callback(null,pkg);
-      });
-
-    } else {
-
-      request('http://www.pubmedcentral.nih.gov/utils/idconv/v1.0/?ids='+uri+'&format=json', function (error, response, body) {
-        var res = JSON.parse(body);
-
-        if(res.status!='ok'){
-          callback(new Error('the article identifier cannot be recognized'));
-        } else {
-          uri = 'http://www.pubmedcentral.nih.gov/utils/oa/oa.fcgi?id=' + res.records[0].pmcid;
-        }
-
-        pubmed.call(that, uri, function(err,pkg){
-          if(err) return callback(err);
-          callback(null,pkg);
-        });
-      });
-
-    }
+    // pubmed api consumes PMID's
+    var uri = 'http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id='+uri+'&rettype=abstract&retmode=xml';
+    pubmed.call(that, uri, function(err,pkg){
+      if(err) return callback(err);
+      callback(null,pkg);
+    });
 
   } else {
     err = new Error('unkown api');
@@ -815,7 +799,7 @@ Ldpm.prototype.paths2resources = function(globs, opts, callback){
 
         cb(null, {type: 'audio', value: audio});
 
-      } else if (['.avi', '.mpeg', '.mov'].indexOf(ext.toLowerCase()) !== -1) {
+      } else if (['.avi', '.mpeg', '.mov','.wmv'].indexOf(ext.toLowerCase()) !== -1) {
 
         var video = {
           name: myname,
@@ -960,7 +944,7 @@ Ldpm.prototype.urls2resources = function(urls, callback){
 
         }
 
-      } else if ([ 'image/png', 'image/jpeg', 'image/tiff', 'image/gif', 'image/svg+xml', 'application/postscript' ].indexOf(ctype) !== -1) {
+      } else if ([ 'image/png', 'image/jpeg', 'image/tiff', 'image/gif', 'image/svg+xml', 'application/postscript', 'application/vnd.ms-powerpoint' ].indexOf(ctype) !== -1) {
 
         var figure = {
           value: {
@@ -974,12 +958,12 @@ Ldpm.prototype.urls2resources = function(urls, callback){
         };
 
         if('content-encoding' in resp.headers){
-          figure.figure[0].value.encoding = { encodingFormat: resp.headers['content-encoding']};
+          figure.value.figure[0].encoding = { encodingFormat: resp.headers['content-encoding']};
           if('content-length' in resp.headers){
-            figure.figure[0].value.encoding.contentSize = parseInt(resp.headers['content-length'], 10);
+            figure.value.figure[0].encoding.contentSize = parseInt(resp.headers['content-length'], 10);
           }
         } else if('content-length' in resp.headers){
-          figure.figure[0].value.contentSize = parseInt(resp.headers['content-length'], 10);
+          figure.value.figure[0].contentSize = parseInt(resp.headers['content-length'], 10);
         }
 
         cb(null, figure);
@@ -1080,7 +1064,7 @@ Ldpm.prototype.urls2resources = function(urls, callback){
       var r = typedResources[i];
       resources[r.type].push(r.value);
     }
-
+    
     callback(null, resources);
 
   });

@@ -75,7 +75,8 @@
     "ftp": "0.3.6",
     "tar.gz": "0.1.1",
     "recursive-readdir": "1.0.0",
-    "xmldom": "0.1.19"
+    "xmldom": "0.1.19",
+    "decompress-zip": "0.0.6"
   },
   "devDependencies": {
     "mocha": "~1.15.1"

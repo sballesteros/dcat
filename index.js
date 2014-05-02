@@ -438,68 +438,70 @@ Ldpm.prototype._get = function(pkgId, opts, callback){
  */
 Ldpm.prototype._cache = function(pkg, context, root, callback){
 
-  var toCache  = (pkg.dataset || [])
-    .filter(function(r){return ( r.distribution && r.distribution.contentUrl && !('contentData' in r.distribution) );})
-    .map(function(r){
-      return {
-        name: r.name,
-        type: 'dataset',
-        url: r.distribution.contentUrl,
-        path: r.distribution.contentPath
+  var toCache  = [];
+
+  (pkg.dataset || []).forEach(function(r){
+    if(r.distribution){
+      for(var i=0; i < r.distribution.length; i++){
+        if(r.distribution[i].contentUrl){
+          toCache.push({
+            name: r.name,
+            type: 'dataset',
+            url: r.distribution[i].contentUrl,
+            path: r.distribution[i].contentPath
+          });
+        }
       }
-    }).concat(
-      (pkg.code || [])
-        .filter(function(r){return ( r.targetProduct && r.targetProduct.downloadUrl );})
-        .map(function(r){
-          return {
+    }
+  });
+
+  (pkg.code || []).forEach(function(r){
+    if(r.targetProduct){
+      for(var i=0; i < r.targetProduct.length; i++){
+        if(r.targetProduct[i].downloadUrl){
+          toCache.push({
             name: r.name,
             type: 'code',
-            url: r.targetProduct.downloadUrl,
-            path: r.targetProduct.filePath,
-            bundlePath: r.targetProduct.bundlePath
-          }
-        }),
-      (pkg.figure || [])
-        .filter(function(r){return !!r.contentUrl ;})
-        .map(function(r){
-          return {
-            name: r.name,
-            type: 'figure',
-            url: r.contentUrl,
-            path: r.contentPath
-          }
-        }),
-      (pkg.article || [])
-        .filter(function(r){return r.encoding && r.encoding.contentUrl ;})
-        .map(function(r){
-          return {
+            url: r.targetProduct[i].downloadUrl,
+            path: r.targetProduct[i].filePath,
+            bundlePath: r.targetProduct[i].bundlePath
+          })
+        }
+      }
+    }
+  });
+
+  (pkg.article || []).forEach(function(r){
+    if(r.encoding){
+      for(var i=0; i < r.encoding.length; i++){
+        if(r.encoding[i].contentUrl){
+          toCache.push({
             name: r.name,
             type: 'article',
-            url: r.encoding.contentUrl,
-            path: r.encoding.contentPath
+            url: r.encoding[i].contentUrl,
+            path: r.encoding[i].contentPath
+          });
+        }
+      }
+    }
+  });
+
+  ['figure', 'video', 'audio'].forEach(function(type){
+    (pkg[type] || []).forEach(function(r){
+      if(r[type]){
+        for(var i=0; i < r[type].length; i++){
+          if(r[type][i].contentUrl){
+            toCache.push({
+              name: r.name,
+              type: type,
+              url: r[type][i].contentUrl,
+              path: r[type][i].contentPath
+            });
           }
-        }),
-      (pkg.audio || [])
-        .filter(function(r){return !!r.contentUrl ;})
-        .map(function(r){
-          return {
-            name: r.name,
-            type: 'audio',
-            url: r.contentUrl,
-            path: r.contentPath
-          }
-        }),
-      (pkg.video || [])
-        .filter(function(r){return !!r.contentUrl ;})
-        .map(function(r){
-          return {
-            name: r.name,
-            type: 'video',
-            url: r.contentUrl,
-            path: r.contentPath
-          }
-        })
-    );
+        }
+      }
+    });
+  });
 
   //add README if exists
   if(pkg.about && pkg.about.url){
@@ -685,14 +687,14 @@ Ldpm.prototype.paths2resources = function(globs, opts, callback){
 
         var dataset = {
           name: myname,
-          distribution: {
+          distribution: [{
             contentPath: mypath,
             encodingFormat: myformat
-          }
+          }]
         };
 
-        if(dataset.distribution.contentPath.indexOf('..') !== -1){ //check that all path are within this.root
-          return cb(new Error('only dataset files within ' + this.root + ' can be added (' + dataset.distribution.contentPath +')'));
+        if(dataset.distribution[0].contentPath.indexOf('..') !== -1){ //check that all path are within this.root
+          return cb(new Error('only dataset files within ' + this.root + ' can be added (' + dataset.distribution[0].contentPath +')'));
         }
 
         //about
@@ -713,12 +715,14 @@ Ldpm.prototype.paths2resources = function(globs, opts, callback){
 
         var figure = {
           name: myname,
-          contentPath: mypath,
-          encodingFormat: myformat
+          figure: [{
+            contentPath: mypath,
+            encodingFormat: myformat
+          }]
         };
 
-        if(figure.contentPath.indexOf('..') !== -1){
-          return cb(new Error('only figure files within ' + this.root + ' can be added (' + figure.contentPath +')'));
+        if(figure.figure[0].contentPath.indexOf('..') !== -1){
+          return cb(new Error('only figure files within ' + this.root + ' can be added (' + figure.figure[0].contentPath +')'));
         }
 
         cb(null, {type: 'figure', value: figure});
@@ -727,14 +731,14 @@ Ldpm.prototype.paths2resources = function(globs, opts, callback){
 
         var article = {
           name: myname,
-          encoding: {
+          encoding: [{
             contentPath: mypath,
             encodingFormat: myformat
-          }
+          }]
         };
 
-        if(article.encoding.contentPath.indexOf('..') !== -1){
-          return cb(new Error('only article files within ' + this.root + ' can be added (' + article.encoding.contentPath +')'));
+        if(article.encoding[0].contentPath.indexOf('..') !== -1){
+          return cb(new Error('only article files within ' + this.root + ' can be added (' + article.encoding[0].contentPath +')'));
         }
 
         cb(null, {type: 'article', value: article});
@@ -750,14 +754,14 @@ Ldpm.prototype.paths2resources = function(globs, opts, callback){
         var code = {
           name: myname,
           programmingLanguage: { name: lang },
-          targetProduct: {
+          targetProduct: [{
             filePath: mypath,
             fileFormat: 'text/plain'
-          }
+          }]
         };
 
-        if(code.targetProduct.filePath.indexOf('..') !== -1){
-          return cb(new Error('only standalone scripts within ' + this.root + ' can be added (' + code.filePath +')'));
+        if(code.targetProduct[0].filePath.indexOf('..') !== -1){
+          return cb(new Error('only standalone scripts within ' + this.root + ' can be added (' + code.targetProduct[0].filePath +')'));
         }
 
         cb(null, {type: 'code', value: code});
@@ -766,12 +770,14 @@ Ldpm.prototype.paths2resources = function(globs, opts, callback){
 
         var audio = {
           name: myname,
-          contentPath: mypath,
-          encodingFormat: myformat
+          audio: [{
+            contentPath: mypath,
+            encodingFormat: myformat
+          }]
         };
 
-        if(audio.contentPath.indexOf('..') !== -1){
-          return cb(new Error('only audio files within ' + this.root + ' can be added (' + audio.contentPath +')'));
+        if(audio.audio[0].contentPath.indexOf('..') !== -1){
+          return cb(new Error('only audio files within ' + this.root + ' can be added (' + audio.audio[0].contentPath +')'));
         }
 
         cb(null, {type: 'audio', value: audio});
@@ -780,12 +786,14 @@ Ldpm.prototype.paths2resources = function(globs, opts, callback){
 
         var video = {
           name: myname,
-          contentPath: mypath,
-          encodingFormat: myformat
+          video: [{
+            contentPath: mypath,
+            encodingFormat: myformat
+          }]
         };
 
-        if(video.contentPath.indexOf('..') !== -1){
-          return cb(new Error('only video files within ' + this.root + ' can be added (' + video.contentPath +')'));
+        if(video.video[0].contentPath.indexOf('..') !== -1){
+          return cb(new Error('only video files within ' + this.root + ' can be added (' + video.video[0].contentPath +')'));
         }
 
         cb(null, {type: 'video', value: video});
@@ -828,7 +836,7 @@ Ldpm.prototype.paths2resources = function(globs, opts, callback){
         var ws = ignore.pipe(tar.Pack()).pipe(zlib.createGzip()).pipe(fs.createWriteStream(tempPath));
         ws.on('error', cb);
         ws.on('finish', function(){
-          cb(null, {name: path.basename(absPath), targetProduct: {filePath: tempPath, bundlePath: path.relative(this.root, absPath), fileFormat:'application/x-gzip'}});
+          cb(null, {name: path.basename(absPath), targetProduct: [{filePath: tempPath, bundlePath: path.relative(this.root, absPath), fileFormat:'application/x-gzip'}]});
         }.bind(this));
 
       }.bind(this), function(err, codeResources){
@@ -878,21 +886,21 @@ Ldpm.prototype.urls2resources = function(urls, callback){
         var dataset = {
           value: {
             name: myname,
-            distribution: {
+            distirbution: [{
               encodingFormat: resp.headers['content-type'],
-              contentUrl: myurl,
-            }
+              contentUrl: myurl
+            }]
           },
           type: 'dataset'
         };
 
         if('content-encoding' in resp.headers){
-          dataset.value.distribution.encoding = { encodingFormat: resp.headers['content-encoding']};
+          dataset.value.distribution[0].encoding = { encodingFormat: resp.headers['content-encoding']};
           if('content-length' in resp.headers){
-            dataset.value.distribution.encoding.contentSize = resp.headers['content-length'];
+            dataset.value.distribution[0].encoding.contentSize = resp.headers['content-length'];
           }
         } else if('content-length' in resp.headers){
-          dataset.value.distribution.contentSize = resp.headers['content-length'];
+          dataset.value.distribution[0].contentSize = resp.headers['content-length'];
         }
 
         //auto generate about template
@@ -924,41 +932,45 @@ Ldpm.prototype.urls2resources = function(urls, callback){
         var figure = {
           value: {
             name: myname,
-            encodingFormat: resp.headers['content-type'],
-            contentUrl: myurl
+            figure:[{
+              encodingFormat: resp.headers['content-type'],
+              contentUrl: myurl
+            }]
           },
           type: 'figure'
         };
 
         if('content-encoding' in resp.headers){
-          figure.value.encoding = { encodingFormat: resp.headers['content-encoding']};
+          figure.figure[0].value.encoding = { encodingFormat: resp.headers['content-encoding']};
           if('content-length' in resp.headers){
-            figure.value.encoding.contentSize = resp.headers['content-length'];
+            figure.figure[0].value.encoding.contentSize = resp.headers['content-length'];
           }
         } else if('content-length' in resp.headers){
-          figure.value.contentSize = resp.headers['content-length'];
+          figure.figure[0].value.contentSize = resp.headers['content-length'];
         }
 
         cb(null, figure);
 
-      } else if ([ 'audio/basic', 'audio/L24', 'audio/mp4', 'audio/mpeg', 'audio/ogg', 'audio/opus', 'audio/orbis', 'audio/vorbis', 'audio/vnd.rn-realaudio', 'audio/vnd.wave', 'audio/webl', 'audio/example' ].indexOf(ctype) !== -1) {
+      } else if ([ 'audio/basic', 'audio/L24', 'audio/mp4', 'audio/mpeg', 'audio/ogg', 'audio/opus', 'audio/orbis', 'audio/vorbis', 'audio/vnd.rn-realaudio', 'audio/vnd.wave', 'audio/webl' ].indexOf(ctype) !== -1) {
 
         var audio = {
           value: {
             name: myname,
-            encodingFormat: resp.headers['content-type'],
-            contentUrl: myurl
+            audio: [{
+              encodingFormat: resp.headers['content-type'],
+              contentUrl: myurl
+            }]
           },
           type: 'audio'
         };
 
         if('content-encoding' in resp.headers){
-          audio.value.encoding = { encodingFormat: resp.headers['content-encoding']};
+          audio.value.audio[0].encoding = { encodingFormat: resp.headers['content-encoding']};
           if('content-length' in resp.headers){
-            audio.value.encoding.contentSize = resp.headers['content-length'];
+            audio.value.audio[0].encoding.contentSize = resp.headers['content-length'];
           }
         } else if('content-length' in resp.headers){
-          audio.value.contentSize = resp.headers['content-length'];
+          audio.value.audio[0].contentSize = resp.headers['content-length'];
         }
 
         cb(null, audio);
@@ -968,19 +980,21 @@ Ldpm.prototype.urls2resources = function(urls, callback){
         var video = {
           value: {
             name: myname,
-            encodingFormat: resp.headers['content-type'],
-            contentUrl: myurl
+            video: [{
+              encodingFormat: resp.headers['content-type'],
+              contentUrl: myurl
+            }]
           },
           type: 'video'
         };
 
         if('content-encoding' in resp.headers){
-          video.value.encoding = { encodingFormat: resp.headers['content-encoding']};
+          video.value.video[0].encoding = { encodingFormat: resp.headers['content-encoding']};
           if('content-length' in resp.headers){
-            video.value.encoding.contentSize = resp.headers['content-length'];
+            video.value.video[0].encoding.contentSize = resp.headers['content-length'];
           }
         } else if('content-length' in resp.headers){
-          video.value.contentSize = resp.headers['content-length'];
+          video.value.video[0].contentSize = resp.headers['content-length'];
         }
 
         cb(null, video);
@@ -990,21 +1004,21 @@ Ldpm.prototype.urls2resources = function(urls, callback){
         var article = {
           value: {
             name: myname,
-            encoding: {
+            encoding: [{
               encodingFormat: resp.headers['content-type'],
               contentUrl: myurl
-            }
+            }]
           },
           type: 'article'
         };
 
         if('content-encoding' in resp.headers){
-          article.value.encoding.encoding = { encodingFormat: resp.headers['content-encoding']};
+          article.value.encoding[0].encoding = { encodingFormat: resp.headers['content-encoding']};
           if('content-length' in resp.headers){
-            article.value.encoding.encoding.contentSize = resp.headers['content-length'];
+            article.value.encoding[0].encoding.contentSize = resp.headers['content-length'];
           }
         } else if('content-length' in resp.headers){
-          article.value.encoding.contentSize = resp.headers['content-length'];
+          article.value.encoding[0].contentSize = resp.headers['content-length'];
         }
 
         cb(null, article);

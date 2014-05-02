@@ -12,13 +12,13 @@
         { "name": "b", "valueType": "xsd:integer" },
         { "name": "c", "valueType": "xsd:double" }
       ],
-      "distribution": {
+      "distribution": [{
         "contentData": [
           { "a": "a", "b": 1, "c": 1.2},
           { "a": "x", "b": 2, "c": 2.3},
           { "a": "y", "b": 3, "c": 3.4}
         ]
-      }
+      }]
     },
     {
       "name": "csv1",
@@ -26,9 +26,9 @@
         { "name": "a", "valueType": "xsd:string" },
         { "name": "b", "valueType": "xsd:integer" }
       ],
-      "distribution": {       
+      "distribution": [{
         "contentPath": "x1.csv"
-      }
+      }]
     },
     {
       "name": "csv2",
@@ -36,36 +36,37 @@
         { "name": "c", "valueType": "xsd:string" },
         { "name": "d", "valueType": "xsd:integer" }
       ],
-      "distribution":{
+      "distribution": [{
         "contentPath": "x2.csv"
-      }
+      }]
     }
-  ], 
+  ],
 
   "code": [
     {
       "name": "script",
-      "targetProduct": {
+      "targetProduct": [{
         "filePath": "scripts/test.r"
-      }
+      }]
     }
   ],
-  
+
   "figure": [
     {
       "name": "img",
-      "contentPath": "img/daftpunk.jpg"
+      "figure": [{
+        "contentPath": "img/daftpunk.jpg"
+      }]
     }
   ],
-  
+
   "article": [
     {
       "name": "pone",
-      "encoding":{
+      "encoding": [{
         "contentPath": "article/pone.pdf"
-      }
+      }]
     }
   ]
-
 
 }

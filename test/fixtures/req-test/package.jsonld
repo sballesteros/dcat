@@ -8,9 +8,9 @@
   "dataset": [
     {
       "name": "azerty",
-      "distribution": {
+      "distribution": [{
         "contentUrl": "r/f9b634be34cb3f2af4fbf4395e3f24b3834da926"
-      }
+      }]
     }
   ]
 }

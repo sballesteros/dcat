@@ -53,26 +53,26 @@ describe('ldpm', function(){
       license: 'CC0-1.0',
       dataset: [
         { name: 'x1',
-          distribution: { contentPath: 'x1.csv', encodingFormat: 'text/csv' },
+          distribution: [{ contentPath: 'x1.csv', encodingFormat: 'text/csv' }],
           about: [ { name: 'a', valueType: 'xsd:integer' }, { name: 'b', valueType: 'xsd:integer' } ]
         }
       ],
       code: [
         {
           name: 'C',
-          targetProduct: {
+          targetProduct: [{
             //filePath: '/var/folders/7p/587xptpx31d0l7rbb1cxk5y80000gn/T/ldpm-114127-1835-la1g41', always different
             bundlePath: 'C',
             fileFormat: 'application/x-gzip'
-          }
+          }]
         },
         {
           name: 'scripts',
-          targetProduct: {
+          targetProduct: [{
             //filePath: '/var/folders/7p/587xptpx31d0l7rbb1cxk5y80000gn/T/ldpm-114127-1835-7ba56z',
             bundlePath: 'scripts',
             fileFormat: 'application/x-gzip'
-          }
+          }]
         }
       ]
     };
@@ -80,12 +80,11 @@ describe('ldpm', function(){
     it('should create a package.jsonld with default values and code bundles', function(done){
       exec(path.join(path.dirname(root), 'bin', 'ldpm') + ' init "*.csv" -b C -b scripts --defaults', {cwd: path.join(root, 'fixtures', 'init-test') }, function(err, stdout, stderr){
         var pkg = JSON.parse(fs.readFileSync(path.join(root, 'fixtures', 'init-test', 'package.jsonld'), 'utf8'));
-
         delete pkg.author; //might not be here
-        assert(pkg.code[0].targetProduct.filePath);
-        assert(pkg.code[1].targetProduct.filePath);
-        delete pkg.code[0].targetProduct.filePath;
-        delete pkg.code[1].targetProduct.filePath;
+        assert(pkg.code[0].targetProduct[0].filePath);
+        assert(pkg.code[1].targetProduct[0].filePath);
+        delete pkg.code[0].targetProduct[0].filePath;
+        delete pkg.code[1].targetProduct[0].filePath;
         assert.deepEqual(pkg, expected);
         done();
       });
@@ -96,13 +95,13 @@ describe('ldpm', function(){
         var pkg = JSON.parse(fs.readFileSync(path.join(root, 'fixtures', 'init-test', 'package.jsonld'), 'utf8'));
 
         delete pkg.author;
-        delete pkg.code[0].targetProduct.filePath;
-        delete pkg.code[1].targetProduct.filePath;
+        delete pkg.code[0].targetProduct[0].filePath;
+        delete pkg.code[1].targetProduct[0].filePath;
 
         var exp = clone(expected);
         exp.article = [{
           name: 'pone',
-          encoding: { contentPath: 'pone.pdf', encodingFormat: 'application/pdf' }
+          encoding: [{ contentPath: 'pone.pdf', encodingFormat: 'application/pdf' }]
         }];
 
         assert.deepEqual(pkg, exp);
@@ -122,7 +121,6 @@ describe('ldpm', function(){
         done()
       });
     });
-
 
     it('should return auth token if user already registered but adduser is called with correct username and password', function(done){
       ldpm.adduser(function(err, auth){
@@ -276,7 +274,7 @@ describe('ldpm', function(){
     var ldpm1, ldpm2;
 
     var expected = {
-//      '@context': 'http://localhost:3000/package.jsonld',
+      //      '@context': 'http://localhost:3000/package.jsonld',
       '@id': 'req-test/0.0.0',
       '@type': ['Package', 'DataCatalog'],
       name: 'req-test',
@@ -289,10 +287,10 @@ describe('ldpm', function(){
           '@id': 'req-test/0.0.0/dataset/azerty',
           '@type': 'Dataset',
           name: 'azerty',
-          distribution:  {
+          distribution:  [{
             '@type': 'DataDownload' ,
             contentUrl: 'r/f9b634be34cb3f2af4fbf4395e3f24b3834da926',
-          },
+          }],
           catalog: { '@type': ['Package', 'DataCatalog'], name: 'req-test', version: '0.0.0', url: 'req-test/0.0.0' }
         }
       ],
@@ -380,7 +378,6 @@ describe('ldpm', function(){
       });
     });
 
-
     it('should install req-test@0.0.0 (and its dependencies) and cache data', function(done){
       temp.mkdir('test-ldpm-', function(err, dirPath) {
         var ldpm = new Ldpm(conf, dirPath);
@@ -408,6 +405,7 @@ describe('ldpm', function(){
 
 
     it('should install mypkg-test@0.0.0 at the top level, cache data and put inlined data in their own files in ld_resources', function(done){
+
       temp.mkdir('test-ldpm-', function(err, dirPath) {
         var ldpm = new Ldpm(conf, dirPath);
         ldpm.install(['mypkg-test@0.0.0'], {top: true, cache: true, require: true}, function(err){
@@ -483,6 +481,7 @@ describe('ldpm', function(){
         });
       });
     });
+
   });
 
 });

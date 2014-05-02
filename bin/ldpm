@@ -18,7 +18,6 @@ var path = require('path')
   , tree = require('../lib/tree')
   , readdirpSync = require('fs-readdir-recursive')
   , githubUrl = require('github-url')
-  , plos = require('../plugin/plos')
   , pubmed = require('../plugin/pubmed')
   , oapmc = require('../plugin/oapmc')
   , os = require('os')
@@ -431,20 +430,7 @@ if (argv._[0] === 'init') {
     var api = argv._[1];
     var uri;
 
-    if (api === 'plos'){
-
-      if(isUrl(argv._[2])){
-        uri = argv._[2];
-      } else {
-        uri = 'http://doi.org/'+argv._[2];
-      }
-
-      plos.call(ldpm, uri, function(err,pkg){
-        if(err) _fail(err);
-        fs.writeFileSync(path.resolve(ldpm.root, 'package.jsonld'), JSON.stringify(pkg, null, 2));
-      });
-
-    } else if (api === 'oapmc'){
+    if (api === 'oapmc'){
 
       // oapmc api consumes PMCID's
 
@@ -472,7 +458,7 @@ if (argv._[0] === 'init') {
     } else {
 
       _fail(new Error('unkown api'));
-      
+
     }
   })();
 

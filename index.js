@@ -798,7 +798,7 @@ Ldpm.prototype.paths2resources = function(globs, opts, callback){
 
         cb(null, {type: 'audio', value: audio});
 
-      } else if (['.avi', '.mpeg', '.mov','.wmv'].indexOf(ext.toLowerCase()) !== -1) {
+      } else if (['.avi', '.mpeg', '.mov','.wmv', '.mpg'].indexOf(ext.toLowerCase()) !== -1) {
 
         var video = {
           name: myname,

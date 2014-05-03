@@ -155,89 +155,102 @@ function _parseOAcontent(uri,doi,that,cb){
                   tmpfiles.push(f)
                 }
               })
-              files = tmpfiles;
-              that.paths2resources(files,opts, function(err,resources){
-                if(err) return cb(err);
-                that.urls2resources(urls, function(err,resourcesFromUrls){
-                  if(err) return cb(err);
+              var validatedurls = [];
+              async.eachSeries(urls,
+                function(uri,cb2){
+                  request(uri, function (error, response, body) {
+                    if (!error && response.statusCode == 200) {
+                      validatedurls.push(uri);
+                    }
+                    cb2(null);
+                  });
+                },
+                function(err){
+                  files = tmpfiles;
+                  that.paths2resources(files,opts, function(err,resources){
+                    if(err) return cb(err);
+                    that.urls2resources(validatedurls, function(err,resourcesFromUrls){
+                      if(err) return cb(err);
 
-                  resourcesFromUrls.figure.forEach(function(x){
-                    x.name = x.figure[0].contentUrl.split('/')[x.figure[0].contentUrl.split('/').length-2].slice(8);
-                  })
+                      resourcesFromUrls.figure.forEach(function(x){
+                        x.name = x.figure[0].contentUrl.split('/')[x.figure[0].contentUrl.split('/').length-2].slice(8);
+                      })
 
-                  if(err) return cb(err);
-                  for (var type in resources){
-                    resources[type] = resources[type].concat(resourcesFromUrls[type]); //merge
-                  }
-                  if(mainArticleName!=undefined){
-                    resources.dataset.forEach(function(x,i){
-                      if(x.name===path.basename(mainArticleName,'.pdf').slice(0,path.basename(mainArticleName,'.pdf').lastIndexOf('.'))){
-                        resources.dataset.splice(i,1);
-                        resources.article.forEach(function(y,i){
-                          if(x.name==y.name){
-                            var tmp = y.encoding ;
-                            tmp.push(x.distribution[0]);
-                            resources.article[i].encoding = tmp;
+                      if(err) return cb(err);
+                      for (var type in resources){
+                        resources[type] = resources[type].concat(resourcesFromUrls[type]); //merge
+                      }
+                      if(mainArticleName!=undefined){
+                        resources.dataset.forEach(function(x,i){
+                          if(x.name===path.basename(mainArticleName,'.pdf').slice(0,path.basename(mainArticleName,'.pdf').lastIndexOf('.'))){
+                            resources.dataset.splice(i,1);
+                            resources.article.forEach(function(y,i){
+                              if(x.name==y.name){
+                                var tmp = y.encoding ;
+                                tmp.push(x.distribution[0]);
+                                resources.article[i].encoding = tmp;
+                              }
+                            });
+                          }
+                        });
+                      } else {
+                        resources.dataset.forEach(function(x,i){
+                          if(path.ext(x.distribution.contentPath) == 'nxml'){
+                            resources.dataset.splice(i,1);
+                            resources.article.push(x);
+                            mainArticleName = x.name;
                           }
                         });
                       }
-                    });
-                  } else {
-                    resources.dataset.forEach(function(x,i){
-                      if(path.ext(x.distribution.contentPath) == 'nxml'){
-                        resources.dataset.splice(i,1);
-                        resources.article.push(x);
-                        mainArticleName = x.name;
-                      }
-                    });
-                  }
-                  ['figure','audio','video'].forEach(
-                    function(type){
-                      resources[type].forEach(
+                      ['figure','audio','video'].forEach(
+                        function(type){
+                          resources[type].forEach(
+                            function(r,i){
+                              resources[type].slice(i+1,resources[type].length).forEach(
+                                function(r2,j){
+                                  if(r.name===r2.name){
+                                    r[type].push(r2[type][0]);
+                                    resources[type].splice(i+j+1,1);
+                                  }
+                                }
+                              )
+                            }
+                          )
+                        }
+                      )
+                      resources['code'].forEach(
                         function(r,i){
-                          resources[type].slice(i+1,resources[type].length).forEach(
+                          resources['code'].slice(i+1,resources['code'].length).forEach(
                             function(r2,j){
                               if(r.name===r2.name){
-                                r[type].push(r2[type][0]);
-                                resources[type].splice(i+j+1,1);
+                                r['targetProduct'].push(r2['targetProduct'][0]);
+                                resources['code'].splice(i+j+1,1);
                               }
                             }
                           )
                         }
                       )
-                    }
-                  )
-                  resources['code'].forEach(
-                    function(r,i){
-                      resources['code'].slice(i+1,resources['code'].length).forEach(
-                        function(r2,j){
-                          if(r.name===r2.name){
-                            r['targetProduct'].push(r2['targetProduct'][0]);
-                            resources['code'].splice(i+j+1,1);
-                          }
+                      resources['article'].forEach(
+                        function(r,i){
+                          resources['article'].slice(i+1,resources['article'].length).forEach(
+                            function(r2,j){
+                              if(r.name===r2.name){
+                                r['encoding'].push(r2['encoding'][0]);
+                                resources['article'].splice(i+j+1,1);
+                              }
+                            }
+                          )
                         }
                       )
-                    }
-                  )
-                  resources['article'].forEach(
-                    function(r,i){
-                      resources['article'].slice(i+1,resources['article'].length).forEach(
-                        function(r2,j){
-                          if(r.name===r2.name){
-                            r['encoding'].push(r2['encoding'][0]);
-                            resources['article'].splice(i+j+1,1);
-                          }
-                        }
-                      )
-                    }
-                  )
-                  var pkg = _initPkg();
-                  if(resources!=undefined){
-                    pkg = that.addResources(pkg,resources);
-                  }
-                  cb(null,pkg,mainArticleName);
-                });
-              });
+                      var pkg = _initPkg();
+                      if(resources!=undefined){
+                        pkg = that.addResources(pkg,resources);
+                      }
+                      cb(null,pkg,mainArticleName);
+                    });
+                  });
+                }
+              );
             }
           )
         });
@@ -1260,19 +1273,21 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,callback){
 
         // call pubmed to check if there isn't additional info there
         ldpm.markup('pubmed', meta.pmid, function(err,pubmed_pkg){
-          if(pubmed_pkg.keyword){
-            if(newpkg.keyword==undefined) newpkg.keyword = [];
-            pubmed_pkg.keyword.forEach(function(x){
-              if(newpkg.keyword.indexOf(x)==-1){
-                newpkg.keyword.push(x);
-              }
-            })
-          }
-          if(pubmed_pkg.rawChemical){
-            newpkg.rawChemical = pubmed_pkg.rawChemical;
-          }
-          if(pubmed_pkg.rawMesh){
-            newpkg.rawMesh = pubmed_pkg.rawMesh;
+          if(pubmed_pkg){
+            if(pubmed_pkg.keyword){
+              if(newpkg.keyword==undefined) newpkg.keyword = [];
+              pubmed_pkg.keyword.forEach(function(x){
+                if(newpkg.keyword.indexOf(x)==-1){
+                  newpkg.keyword.push(x);
+                }
+              })
+            }
+            if(pubmed_pkg.rawChemical){
+              newpkg.rawChemical = pubmed_pkg.rawChemical;
+            }
+            if(pubmed_pkg.rawMesh){
+              newpkg.rawMesh = pubmed_pkg.rawMesh;
+            } 
           }
           callback(null,newpkg);
         });

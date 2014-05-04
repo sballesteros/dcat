@@ -32,7 +32,6 @@ module.exports = oapmc;
  */
 
 function oapmc(uri, opts, callback){
-  events.EventEmitter.call(this);
 
   if(arguments.length === 2){
     callback = opts;
@@ -82,7 +81,7 @@ function _parseOAcontent(uri,doi,that,cb){
     if(body.indexOf('idDoesNotExist')>-1){
       var err = new Error('this identifier does not belong to the Open Access subset of Pubmed Central');
       err.code = 404; 
-      cb(err);
+      return cb(err);
     }
 
     if(body.indexOf('format="tgz"')){
@@ -106,15 +105,15 @@ function _parseOAcontent(uri,doi,that,cb){
               if(path.extname(f)=='.tgz'){
                 gzip = new targz();
                 gzip.extract(path.join(that.root,f),path.join(that.root,path.basename(f,path.extname(f))), function(err) {
-                  cb(err);
+                  return cb(err);
                 });
               } else if(path.extname(f)=='.zip') {
                  unzipper = new DecompressZip(path.join(that.root,f));
                  unzipper.on('error', function (err) {
-                   cb(err);
+                   return cb(err);
                  });
                  unzipper.on('extract', function (lob) {
-                   cb(null);
+                   return cb(null);
                  });
                  unzipper.extract({ path: path.join(that.root,path.basename(f,path.extname(f))) });
               } else {
@@ -156,7 +155,7 @@ function _parseOAcontent(uri,doi,that,cb){
                 }
               })
               var validatedurls = [];
-              async.eachSeries(urls,
+              async.each(urls,
                 function(uri,cb2){
                   request(uri, function (error, response, body) {
                     if (!error && response.statusCode == 200) {

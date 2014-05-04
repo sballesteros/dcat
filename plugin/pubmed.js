@@ -32,7 +32,6 @@ module.exports = pubmed;
  */
 
 function pubmed(uri, opts, callback){
-  events.EventEmitter.call(this);
 
   if(arguments.length === 2){
     callback = opts;

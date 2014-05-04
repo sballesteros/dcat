@@ -9,7 +9,7 @@ var root = path.dirname(__filename);
 
 describe('pubmed', function(){
 
-  this.timeout(80000);
+  this.timeout(160000);
 
   var conf = {
     protocol: 'http',
@@ -36,7 +36,7 @@ describe('pubmed', function(){
     });
   });
 
-  it('should error when prodiding a non open access pmcid', function(done){
+  it('should error when providing a non open access pmcid', function(done){
     
     var ldpm = new Ldpm(conf,path.join(root+'__tests'));
     fs.mkdir('__tests', function(err){
@@ -49,6 +49,7 @@ describe('pubmed', function(){
         });
       });
     });
+
   });
 
   it('should replace contentPaths with contentUrls when article comes from plos', function(done){
@@ -86,4 +87,5 @@ describe('pubmed', function(){
       });
     });
   });
+
 });

@@ -26,7 +26,6 @@ var request = require('request')
 
 module.exports = oapmc;
 
-
 /**
  * 'this' is an Ldpm instance
  */
@@ -261,39 +260,40 @@ function _parseOAcontent(uri,doi,that,cb){
 
 
 function _fetchTar(body,ldpm,callback){
-  var root = ldpm.root
+  var root = ldpm.root;
   var href = _extractBetween(body,'href="','"');
   var c = new Client();
 
   ldpm.logHttp('GET', href.slice(27));
   c.on('ready', function() {
-    c.get(href.slice(27), function(err, stream) {
-      if (err) return callback(err);
-      stream.once('close', function() {
-        ldpm.logHttp(200, href.slice(27));
-        recursiveReaddir(path.resolve(path.join(root,'__ldpmTmp')), function (err, files) {
-          if (err) return callback(err);
-          var newFiles = [];
-          async.each(files,
-            function(file,cb){
-              newFiles.push(path.relative(root,file.replace('/__ldpmTmp','')));
-              fs.rename(file,file.replace('/__ldpmTmp',''),function(err){
-                if(err) return cb(err);
-                cb(null)
-              });
-            },
-            function(err){
-              fs.rmdir(path.join(root,'__ldpmTmp'),function(err){
-                if(err) return callback(err);
+    temp.track();
+    temp.mkdir('__ldpmTmp',function(err, dirPath) {
+      c.get(href.slice(27), function(err, stream) {
+        if (err) return callback(err);
+        var fname = '/' + dirPath.split('/')[dirPath.split('/').length-1];
+        stream.once('close', function() {
+          ldpm.logHttp(200, href.slice(27));
+          recursiveReaddir(path.resolve(dirPath), function (err, files) {
+            if (err) return callback(err);
+            var newFiles = [];
+            async.each(files,
+              function(file,cb){
+                newFiles.push(path.join(root,path.basename(file)));
+                fs.rename(file,path.join(root,path.basename(file)),function(err){
+                  if(err) return cb(err);
+                  cb(null)
+                });
+              },
+              function(err){
                 c.end(); callback(null,newFiles);
-              });
-            }
-          )
+              }
+            )
+          });
         });
-      });
-      stream
-        .pipe(zlib.Unzip())
-        .pipe(tar.Extract({ path: path.join(root,'__ldpmTmp'), strip: 1 }));
+        stream
+          .pipe(zlib.Unzip())
+          .pipe(tar.Extract({ path: dirPath, strip: 1 }));        
+      })      
     });
   });
   c.connect({ host: 'ftp.ncbi.nlm.nih.gov' });

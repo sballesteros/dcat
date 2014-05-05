@@ -473,7 +473,7 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,callback){
         }
 
         if(relPaths['issn']){
-          meta.journal['@id'] = traverse($journalMeta).get(relPaths['issn'])[0]['_'];
+          meta.journal.issn = traverse($journalMeta).get(relPaths['issn'])[0]['_'];
         }
 
 
@@ -552,28 +552,52 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,callback){
               } else {
                 key = 'unknown';
               }
-              affiliations[key] =  {};
+              affiliations[key] =  [];
+              var affiliation = {};
               var tmp = '';
               if(x['institution']){
-                affiliations[key].name = x['institution'][0];
+                affiliation.name = x['institution'][0];
                 tmp = x['institution'][0] + '. ';
               }
               if(x['addr-line']){
-                affiliations[key].address = {};
-                affiliations[key].address.description = x['addr-line'][0];
+                affiliation.address = {};
+                affiliation.address.description = x['addr-line'][0];
                 tmp += x['addr-line'][0] + '. ';
               }
               if(x['country']){
-                if(affiliations[key].address == undefined){
-                  affiliations[key].address = {};
+                if(affiliation.address == undefined){
+                  affiliation.address = {};
                 }
-                affiliations[key].address.addressCountry = x['country'][0];
+                affiliation.address.addressCountry = x['country'][0];
                 tmp += x['country'][0] + '. ';
               }
               if(tmp!=''){
-                affiliations[key].description = tmp;
+                affiliation.description = tmp;
+                affiliations[key].push(affiliation);
               } else {
-                affiliations[key].description = x['_'];
+                if(x['sup']){
+                  var aff = _extractBetween(xmlBody,'<aff id="'+x['$']['id']+'">','</aff>');
+                  aff.split('</sup>').forEach(function(y,i){
+                    if(i>0){
+                      var des = y;
+                      if(des.indexOf('<sup>')>-1){
+                        des = des.slice(0,des.indexOf('<sup>')).trim();
+                      }
+                      if(des[des.length-1]===','){
+                        des = des.slice(0,des.length-1).trim();
+                      }
+                      if(des.slice(des.length-3,des.length)==='and'){
+                        des = des.slice(0,des.length-3).trim();
+                      }
+                      affiliations[key].push({
+                        sup: i,
+                        description: des
+                      });
+                    }
+                  })
+                } else {
+                  affiliations[key].push({ description: x['_'] });
+                }
               }
             }
           );
@@ -635,10 +659,18 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,callback){
                         if(z['$']['ref-type']){
                           if (z['$']['ref-type'] == 'aff'){
                             if(affiliations.unknown != undefined){
-                              affiliation.push( affiliations.unknown );
+                              affiliation.push(  affiliations.unknown[0] );
                             } else {
                               if(affiliations[z['$']['rid']]!=undefined){
-                                affiliation.push( affiliations[z['$']['rid']] );
+                                if(z['sup']!=undefined){
+                                  affiliations[z['$']['rid']].forEach(function(w){
+                                    if(w.sup==z['sup'][0]){
+                                      affiliation.push({ description : w.description });
+                                    }
+                                  })
+                                } else {
+                                  affiliation.push( affiliations[z['$']['rid']][0] );
+                                }
                               }
                             }
                           } else if (z['$']['ref-type'] == 'corresp'){
@@ -651,18 +683,18 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,callback){
                           }
                         } else {
                           if(affiliations.unknown !=  undefined){
-                            affiliation.push( affiliations.unknown );
+                            affiliation.push(  affiliations.unknown[0] );
                           }
                         }
                       });
                     } else {
                       if(affiliations.unknown !=  undefined){
-                        affiliation.push( affiliations.unknown );
+                        affiliation.push(  affiliations.unknown[0] );
                       }
                     }
                     if(affiliation.length == 0){
                       if(affiliations.unknown !=  undefined){
-                        affiliation.push( affiliations.unknown );
+                        affiliation.push(  affiliations.unknown[0] );
                       }
                     }
 
@@ -716,13 +748,7 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,callback){
                       if(tmpname.length){
                         tmpcontr.name = tmpname;
                       }
-                      if(affiliation.length){
-                        if(affiliation.length==1){
-                          tmpcontr.affiliation = affiliation[0];
-                        } else {
-                          tmpcontr.affiliation = affiliation;
-                        }
-                      }
+                      tmpcontr.affiliation = affiliation;
                       if(email!=''){
                         tmpcontr.email = email;
                       }
@@ -742,13 +768,7 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,callback){
                       if(tmpname.length){
                         tmpacc.name = tmpname;
                       }
-                      if(affiliation.length){
-                        if(affiliation.length==1){
-                          tmpacc.affiliation = affiliation[0];
-                        } else {
-                          tmpacc.affiliation = affiliation;
-                        }
-                      }
+                      tmpacc.affiliation = affiliation;
                       if(email!=''){
                         tmpacc.email = email;
                       }
@@ -788,13 +808,7 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,callback){
                         }
                       });
                     }
-                    if(affiliation.length){
-                      if(affiliation.length==1){
-                        tmped.affiliation = affiliation[0];
-                      } else {
-                        tmped.affiliation = affiliation;
-                      }
-                    }
+                    tmped.affiliation = affiliation;
                     editor.push(tmped);
                   }
                 });
@@ -1095,21 +1109,35 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,callback){
         if(meta.url){
           newpkg.sameAs = meta.url;
         }
-        newpkg.author =  {
+
+        newpkg.author =  meta.author;
+
+        newpkg.contributor =  meta.contributor;
+
+        if(meta.sourceOrganisation.length){
+          if(meta.sourceOrganisation[0] != {}){
+            newpkg.sourceOrganisation = meta.sourceOrganisation;
+          }
+        }
+
+        // if (meta.editor.length){
+        //   newpkg.editor = meta.editor;
+        // }
+        // if(meta.publisher){
+        //   newpkg.publisher = meta.publisher;
+        // }
+        
+        newpkg.accountablePerson = {
           '@type': 'Organization',
           name: 'Standard Analytics IO',
           email: 'contact@standardanalytics.io'
         };
-
-        if(meta.accountablePerson.length){
-          newpkg.accountablePerson = meta.accountablePerson;
-        }
-
-        if( meta.copyrightHolder ){
-          newpkg.copyrightHolder = meta.copyrightHolder;
-        } else if (meta.publisher) {
-          newpkg.copyrightHolder = meta.publisher;
-        }
+        
+        // if( meta.copyrightHolder ){
+        //   newpkg.copyrightHolder = meta.copyrightHolder;
+        // } else if (meta.publisher) {
+        //   newpkg.copyrightHolder = meta.publisher;
+        // }
 
 
         ['dataset','code','figure','audio','video','article'].forEach(function(type){
@@ -1119,26 +1147,28 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,callback){
                 x.name = type+'-'+i;
               }
               x.name = x.name.replace(/\./g,'-');
-              if(meta.author){
-                x.author = meta.author;
-              }
-              if(meta.contributor.length){
-                x.contributor = meta.contributor;
-              }
-              if (meta.accountablePerson.length){
-                x.accountablePerson = meta.accountablePerson;
-              }
-              if(meta.sourceOrganisation.length){
-                if(meta.sourceOrganisation[0] != {}){
-                  x.sourceOrganisation = meta.sourceOrganisation;
-                }
-              }
+              // if(meta.author){
+              //   x.author = meta.author;
+              // }
+              // if(meta.contributor.length){
+              //   x.contributor = meta.contributor;
+              // }
+              // if (meta.accountablePerson.length){
+              //   x.accountablePerson = meta.accountablePerson;
+              // }
+              // if(meta.sourceOrganisation.length){
+              //   if(meta.sourceOrganisation[0] != {}){
+              //     x.sourceOrganisation = meta.sourceOrganisation;
+              //   }
+              // }
+
               if (meta.editor.length){
                 x.editor = meta.editor;
               }
               if(meta.publisher){
                 x.publisher = meta.publisher;
               }
+              
               if(meta.publicationDate){
                 x.datePublished = meta.publicationDate;
               }
@@ -1164,11 +1194,8 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,callback){
                     descr = fig.label + '. ';
                   }
                   if (fig.caption){
-                    x.caption = fig.caption;
                     descr += fig.caption;
-                  }
-                  if(descr.length){
-                    x.description = descr;
+                    x.caption = descr;
                   }
                 }
               });

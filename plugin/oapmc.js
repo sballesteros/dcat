@@ -37,6 +37,7 @@ function oapmc(uri, opts, callback){
     opts = {};
   }
 
+  console.log(opts)
   var that = this;
 
   if (uri.slice(0,53)=='http://www.pubmedcentral.nih.gov/utils/oa/oa.fcgi?id=' ){
@@ -53,7 +54,7 @@ function oapmc(uri, opts, callback){
           if(err) return callback(err);
           uri = 'http://www.pubmedcentral.nih.gov/oai/oai.cgi?verb=GetRecord&identifier=oai:pubmedcentral.nih.gov:'+pmcid+'&metadataPrefix=pmc';
           console.log(uri);
-          _addMetadata(pkg,mainArticleName,uri,that,function(err,pkg){
+          _addMetadata(pkg,mainArticleName,uri,that,opts,function(err,pkg){
             if(err) return callback(err);
             callback(null,pkg);
           });
@@ -430,11 +431,16 @@ function _findFigures(xmlBody){
   return figures;
 }
 
-function _addMetadata(pkg,mainArticleName,uri,ldpm,callback){
+function _addMetadata(pkg,mainArticleName,uri,ldpm,opts,callback){
   var pmcid = _extractBetween(uri,'PMC');
   var parser = new xml2js.Parser();
   var meta = {};
   var relPaths;
+
+  if(arguments.length === 5){
+    callback = opts;
+    opts = {};
+  }
 
   request(uri,
     function(error,response,body){
@@ -1330,26 +1336,34 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,callback){
         }        
         newpkg.article = pkg.article;
 
-        // call pubmed to check if there isn't additional info there
-        ldpm.markup('pubmed', meta.pmid, function(err,pubmed_pkg){
-          if(pubmed_pkg){
-            if(pubmed_pkg.keyword){
-              if(newpkg.keyword==undefined) newpkg.keyword = [];
-              pubmed_pkg.keyword.forEach(function(x){
-                if(newpkg.keyword.indexOf(x)==-1){
-                  newpkg.keyword.push(x);
-                }
-              })
+        console.log(opts)
+
+        if ( !opts.noPubmed ){
+          // call pubmed to check if there isn't additional info there
+          ldpm.markup('pubmed', meta.pmid, function(err,pubmed_pkg){
+            if(pubmed_pkg){
+              if(pubmed_pkg.keyword){
+                if(newpkg.keyword==undefined) newpkg.keyword = [];
+                pubmed_pkg.keyword.forEach(function(x){
+                  if(newpkg.keyword.indexOf(x)==-1){
+                    newpkg.keyword.push(x);
+                  }
+                })
+              }
+              // if(pubmed_pkg.rawChemical){
+              //   newpkg.rawChemical = pubmed_pkg.rawChemical;
+              // }
+              // if(pubmed_pkg.rawMesh){
+              //   newpkg.rawMesh = pubmed_pkg.rawMesh;
+              // } 
             }
-            // if(pubmed_pkg.rawChemical){
-            //   newpkg.rawChemical = pubmed_pkg.rawChemical;
-            // }
-            // if(pubmed_pkg.rawMesh){
-            //   newpkg.rawMesh = pubmed_pkg.rawMesh;
-            // } 
-          }
+            console.log('pubmed')
+            callback(null,newpkg);
+          });
+        } else {
+          console.log('no pubmed')
           callback(null,newpkg);
-        });
+        }
 
       })
     }

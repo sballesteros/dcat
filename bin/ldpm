@@ -54,6 +54,7 @@ var argv = optimist
   .alias('b', 'codebundle').describe('b', 'treat the listed directory as a code project')
   .alias('h', 'help').describe('h', 'print usage')
   .alias('v', 'version').describe('v', 'print version number')
+  .alias('p', 'noPubmed').describe('v', 'turn off the call to pubmed database')
   .argv;
 
 if(argv.h){
@@ -441,7 +442,7 @@ if (argv._[0] === 'init') {
       }
 
       uri = 'http://www.pubmedcentral.nih.gov/utils/oa/oa.fcgi?id=' + pmcid;
-      oapmc.call(ldpm, uri, function(err,pkg){
+      oapmc.call(ldpm, uri, { noPubmed: argv.noPubmed }, function(err,pkg){
         if(err) _fail(err);
         fs.writeFileSync(path.resolve(ldpm.root, 'package.jsonld'), JSON.stringify(pkg, null, 2));
       });

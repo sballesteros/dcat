@@ -222,7 +222,7 @@ Ldpm.prototype.markup = function(api, uri, opts, callback){
 
     // oapmc api consumes PMCID's
     uri = 'http://www.pubmedcentral.nih.gov/utils/oa/oa.fcgi?id=' + uri;
-    oapmc.call(that, uri, function(err,pkg){
+    oapmc.call(that, uri, opts, function(err,pkg){
       if(err) return callback(err);
       callback(null,pkg);
     });

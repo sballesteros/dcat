@@ -52,6 +52,7 @@ function oapmc(uri, opts, callback){
         _parseOAcontent(uri,doi,that,function(err,pkg,mainArticleName){
           if(err) return callback(err);
           uri = 'http://www.pubmedcentral.nih.gov/oai/oai.cgi?verb=GetRecord&identifier=oai:pubmedcentral.nih.gov:'+pmcid+'&metadataPrefix=pmc';
+          console.log(uri);
           _addMetadata(pkg,mainArticleName,uri,that,function(err,pkg){
             if(err) return callback(err);
             callback(null,pkg);
@@ -306,6 +307,9 @@ function _fetchTar(body,ldpm,callback){
               }
             )
           });
+        });
+        stream.on('error',function(err){
+          return callback(err);
         });
         stream
           .pipe(zlib.Unzip())
@@ -903,7 +907,15 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,callback){
         if(data.back){
 
           if(data.back[0]['ref-list']){
-            data.back[0]['ref-list'][0]['ref'].forEach(function(x){
+
+            if(data.back[0]['ref-list'][0]['ref'] != undefined){
+              var reflist = data.back[0]['ref-list'][0]['ref'];
+            } else {
+              console.log(data.back[0]['ref-list']);
+              var reflist = data.back[0]['ref-list'][0]['ref-list'][0]['ref'];
+            }
+
+            reflist.forEach(function(x){
 
               Object.keys(x).forEach(function(k){
                 if(k.indexOf('citation')>-1){

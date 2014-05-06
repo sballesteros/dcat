@@ -295,12 +295,14 @@ function _fetchTar(body,ldpm,callback){
 
                 function done(err) {
                   if(err) return cb(err);
-                  cb(null);
+                  return cb(null);
                 }
 
               },
               function(err){
-                c.end(); callback(null,newFiles);
+                if(err) return callback(err);
+                c.end(); 
+                return callback(null,newFiles);
               }
             )
           });

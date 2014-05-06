@@ -699,7 +699,7 @@ Ldpm.prototype.paths2resources = function(globs, opts, callback){
         , myformat = mime.lookup(ext)
         , myname = path.basename(p, ext).replace(/ /g, '-');
 
-      if(['.csv', '.tsv', '.xls', '.xlsx', '.ods', '.json', '.jsonld', '.ldjson', '.txt', '.xml', '.nxml', '.ttl'].indexOf(ext.toLowerCase()) !== -1){
+      if(['.csv', '.tsv', '.xls', '.xlsx', '.ods', '.json', '.jsonld', '.ldjson', '.txt', '.xml', '.nxml', '.ttl', '.rtf'].indexOf(ext.toLowerCase()) !== -1){
 
         var dataset = {
           name: myname,
@@ -759,12 +759,13 @@ Ldpm.prototype.paths2resources = function(globs, opts, callback){
 
         cb(null, {type: 'article', value: article});
 
-      } else if (['.r', '.py', '.m'].indexOf(ext.toLowerCase()) !== -1) { //standalone executable scripts and that only (all the rest should be code bundle)
+      } else if (['.r', '.py', '.m','.pl'].indexOf(ext.toLowerCase()) !== -1) { //standalone executable scripts and that only (all the rest should be code bundle)
 
         var lang = {
           '.r': 'r',
           '.m': 'matlab',
-          '.py': 'python'
+          '.py': 'python',
+          '.pl': 'perl'
         }[ext.toLowerCase()];
 
         var code = {

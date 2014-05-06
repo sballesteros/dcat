@@ -96,9 +96,9 @@ function _addMetadata(pkg,uri,ldpm,callback){
   ldpm.logHttp('GET', uri);
   request(uri,
     function(error,response,body){
-      ldpm.logHttp(response.statusCode, uri)
       if(error) return callback(error);
-
+      ldpm.logHttp(response.statusCode, uri)
+      
       var xmlBody = body;
 
       parser.parseString(body,function(err,body){
@@ -175,9 +175,9 @@ function _addMetadata(pkg,uri,ldpm,callback){
         }
 
         if(relPaths['ISOAbbreviation']){
-          meta.journalShortName = traverse($journal).get(relPaths['ISOAbbreviation'])[0];
+          meta.journalShortName = traverse($journal).get(relPaths['ISOAbbreviation'])[0].replace(/\W/g, '').replace(/ /g,'-').toLowerCase();
         } else if(pkg.article[0].journal.name){
-          meta.journalShortName = pkg.article[0].journal.name;
+          meta.journalShortName = pkg.article[0].journal.name.replace(/\W/g, '').replace(/ /g,'-').toLowerCase();
         }
 
         var $article = traverse(data).get(_findNodePaths(data,['Article'])['Article'])[0];

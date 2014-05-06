@@ -107,7 +107,7 @@ function _parseOAcontent(uri,doi,that,cb){
                   return cb(err);
                 });
               } else if(path.extname(f)=='.zip') {
-                 unzipper = new DecompressZip(path.join(that.root,f));
+                 unzipper = new DecompressZip(f);
                  unzipper.on('error', function (err) {
                    return cb(err);
                  });
@@ -279,10 +279,25 @@ function _fetchTar(body,ldpm,callback){
             async.each(files,
               function(file,cb){
                 newFiles.push(path.join(root,path.basename(file)));
-                fs.rename(file,path.join(root,path.basename(file)),function(err){
-                  if(err) return cb(err);
-                  cb(null)
+
+                var rd = fs.createReadStream(file);
+                rd.on("error", function(err) {
+                  done(err);
                 });
+                var wr = fs.createWriteStream(path.join(root,path.basename(file)));
+                wr.on("error", function(err) {
+                  one(err);
+                });
+                wr.on("close", function(ex) {
+                  done();
+                });
+                rd.pipe(wr);                                                                                                                                                    
+
+                function done(err) {
+                  if(err) return cb(err);
+                  cb(null);
+                }
+
               },
               function(err){
                 c.end(); callback(null,newFiles);
@@ -464,12 +479,12 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,callback){
         if(relPaths['journal-id']){
           traverse($journalMeta).get(relPaths['journal-id']).forEach(function(x,i){
             if(x['$']['journal-id-type']=='nlm-ta'){
-              meta.journalShortName = x['_'].replace(/ /g,'-').replace(/\./g,'-').toLowerCase();
+              meta.journalShortName = x['_'].replace(/\W/g, '').replace(/ /g,'-').toLowerCase();
             }
           });
         }
         if(meta.journalShortName==undefined){
-          meta.journalShortName = meta.journal.name.replace(/ /g,'-').replace(/\./g,'-').toLowerCase();
+          meta.journalShortName = meta.journal.name.replace(/\W/g, '').replace(/ /g,'-').toLowerCase();
         }
 
         if(relPaths['issn']){
@@ -575,7 +590,7 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,callback){
                 affiliation.description = tmp;
                 affiliations[key].push(affiliation);
               } else {
-                if(x['sup']){
+                if( (typeof x === 'Object') && (x['sup']!=undefined) ){
                   var aff = _extractBetween(xmlBody,'<aff id="'+x['$']['id']+'">','</aff>');
                   aff.split('</sup>').forEach(function(y,i){
                     if(i>0){
@@ -595,8 +610,10 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,callback){
                       });
                     }
                   })
-                } else {
+                } else if (typeof x === 'object'){
                   affiliations[key].push({ description: x['_'] });
+                } else {
+                  affiliations[key].push({ description: x});
                 }
               }
             }
@@ -1112,7 +1129,9 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,callback){
 
         newpkg.author =  meta.author;
 
-        newpkg.contributor =  meta.contributor;
+        if(meta.contributor.length){
+          newpkg.contributor =  meta.contributor;
+        }
 
         if(meta.sourceOrganisation.length){
           if(meta.sourceOrganisation[0] != {}){
@@ -1308,12 +1327,12 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,callback){
                 }
               })
             }
-            if(pubmed_pkg.rawChemical){
-              newpkg.rawChemical = pubmed_pkg.rawChemical;
-            }
-            if(pubmed_pkg.rawMesh){
-              newpkg.rawMesh = pubmed_pkg.rawMesh;
-            } 
+            // if(pubmed_pkg.rawChemical){
+            //   newpkg.rawChemical = pubmed_pkg.rawChemical;
+            // }
+            // if(pubmed_pkg.rawMesh){
+            //   newpkg.rawMesh = pubmed_pkg.rawMesh;
+            // } 
           }
           callback(null,newpkg);
         });

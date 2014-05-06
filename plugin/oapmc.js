@@ -37,7 +37,6 @@ function oapmc(uri, opts, callback){
     opts = {};
   }
 
-  console.log(opts)
   var that = this;
 
   if (uri.slice(0,53)=='http://www.pubmedcentral.nih.gov/utils/oa/oa.fcgi?id=' ){
@@ -53,7 +52,6 @@ function oapmc(uri, opts, callback){
         _parseOAcontent(uri,doi,that,function(err,pkg,mainArticleName){
           if(err) return callback(err);
           uri = 'http://www.pubmedcentral.nih.gov/oai/oai.cgi?verb=GetRecord&identifier=oai:pubmedcentral.nih.gov:'+pmcid+'&metadataPrefix=pmc';
-          console.log(uri);
           _addMetadata(pkg,mainArticleName,uri,that,opts,function(err,pkg){
             if(err) return callback(err);
             callback(null,pkg);
@@ -917,7 +915,6 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,opts,callback){
             if(data.back[0]['ref-list'][0]['ref'] != undefined){
               var reflist = data.back[0]['ref-list'][0]['ref'];
             } else {
-              console.log(data.back[0]['ref-list']);
               var reflist = data.back[0]['ref-list'][0]['ref-list'][0]['ref'];
             }
 
@@ -1336,8 +1333,6 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,opts,callback){
         }        
         newpkg.article = pkg.article;
 
-        console.log(opts)
-
         if ( !opts.noPubmed ){
           // call pubmed to check if there isn't additional info there
           ldpm.markup('pubmed', meta.pmid, function(err,pubmed_pkg){
@@ -1357,11 +1352,9 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,opts,callback){
               //   newpkg.rawMesh = pubmed_pkg.rawMesh;
               // } 
             }
-            console.log('pubmed')
             callback(null,newpkg);
           });
         } else {
-          console.log('no pubmed')
           callback(null,newpkg);
         }
 

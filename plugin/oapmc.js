@@ -440,6 +440,8 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,opts,callback){
     opts = {};
   }
 
+  console.log(uri);
+
   request(uri,
     function(error,response,body){
       if(error) return callback(error);
@@ -451,7 +453,11 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,opts,callback){
       parser.parseString(body,function(err,body){
         if(err) return callback(error);
 
-        var pathArt = _findNodePaths(body,['article']);
+        var pathArt = _findNodePaths(body,['article','datestamp']);
+
+        if(pathArt['datestamp']){
+          meta.dateCreated = traverse(body).get(pathArt['datestamp'])[0];
+        }
 
         //scrap
         if(pathArt['article']){
@@ -1128,6 +1134,9 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,opts,callback){
         }
 
         newpkg.version = pkg.version;
+        if(meta.dateCreated){
+          newpkg.dateCreated = meta.dateCreated;
+        }
 
         if(meta.keyword){
           newpkg.keyword = meta.keyword;

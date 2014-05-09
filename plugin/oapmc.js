@@ -440,8 +440,6 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,opts,callback){
     opts = {};
   }
 
-  console.log(uri);
-
   request(uri,
     function(error,response,body){
       if(error) return callback(error);

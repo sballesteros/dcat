@@ -286,7 +286,7 @@ function _fetchTar(body,ldpm,callback){
                 });
                 var wr = fs.createWriteStream(path.join(root,path.basename(file)));
                 wr.on("error", function(err) {
-                  one(err);
+                  done(err);
                 });
                 wr.on("close", function(ex) {
                   done();
@@ -695,8 +695,12 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,opts,callback){
                               if(affiliations[z['$']['rid']]!=undefined){
                                 if(z['sup']!=undefined){
                                   affiliations[z['$']['rid']].forEach(function(w){
-                                    if(w.sup==z['sup'][0]){
-                                      affiliation.push({ description : w.description });
+                                    if(w.sup == undefined){
+                                      affiliation.push(w);
+                                    } else {
+                                      if(w.sup==z['sup'][0]){
+                                        affiliation.push({ description : w.description });
+                                      }  
                                     }
                                   })
                                 } else {
@@ -779,7 +783,9 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,opts,callback){
                       if(tmpname.length){
                         tmpcontr.name = tmpname;
                       }
-                      tmpcontr.affiliation = affiliation;
+                      if(affiliation.length){
+                        tmpcontr.affiliation = affiliation;
+                      }
                       if(email!=''){
                         tmpcontr.email = email;
                       }

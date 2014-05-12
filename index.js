@@ -19,12 +19,14 @@ var crypto = require('crypto')
   , fs = require('fs')
   , zlib = require('zlib')
   , tar = require('tar')
+  , xml2js = require('xml2js')
   , once = require('once')
   , concat = require('concat-stream')
   , jsonld = require('jsonld')
   , clone = require('clone')
   , publish = require('./lib/publish')
-  , pubmed = require('./plugin/pubmed')
+  , pubmed = require('./plugin/pubmed').pubmed
+  , pmxml2jsonld = require('./plugin/pubmed').pmxml2jsonld
   , oapmc = require('./plugin/oapmc')
   , binaryCSV = require('binary-csv')
   , split = require('split')
@@ -244,6 +246,16 @@ Ldpm.prototype.markup = function(api, uri, opts, callback){
 
 };
 
+Ldpm.prototype.pmxml2jsonld = function(pkg, body, callback){
+
+  var that = this;
+
+  pmxml2jsonld.call(that, pkg, body, function(err,pkg){
+    if(err) return callback(err);
+    callback(null,pkg);
+  });
+
+}
 
 Ldpm.prototype.cat = function(pkgId, opts, callback){
 

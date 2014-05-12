@@ -24,7 +24,10 @@ var request = require('request')
 
 
 
-module.exports = pubmed;
+module.exports = {
+  pubmed: pubmed,
+  pmxml2jsonld: pmxml2jsonld
+}
 
 
 /**
@@ -86,265 +89,292 @@ function _findNodePaths(obj,names){
   return paths;
 }
 
+function pmxml2jsonld(pkg,body,callback){
 
-function _addMetadata(pkg,uri,ldpm,callback){
-  var pmcid = _extractBetween(uri,'PMC');
   var parser = new xml2js.Parser();
   var meta = {};
   var relPaths;
+
+
+  parser.parseString(body,function(err,body){
+
+    if(err) return callback(err);
+
+    var pathArt = _findNodePaths(body,['PubmedArticle','PMID','Article']);
+    // if(pathArt['PubmedArticle']===undefined){
+    //   return callback(new Error('not the id of a pubmed article'));
+    // }
+
+    if(pathArt['PubmedArticle']){
+      var data = traverse(body).get(pathArt['PubmedArticle'])[0];
+    } else {
+      var data = body;//traverse(body).get(pathArt['Article'])[0];
+    }
+
+    pkg.article = [{}]; 
+    pkg.article[0]['@type'] = [ 'ScholarlyArticle' ];
+
+    if(traverse(body).get(pathArt['PMID'])[0]['$']){
+      pkg.article[0].pmid = traverse(body).get(pathArt['PMID'])[0]['_'];
+    } else {
+      pkg.article[0].pmid = traverse(body).get(pathArt['PMID'])[0];
+    }
+
+    var $journal = traverse(data).get(_findNodePaths(data,['Journal'])['Journal'])[0];
+    relPaths = _findNodePaths($journal,
+      [
+        'Title',
+        'Volume',
+        'Issue',
+        'PubDate',
+        'ISSN',
+        'ISOAbbreviation'
+      ]
+    );
+
+    if(relPaths['Title']){
+      pkg.article[0].journal = { name: traverse($journal).get(relPaths['Title'])[0] };
+    }
+
+    if(relPaths['Volume']){
+      pkg.article[0].volume = traverse($journal).get(relPaths['Volume'])[0];
+    }
+
+    if(relPaths['Issue']){
+      pkg.article[0].issue = traverse($journal).get(relPaths['Issue'])[0];
+    }
+
+    if(relPaths['PubDate']){
+      var tmpDate = '';
+      if(traverse($journal).get(relPaths['PubDate'])[0]['Year']){
+        tmpDate += traverse($journal).get(relPaths['PubDate'])[0]['Year'][0];
+        meta.year = traverse($journal).get(relPaths['PubDate'])[0]['Year'][0];
+      }
+      if(traverse($journal).get(relPaths['PubDate'])[0]['Month']){
+        tmpDate += '-' + traverse($journal).get(relPaths['PubDate'])[0]['Month'][0];
+      }
+      if(traverse($journal).get(relPaths['PubDate'])[0]['Day']){
+        tmpDate += '-' + traverse($journal).get(relPaths['PubDate'])[0]['Day'][0];
+      }
+      if(tmpDate!=''){
+        pkg.article[0].datePublished = (new Date(tmpDate).toISOString());
+      }
+    }
+
+    if(relPaths['ISSN']){
+      if(pkg.article[0].journal){
+        if(traverse($journal).get(relPaths['ISSN'])[0]['$']){
+          pkg.article[0].journal.issn = traverse($journal).get(relPaths['ISSN'])[0]['_'];
+        } else {
+          pkg.article[0].journal.issn = traverse($journal).get(relPaths['ISSN'])[0];
+        }
+      }
+    }
+
+    if(pkg.article[0].journal){
+      pkg.copyrightHolder = pkg.article[0].journal;
+    }
+
+    if(relPaths['ISOAbbreviation']){
+      meta.journalShortName = '';
+      traverse($journal).get(relPaths['ISOAbbreviation'])[0].split(' ').forEach(function(x,i){
+        if(i>0){
+          meta.journalShortName += '-'
+        }
+        meta.journalShortName += x.replace(/\W/g, '').toLowerCase();
+      })
+    } else if(pkg.article[0].journal.name){
+      meta.journalShortName = '';
+      pkg.article[0].journal.name.split(' ').forEach(function(x,i){
+        if(i>0){
+          meta.journalShortName += '-'
+        }
+        meta.journalShortName += x.replace(/\W/g, '').toLowerCase();
+      })
+    }
+
+    var $article = traverse(data).get(_findNodePaths(data,['Article'])['Article'])[0];
+    relPaths = _findNodePaths($article,
+      [
+        'ELocationID',
+        'ArticleTitle',
+        'AuthorList',
+        'Abstract'
+      ]
+    );
+
+    if(relPaths['Abstract']){
+      pkg.article[0].abstract = traverse($article).get(relPaths['Abstract'])[0]['AbstractText'][0];
+    }
+
+    if(relPaths['ELocationID']){
+      traverse($article).get(relPaths['ELocationID']).forEach(function(x){
+        if(x['$']['EIdType']==='doi'){
+          pkg.article[0].doi = x['_'];
+        }
+      })  
+    }
+
+    if(relPaths['ArticleTitle']){
+      pkg.article[0].header = traverse($article).get(relPaths['ArticleTitle'])[0];
+      pkg.description = pkg.article[0].header;
+    } else {
+      callback(new Error('could not find the article title'));
+    }
+
+    if(relPaths['AuthorList']){
+      var allAffilsNames = [];
+      var allAffils = [];
+      traverse($article).get(relPaths['AuthorList'])[0]['Author'].forEach(function(x){
+        var author = {};
+        if(x.LastName){
+          author.familyName = x.LastName[0];
+        }
+        if(x.ForeName){
+          author.givenName = x.ForeName[0];
+        }
+        if(author.familyName && author.givenName ){
+          author.name = author.givenName + ' ' + author.familyName ;
+        }
+        if(x.Affiliation){
+          author.affiliation = [];
+          x.Affiliation[0].split(';').forEach(function(y){
+            author.affiliation.push({ description: y.trim() });
+            if(allAffilsNames.indexOf(y.trim())==-1){
+              allAffils.push({ description: y.trim() });
+              allAffilsNames.push(y.trim());
+            }
+          })
+        }
+
+        if(pkg.article[0].author){
+          if(pkg.article[0].contributor==undefined){
+            pkg.article[0].contributor = [];
+          } 
+          pkg.article[0].contributor.push(author);
+        } else {
+          pkg.article[0].author = author;
+        }
+      })
+      if(allAffils.length){
+        pkg.article[0].sourceOrganisation = allAffils;
+      }
+    }
+
+    pkg.name = '';
+    if(meta.journalShortName){
+      pkg.name = meta.journalShortName;
+      // var tmp = meta.journalShortName.toLowerCase();
+      // tmp.split(' ').forEach(function(x){
+      //   if(pkg.name!='') pkg.name+='-';
+      //   pkg.name += x.replace(/\W/g, '');
+      // })
+    }
+    if(pkg.article[0].author){
+      if(pkg.article[0].author.familyName){
+        pkg.name += '-' + removeDiacritics(pkg.article[0].author.familyName.toLowerCase()).replace(/\W/g, '');
+      } else {
+        callback(new Error('did not find the author family name'));
+      }
+    } else {
+      pkg.name += '-' + removeDiacritics(pkg.article[0].header.split(' ')[0].toLowerCase()).replace(/\W/g, '');
+    }
+    if(meta.year){
+      pkg.name += '-' + meta.year;
+    }
+    pkg.article[0].name = pkg.name;
+
+    pkg.datePublished = (new Date()).toISOString();
+    pkg.dateCreated = pkg.article[0].datePublished
+  
+    var keyword = [];
+
+    // TODO: take full advantage of this markup storing it as annotations
+
+    var path = _findNodePaths(data,['ChemicalList']);
+    if(path['ChemicalList']){
+      var chemical = traverse(data).get(path['ChemicalList']);
+      if(chemical[0]['Chemical']){
+        chemical[0]['Chemical'].forEach(function(x){
+          if(keyword.indexOf(x.NameOfSubstance[0])==-1){
+            keyword.push(x.NameOfSubstance[0]);
+          }
+        })
+        pkg.rawChemical = chemical[0]['Chemical'];
+      }  
+    }
+
+
+    var path = _findNodePaths(data,['MeshHeadingList']);
+    if(path['MeshHeadingList']){
+      var mesh = traverse(data).get(path['MeshHeadingList']);
+      if(mesh[0]['MeshHeading']){
+        mesh[0]['MeshHeading'].forEach(function(x){
+          x.DescriptorName[0]['_'].split(',').forEach(function(y){
+            if(keyword.indexOf(y.trim())==-1){
+              keyword.push(y.trim());
+            }
+          })
+          if(x.QualifierName){
+            x.QualifierName[0]['_'].split(',').forEach(function(y){
+              if(keyword.indexOf(y.trim())==-1){
+                keyword.push(y.trim());
+              }
+            });
+          }
+        })
+        // pkg.rawMesh = mesh[0]['MeshHeading'];
+      }  
+    }         
+
+
+    if(keyword.length){
+      pkg.article[0].keyword = keyword;
+      pkg.keyword = keyword;
+    }
+
+    var citations = [];
+    var path = _findNodePaths(data,['CommentsCorrectionsList']);
+    if(path['CommentsCorrectionsList']){
+      var cites = traverse(data).get(path['CommentsCorrectionsList']);
+      if(cites[0]['CommentsCorrections']){
+        cites[0]['CommentsCorrections'].forEach(function(x){
+          var citation = {};
+          if(x['RefSource']){
+            citation.description = x['RefSource'][0];
+          } 
+          if(x['PMID']){
+            if(x['PMID'][0]['_']){
+              citation.pmid = x['PMID'][0]['_'];
+            } else {
+              citation.pmid = x['PMID'][0];
+            }
+          }
+          citations.push(citation);
+        })
+      }  
+    }
+    if(citations.length){
+      pkg.article.citation = citations;
+    }
+
+    return callback(null,pkg);
+
+  })
+
+}
+
+
+
+function _addMetadata(pkg,uri,ldpm,callback){
+  var pmcid = _extractBetween(uri,'PMC');
 
   ldpm.logHttp('GET', uri);
   request(uri,
     function(error,response,body){
       if(error) return callback(error);
       ldpm.logHttp(response.statusCode, uri)
-      
-      var xmlBody = body;
-
-      parser.parseString(body,function(err,body){
-        if(err) return callback(error);
-
-        var pathArt = _findNodePaths(body,['PubmedArticle','PMID']);
-        if(pathArt['PubmedArticle']===undefined){
-          return callback(new Error('not the id of a pubmed article'));
-        }
-
-        var data = traverse(body).get(pathArt['PubmedArticle'])[0];
-        pkg.article = [{}]; 
-        pkg.article[0]['@type'] = [ 'ScholarlyArticle' ];
-
-        if(traverse(body).get(pathArt['PMID'])[0]['$']){
-          pkg.article[0].pmid = traverse(body).get(pathArt['PMID'])[0]['_'];
-        } else {
-          pkg.article[0].pmid = traverse(body).get(pathArt['PMID'])[0];
-        }
-
-        var $journal = traverse(data).get(_findNodePaths(data,['Journal'])['Journal'])[0];
-        relPaths = _findNodePaths($journal,
-          [
-            'Title',
-            'Volume',
-            'Issue',
-            'PubDate',
-            'ISSN',
-            'ISOAbbreviation'
-          ]
-        );
-
-        if(relPaths['Title']){
-          pkg.article[0].journal = { name: traverse($journal).get(relPaths['Title'])[0] };
-        }
-
-        if(relPaths['Volume']){
-          pkg.article[0].volume = traverse($journal).get(relPaths['Volume'])[0];
-        }
-
-        if(relPaths['Issue']){
-          pkg.article[0].issue = traverse($journal).get(relPaths['Issue'])[0];
-        }
-
-        if(relPaths['PubDate']){
-          var tmpDate = '';
-          if(traverse($journal).get(relPaths['PubDate'])[0]['Year']){
-            tmpDate += traverse($journal).get(relPaths['PubDate'])[0]['Year'][0];
-            meta.year = traverse($journal).get(relPaths['PubDate'])[0]['Year'][0];
-          }
-          if(traverse($journal).get(relPaths['PubDate'])[0]['Month']){
-            tmpDate += '-' + traverse($journal).get(relPaths['PubDate'])[0]['Month'][0];
-          }
-          if(traverse($journal).get(relPaths['PubDate'])[0]['Day']){
-            tmpDate += '-' + traverse($journal).get(relPaths['PubDate'])[0]['Day'][0];
-          }
-          if(tmpDate!=''){
-            pkg.article[0].datePublished = (new Date(tmpDate).toISOString());
-          }
-        }
-
-        if(relPaths['ISSN']){
-          if(pkg.article[0].journal){
-            if(traverse($journal).get(relPaths['ISSN'])[0]['$']){
-              pkg.article[0].journal['@id'] = traverse($journal).get(relPaths['ISSN'])[0]['_'];
-            } else {
-              pkg.article[0].journal['@id'] = traverse($journal).get(relPaths['ISSN'])[0];
-            }
-          }
-        }
-
-        if(pkg.article[0].journal){
-          pkg.copyrightHolder = pkg.article[0].journal;
-        }
-
-        if(relPaths['ISOAbbreviation']){
-          meta.journalShortName = traverse($journal).get(relPaths['ISOAbbreviation'])[0].replace(/\W/g, '').replace(/ /g,'-').toLowerCase();
-        } else if(pkg.article[0].journal.name){
-          meta.journalShortName = pkg.article[0].journal.name.replace(/\W/g, '').replace(/ /g,'-').toLowerCase();
-        }
-
-        var $article = traverse(data).get(_findNodePaths(data,['Article'])['Article'])[0];
-        relPaths = _findNodePaths($article,
-          [
-            'ELocationID',
-            'ArticleTitle',
-            'AuthorList',
-            'Abstract'
-          ]
-        );
-
-
-        if(relPaths['Abstract']){
-          pkg.article[0].abstract = traverse($article).get(relPaths['Abstract'])[0]['AbstractText'][0];
-        }
-
-        if(relPaths['ELocationID']){
-          traverse($article).get(relPaths['ELocationID']).forEach(function(x){
-            if(x['$']['EIdType']==='doi'){
-              pkg.article[0].doi = x['_'];
-            }
-          })  
-        }
-
-        if(relPaths['ArticleTitle']){
-          pkg.article[0].header = traverse($article).get(relPaths['ArticleTitle'])[0];
-          pkg.description = pkg.article[0].header;
-        } else {
-          callback(new Error('could not find the article title'));
-        }
-
-        if(relPaths['AuthorList']){
-          var allAffilsNames = [];
-          var allAffils = [];
-          traverse($article).get(relPaths['AuthorList'])[0]['Author'].forEach(function(x){
-            var author = {};
-            if(x.LastName){
-              author.familyName = x.LastName[0];
-            }
-            if(x.ForeName){
-              author.givenName = x.ForeName[0];
-            }
-            if(author.familyName && author.givenName ){
-              author.name = author.givenName + ' ' + author.familyName ;
-            }
-            if(x.Affiliation){
-              author.affiliation = [];
-              x.Affiliation[0].split(';').forEach(function(y){
-                author.affiliation.push({ description: y.trim() });
-                if(allAffilsNames.indexOf(y.trim())==-1){
-                  allAffils.push({ description: y.trim() });
-                  allAffilsNames.push(y.trim());
-                }
-              })
-            }
-
-            if(pkg.article[0].author){
-              if(pkg.article[0].contributor==undefined){
-                pkg.article[0].contributor = [];
-              } 
-              pkg.article[0].contributor.push(author);
-            } else {
-              pkg.article[0].author = author;
-            }
-          })
-          if(allAffils.length){
-            pkg.article[0].sourceOrganisation = allAffils;
-          }
-        }
-
-        pkg.name = '';
-        if(meta.journalShortName){
-          var tmp = meta.journalShortName.toLowerCase();
-          tmp.split(' ').forEach(function(x){
-            if(pkg.name!='') pkg.name+='-';
-            pkg.name += x.replace(/\W/g, '');
-          })
-        }
-        if(pkg.article[0].author){
-          if(pkg.article[0].author.familyName){
-            pkg.name += '-' + removeDiacritics(pkg.article[0].author.familyName.toLowerCase()).replace(/\W/g, '');
-          } else {
-            callback(new Error('did not find the author family name'));
-          }
-        } else {
-          pkg.name += '-' + removeDiacritics(pkg.article[0].header.split(' ')[0].toLowerCase()).replace(/\W/g, '');
-        }
-        if(meta.year){
-          pkg.name += '-' + meta.year;
-        }
-        pkg.article[0].name = pkg.name;
-        
-        var keyword = [];
-
-        // TODO: take full advantage of this markup storing it as annotations
-
-        var path = _findNodePaths(data,['ChemicalList']);
-        if(path['ChemicalList']){
-          var chemical = traverse(data).get(path['ChemicalList']);
-          if(chemical[0]['Chemical']){
-            chemical[0]['Chemical'].forEach(function(x){
-              if(keyword.indexOf(x.NameOfSubstance[0])==-1){
-                keyword.push(x.NameOfSubstance[0]);
-              }
-            })
-            pkg.rawChemical = chemical[0]['Chemical'];
-          }  
-        }
-
-
-        var path = _findNodePaths(data,['MeshHeadingList']);
-        if(path['MeshHeadingList']){
-          var mesh = traverse(data).get(path['MeshHeadingList']);
-          if(mesh[0]['MeshHeading']){
-            mesh[0]['MeshHeading'].forEach(function(x){
-              x.DescriptorName[0]['_'].split(',').forEach(function(y){
-                if(keyword.indexOf(y.trim())==-1){
-                  keyword.push(y.trim());
-                }
-              })
-              if(x.QualifierName){
-                x.QualifierName[0]['_'].split(',').forEach(function(y){
-                  if(keyword.indexOf(y.trim())==-1){
-                    keyword.push(y.trim());
-                  }
-                });
-              }
-            })
-            pkg.rawMesh = mesh[0]['MeshHeading'];
-          }  
-        }         
-
-
-        if(keyword.length){
-          pkg.article[0].keyword = keyword;
-          pkg.keyword = keyword;
-        }
-
-        var citations = [];
-        var path = _findNodePaths(data,['CommentsCorrectionsList']);
-        if(path['CommentsCorrectionsList']){
-          var cites = traverse(data).get(path['CommentsCorrectionsList']);
-          if(cites[0]['CommentsCorrections']){
-            cites[0]['CommentsCorrections'].forEach(function(x){
-              var citation = {};
-              if(x['RefSource']){
-                citation.description = x['RefSource'][0];
-              } 
-              if(x['PMID']){
-                if(x['PMID'][0]['_']){
-                  citation.pmid = x['PMID'][0]['_'];
-                } else {
-                  citation.pmid = x['PMID'][0];
-                }
-              }
-              citations.push(citation);
-            })
-          }  
-        }
-        if(citations.length){
-          pkg.article.citation = citations;
-        }
-
-        return callback(null,pkg);
-
-      })
+      pmxml2jsonld(pkg,body,callback)
     }
   );
 }

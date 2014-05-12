@@ -136,7 +136,7 @@ function _parseOAcontent(uri,doi,that,cb){
               files.forEach(function(f,i){
                 var found = false;
                 plosJournalsList.forEach(function(p,j){
-                  if(f.slice(0,p.length)===p){
+                  if(path.basename(f).slice(0,p.length)===p){
                     if(['.gif','.jpg'].indexOf(path.extname(f))>-1){
                       found = true;
                       var tmp = path.basename(f,path.extname(f));
@@ -278,13 +278,13 @@ function _fetchTar(body,ldpm,callback){
             var newFiles = [];
             async.each(files,
               function(file,cb){
-                newFiles.push(path.join(root,path.basename(file)));
+                newFiles.push(path.join(ldpm.root,path.basename(file)));
 
                 var rd = fs.createReadStream(file);
                 rd.on("error", function(err) {
                   done(err);
                 });
-                var wr = fs.createWriteStream(path.join(root,path.basename(file)));
+                var wr = fs.createWriteStream(path.join(ldpm.root,path.basename(file)));
                 wr.on("error", function(err) {
                   done(err);
                 });
@@ -493,12 +493,26 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,opts,callback){
         if(relPaths['journal-id']){
           traverse($journalMeta).get(relPaths['journal-id']).forEach(function(x,i){
             if(x['$']['journal-id-type']=='nlm-ta'){
-              meta.journalShortName = x['_'].replace(/\W/g, '').replace(/ /g,'-').toLowerCase();
+              meta.journalShortName = '';
+              x['_'].split(' ').forEach(function(x,i){
+                if(i>0){
+                  meta.journalShortName += '-'
+                }
+                meta.journalShortName += x.replace(/\W/g, '').toLowerCase();
+              })
+              // meta.journalShortName = x['_'].replace(/\W/g, '').replace(/ /g,'-').toLowerCase();
             }
           });
         }
         if(meta.journalShortName==undefined){
-          meta.journalShortName = meta.journal.name.replace(/\W/g, '').replace(/ /g,'-').toLowerCase();
+          meta.journalShortName = '';
+          meta.journal.name.split(' ').forEach(function(x,i){
+            if(i>0){
+              meta.journalShortName += '-'
+            }
+            meta.journalShortName += x.replace(/\W/g, '').toLowerCase();
+          })
+          // meta.journalShortName = meta.journal.name.replace(/\W/g, '').replace(/ /g,'-').toLowerCase();
         }
 
         if(relPaths['issn']){

@@ -25,7 +25,7 @@ describe('pubmed', function(){
   it('should return a pkg with name plosone-haseleu-2014 when asked for finger-wrinkles paper through doi', function(done){
     var ldpm = new Ldpm(conf,path.join(root+'__tests'));
     ldpm.markup('pubmed', '24416318', function(err,pkg){
-      assert.equal(pkg.name,'plos-one-haseleu-2014');
+      assert.equal(pkg.name,'plosone-haseleu-2014');
       done();
     });
   });

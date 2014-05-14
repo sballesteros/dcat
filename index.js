@@ -19,12 +19,14 @@ var crypto = require('crypto')
   , fs = require('fs')
   , zlib = require('zlib')
   , tar = require('tar')
+  , xml2js = require('xml2js')
   , once = require('once')
   , concat = require('concat-stream')
   , jsonld = require('jsonld')
   , clone = require('clone')
   , publish = require('./lib/publish')
-  , pubmed = require('./plugin/pubmed')
+  , pubmed = require('./plugin/pubmed').pubmed
+  , pmxml2jsonld = require('./plugin/pubmed').pmxml2jsonld
   , oapmc = require('./plugin/oapmc')
   , binaryCSV = require('binary-csv')
   , split = require('split')
@@ -222,7 +224,7 @@ Ldpm.prototype.markup = function(api, uri, opts, callback){
 
     // oapmc api consumes PMCID's
     uri = 'http://www.pubmedcentral.nih.gov/utils/oa/oa.fcgi?id=' + uri;
-    oapmc.call(that, uri, function(err,pkg){
+    oapmc.call(that, uri, opts, function(err,pkg){
       if(err) return callback(err);
       callback(null,pkg);
     });
@@ -244,6 +246,16 @@ Ldpm.prototype.markup = function(api, uri, opts, callback){
 
 };
 
+Ldpm.prototype.pmxml2jsonld = function(pkg, body, callback){
+
+  var that = this;
+
+  pmxml2jsonld.call(that, pkg, body, function(err,pkg){
+    if(err) return callback(err);
+    callback(null,pkg);
+  });
+
+}
 
 Ldpm.prototype.cat = function(pkgId, opts, callback){
 
@@ -699,7 +711,7 @@ Ldpm.prototype.paths2resources = function(globs, opts, callback){
         , myformat = mime.lookup(ext)
         , myname = path.basename(p, ext).replace(/ /g, '-');
 
-      if(['.csv', '.tsv', '.xls', '.xlsx', '.ods', '.json', '.jsonld', '.ldjson', '.txt', '.xml', '.nxml', '.ttl'].indexOf(ext.toLowerCase()) !== -1){
+      if(['.csv', '.tsv', '.xls', '.xlsx', '.ods', '.json', '.jsonld', '.ldjson', '.txt', '.xml', '.nxml', '.ttl', '.rtf'].indexOf(ext.toLowerCase()) !== -1){
 
         var dataset = {
           name: myname,
@@ -759,12 +771,13 @@ Ldpm.prototype.paths2resources = function(globs, opts, callback){
 
         cb(null, {type: 'article', value: article});
 
-      } else if (['.r', '.py', '.m'].indexOf(ext.toLowerCase()) !== -1) { //standalone executable scripts and that only (all the rest should be code bundle)
+      } else if (['.r', '.py', '.m','.pl'].indexOf(ext.toLowerCase()) !== -1) { //standalone executable scripts and that only (all the rest should be code bundle)
 
         var lang = {
           '.r': 'r',
           '.m': 'matlab',
-          '.py': 'python'
+          '.py': 'python',
+          '.pl': 'perl'
         }[ext.toLowerCase()];
 
         var code = {

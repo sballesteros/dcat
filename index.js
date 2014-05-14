@@ -28,6 +28,7 @@ var crypto = require('crypto')
   , pubmed = require('./plugin/pubmed').pubmed
   , pmxml2jsonld = require('./plugin/pubmed').pmxml2jsonld
   , oapmc = require('./plugin/oapmc')
+  , annotator = require('./plugin/annotator')
   , binaryCSV = require('binary-csv')
   , split = require('split')
   , temp = require('temp')
@@ -234,6 +235,13 @@ Ldpm.prototype.markup = function(api, uri, opts, callback){
     // pubmed api consumes PMID's
     var uri = 'http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id='+uri+'&rettype=abstract&retmode=xml';
     pubmed.call(that, uri, function(err,pkg){
+      if(err) return callback(err);
+      callback(null,pkg);
+    });
+
+  } else if (api === 'annotator'){
+
+    annotator.call(that, pkg, opts, function(err,pkg){
       if(err) return callback(err);
       callback(null,pkg);
     });
@@ -915,7 +923,7 @@ Ldpm.prototype.urls2resources = function(urls, callback){
         var dataset = {
           value: {
             name: myname,
-            distirbution: [{
+            distribution: [{
               encodingFormat: resp.headers['content-type'],
               contentUrl: myurl
             }]

@@ -204,7 +204,11 @@ function pmxml2jsonld(pkg,body,callback){
     );
 
     if(relPaths['Abstract']){
-      pkg.article[0].abstract = traverse($article).get(relPaths['Abstract'])[0]['AbstractText'][0];
+      if(traverse($article).get(relPaths['Abstract'])[0]['AbstractText'][0]['$']!=undefined){
+        pkg.article[0].abstract = traverse($article).get(relPaths['Abstract'])[0]['AbstractText'][0]['_'];
+      } else {
+        pkg.article[0].abstract = traverse($article).get(relPaths['Abstract'])[0]['AbstractText'][0];
+      }
     }
 
     if(relPaths['ELocationID']){
@@ -213,6 +217,9 @@ function pmxml2jsonld(pkg,body,callback){
           pkg.article[0].doi = x['_'];
         }
       })  
+    }
+    if(pkg.article[0].doi){
+      pkg.article[0].url = 'http://dx.doi.org/'+pkg.article[0].doi ;
     }
 
     if(relPaths['ArticleTitle']){
@@ -247,18 +254,32 @@ function pmxml2jsonld(pkg,body,callback){
           })
         }
 
-        if(pkg.article[0].author){
-          if(pkg.article[0].contributor==undefined){
-            pkg.article[0].contributor = [];
+        if(pkg.author){
+          if(pkg.contributor==undefined){
+            pkg.contributor = [];
           } 
-          pkg.article[0].contributor.push(author);
+          pkg.contributor.push(author);
         } else {
-          pkg.article[0].author = author;
+          pkg.author = author;
         }
       })
+      pkg.sourceOrganisation = [ {
+        '@id': 'http://www.nlm.nih.gov/',
+        name: 'National Library of Medecine',
+        department: 'Department of Health and Human Services',
+        address: {
+          addressCountry: 'US'
+        }
+      }]
       if(allAffils.length){
-        pkg.article[0].sourceOrganisation = allAffils;
+        pkg.sourceOrganisation = pkg.sourceOrganisation.concat(allAffils);
       }
+
+    }
+
+    pkg.provider = {
+      '@id': 'http://www.ncbi.nlm.nih.gov/pubmed/',
+      description: 'From MEDLINE®/PubMed®, a database of the U.S. National Library of Medicine.'
     }
 
     pkg.name = '';
@@ -285,7 +306,8 @@ function pmxml2jsonld(pkg,body,callback){
     pkg.article[0].name = pkg.name;
 
     pkg.datePublished = (new Date()).toISOString();
-    pkg.dateCreated = pkg.article[0].datePublished
+    pkg.dateCreated = pkg.article[0].datePublished;
+
   
     var keyword = [];
 

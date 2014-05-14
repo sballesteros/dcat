@@ -21,6 +21,7 @@ var path = require('path')
   , pubmed = require('../plugin/pubmed').pubmed
   , pmxml2jsonld = require('../plugin/pubmed').pmxml2jsonld
   , oapmc = require('../plugin/oapmc')
+  , annotator = require('../plugin/annotator')
   , os = require('os')
   , colors = require('colors');
 
@@ -455,6 +456,14 @@ if (argv._[0] === 'init') {
       pubmed.call(ldpm, uri, function(err,pkg){
         if(err) _fail(err);
         fs.writeFileSync(path.resolve(ldpm.root, 'package.jsonld'), JSON.stringify(pkg, null, 2));
+      });
+
+    } else if (api === 'annotator'){
+
+      annotator.call({}, {}, function(err,pkg){
+        if(err) _fail(err);
+        console.log(JSON.stringify(pkg,null,4));
+        // fs.writeFileSync(path.resolve(ldpm.root, 'package.jsonld'), JSON.stringify(pkg, null, 2));
       });
 
     } else {

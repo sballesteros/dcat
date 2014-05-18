@@ -138,28 +138,28 @@ function _parseOAcontent(uri,doi,that,cb){
               files.forEach(function(f,i){
                 var found = false;
                 plosJournalsList.forEach(function(p,j){
-                  // if( (path.basename(f).slice(0,p.length)===p) && (path.extname(f) != '.nxml') ) {
-                  //   found = true;
+                  if( (path.basename(f).slice(0,p.length)===p) && (path.extname(f) != '.nxml') ) {
+                    found = true;
                     
-                  //   if( path.extname(f) === '.pdf' ){
-                  //     var tmp = path.basename(f,path.extname(f));
-                  //     tmp = '.'+tmp.split('.')[tmp.split('.').length-1];
-                  //     var tmpind = plosJournalsLinks[p].indexOf('info:doi');
-                  //     urls.push(plosJournalsLinks[p].slice(0,tmpind) + 'fetchObject.action?uri=info:doi/' + doi +  tmp.slice(0,tmp.lastIndexOf('.')) + '&representation=PDF');                      
-                  //   } else {
-                  //     var tmp = path.basename(f,path.extname(f));
-                  //     tmp = '.'+tmp.split('.')[tmp.split('.').length-1];
-                  //     var tmpind = plosJournalsLinks[p].indexOf('info:doi');
-                  //     urls.push(plosJournalsLinks[p].slice(0,tmpind) + 'fetchSingleRepresentation.action?uri=info:doi/' + doi +  tmp );
-                  //     if(['.gif','.jpg','.tif'].indexOf(path.extname(f))>-1){
-                  //       if(urls.indexOf(plosJournalsLinks[p] + doi +  tmp + '/' + 'powerpoint')==-1){
-                  //         urls.push(plosJournalsLinks[p] + doi +  tmp  + '/' + 'powerpoint');
-                  //         urls.push(plosJournalsLinks[p] + doi +  tmp  + '/' + 'largerimage');
-                  //         urls.push(plosJournalsLinks[p] + doi +  tmp  + '/' + 'originalimage');
-                  //       }
-                  //     }
-                  //   }                    
-                  // }
+                    if( path.extname(f) === '.pdf' ){
+                      var tmp = path.basename(f,path.extname(f));
+                      tmp = '.'+tmp.split('.')[tmp.split('.').length-1];
+                      var tmpind = plosJournalsLinks[p].indexOf('info:doi');
+                      urls.push(plosJournalsLinks[p].slice(0,tmpind) + 'fetchObject.action?uri=info:doi/' + doi +  tmp.slice(0,tmp.lastIndexOf('.')) + '&representation=PDF');                      
+                    } else {
+                      var tmp = path.basename(f,path.extname(f));
+                      tmp = '.'+tmp.split('.')[tmp.split('.').length-1];
+                      var tmpind = plosJournalsLinks[p].indexOf('info:doi');
+                      urls.push(plosJournalsLinks[p].slice(0,tmpind) + 'fetchSingleRepresentation.action?uri=info:doi/' + doi +  tmp );
+                      if(['.gif','.jpg','.tif'].indexOf(path.extname(f))>-1){
+                        if(urls.indexOf(plosJournalsLinks[p] + doi +  tmp + '/' + 'powerpoint')==-1){
+                          urls.push(plosJournalsLinks[p] + doi +  tmp  + '/' + 'powerpoint');
+                          urls.push(plosJournalsLinks[p] + doi +  tmp  + '/' + 'largerimage');
+                          urls.push(plosJournalsLinks[p] + doi +  tmp  + '/' + 'originalimage');
+                        }
+                      }
+                    }                    
+                  }
                 });
                 if(!found){
                   tmpfiles.push(f)

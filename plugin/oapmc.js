@@ -54,7 +54,7 @@ function oapmc(uri, opts, callback){
           uri = 'http://www.pubmedcentral.nih.gov/oai/oai.cgi?verb=GetRecord&identifier=oai:pubmedcentral.nih.gov:'+pmcid+'&metadataPrefix=pmc';
           _addMetadata(pkg,mainArticleName,uri,that,opts,function(err,pkg){
             if(err) return callback(err);
-            callback(null,pkg);
+            callback(null,pkg);            
           });
         });
       } else {
@@ -73,6 +73,7 @@ function oapmc(uri, opts, callback){
 function _parseOAcontent(uri,doi,that,cb){
 
   that.logHttp('GET', uri);
+
   request(uri, function (error, response, body) {
     that.logHttp(response.statusCode,uri);
 
@@ -137,33 +138,33 @@ function _parseOAcontent(uri,doi,that,cb){
               files.forEach(function(f,i){
                 var found = false;
                 plosJournalsList.forEach(function(p,j){
-                  if( (path.basename(f).slice(0,p.length)===p) && (path.extname(f) != '.nxml') ) {
-                    found = true;
+                  // if( (path.basename(f).slice(0,p.length)===p) && (path.extname(f) != '.nxml') ) {
+                  //   found = true;
                     
-                    if( path.extname(f) === '.pdf' ){
-                      var tmp = path.basename(f,path.extname(f));
-                      tmp = '.'+tmp.split('.')[tmp.split('.').length-1];
-                      var tmpind = plosJournalsLinks[p].indexOf('info:doi');
-                      urls.push(plosJournalsLinks[p].slice(0,tmpind) + 'fetchObject.action?uri=info:doi/' + doi +  tmp.slice(0,tmp.lastIndexOf('.')) + '&representation=PDF');                      
-                    } else {
-                      var tmp = path.basename(f,path.extname(f));
-                      tmp = '.'+tmp.split('.')[tmp.split('.').length-1];
-                      var tmpind = plosJournalsLinks[p].indexOf('info:doi');
-                      urls.push(plosJournalsLinks[p].slice(0,tmpind) + 'fetchSingleRepresentation.action?uri=info:doi/' + doi +  tmp );
-                      if(['.gif','.jpg','.tif'].indexOf(path.extname(f))>-1){
-                        if(urls.indexOf(plosJournalsLinks[p] + doi +  tmp + '/' + 'powerpoint')==-1){
-                          urls.push(plosJournalsLinks[p] + doi +  tmp  + '/' + 'powerpoint');
-                          urls.push(plosJournalsLinks[p] + doi +  tmp  + '/' + 'largerimage');
-                          urls.push(plosJournalsLinks[p] + doi +  tmp  + '/' + 'originalimage');
-                        }
-                      }
-                    }                    
-                  }
+                  //   if( path.extname(f) === '.pdf' ){
+                  //     var tmp = path.basename(f,path.extname(f));
+                  //     tmp = '.'+tmp.split('.')[tmp.split('.').length-1];
+                  //     var tmpind = plosJournalsLinks[p].indexOf('info:doi');
+                  //     urls.push(plosJournalsLinks[p].slice(0,tmpind) + 'fetchObject.action?uri=info:doi/' + doi +  tmp.slice(0,tmp.lastIndexOf('.')) + '&representation=PDF');                      
+                  //   } else {
+                  //     var tmp = path.basename(f,path.extname(f));
+                  //     tmp = '.'+tmp.split('.')[tmp.split('.').length-1];
+                  //     var tmpind = plosJournalsLinks[p].indexOf('info:doi');
+                  //     urls.push(plosJournalsLinks[p].slice(0,tmpind) + 'fetchSingleRepresentation.action?uri=info:doi/' + doi +  tmp );
+                  //     if(['.gif','.jpg','.tif'].indexOf(path.extname(f))>-1){
+                  //       if(urls.indexOf(plosJournalsLinks[p] + doi +  tmp + '/' + 'powerpoint')==-1){
+                  //         urls.push(plosJournalsLinks[p] + doi +  tmp  + '/' + 'powerpoint');
+                  //         urls.push(plosJournalsLinks[p] + doi +  tmp  + '/' + 'largerimage');
+                  //         urls.push(plosJournalsLinks[p] + doi +  tmp  + '/' + 'originalimage');
+                  //       }
+                  //     }
+                  //   }                    
+                  // }
                 });
                 if(!found){
                   tmpfiles.push(f)
                 }
-              })
+              });
               
               var validatedurls = [];
               async.each(urls,
@@ -363,31 +364,6 @@ function _parseOAcontent(uri,doi,that,cb){
                           }
                         )
                       }
-                      // resources['code'].forEach(
-                      //   function(r,i){
-                      //     resources['code'].slice(i+1,resources['code'].length).forEach(
-                      //       function(r2,j){
-                      //         if(r.name===r2.name){
-                      //           r['targetProduct'].push(r2['targetProduct'][0]);
-                      //           resources['code'].splice(i+j+1,1);
-                      //         }
-                      //       }
-                      //     )
-                      //   }
-                      // )
-                      // resources['article'].forEach(
-                      //   function(r,i){
-                      //     resources['article'].slice(i+1,resources['article'].length).forEach(
-                      //       function(r2,j){
-                      //         if(r.name===r2.name){
-                      //           r['encoding'].push(r2['encoding'][0]);
-                      //           resources['article'].splice(i+j+1,1);
-                      //         }
-                      //       }
-                      //     )
-                      //   }
-                      // )
-
 
                       var pkg = _initPkg();
                       if(resources!=undefined){
@@ -578,6 +554,385 @@ function _findFigures(xmlBody){
   return figures;
 }
 
+function _xml2jsonBody(xml){
+  var doc = new DOMParser().parseFromString(xml,'text/xml');
+  var body = doc.getElementsByTagName('body')[0];
+  return _parseNode(body,xml);
+}
+
+
+function _parseNode(node,xml){
+  var tmp = {
+    tag: node.tagName,
+    children: []
+  };
+  if(node.attributes != undefined){
+    var tag = '';
+    Object.keys(node.attributes).forEach(function(att){
+      if(node.attributes[att].nodeValue==='bibr'){
+        tag = 'bib-ref';
+      }
+      if(node.attributes[att].nodeValue==='fig'){
+        tag = 'fig-ref';
+      }
+      if(node.attributes[att].nodeValue==='table'){
+        tag = 'table-ref';
+      }
+      if(node.attributes[att].nodeValue==='supplementary-material'){
+        tag = 'suppl-ref';
+      }
+      if(node.attributes[att].localName==='rid'){
+        if(tag!=''){
+          tmp.tag = tag;
+          tmp.refid = node.attributes[att].value;
+        } 
+      }
+      if(node.attributes[att].nodeName==='id'){
+        tmp.id = node.attributes[att].value;
+      }
+    });
+    if(node.attributes.nodeName==='id'){
+      tmp.id = node.attributes.value;      
+    }
+  }
+  if(node.childNodes != null){
+    if(node.childNodes.length>0){
+      Array.prototype.forEach.call(node.childNodes,function(x){
+        if(x.textContent!='\n'){
+          if( x.tagName == 'table-wrap' ){
+            var tab = {
+              tag: 'table' 
+            };
+            Object.keys(x.attributes).forEach(function(att){
+              if(x.attributes[att].localName==='id'){
+                tab.refid = x.attributes[att].value;
+              }
+            });
+            var caption = [];
+            Array.prototype.forEach.call(x.childNodes,function(y){
+              if(y.tagName === 'label'){
+                caption.push({
+                  tag: 'text',
+                  content: y.textContent
+                });
+              }
+              if(y.tagName === 'caption'){
+                Array.prototype.forEach.call(y.childNodes,function(z){
+                  if( z.tagName == 'title'){
+                    caption.push({
+                      tag: 'text',
+                      content: z.textContent
+                    });
+                  } else {
+                    caption.push(_parseNode(z,xml));
+                  }
+                })
+              }
+            }); 
+
+
+            var txt = _extractBetween(xml,'<table-wrap id="'+x.attributes['0'].value+'"','</table-wrap>');
+            txt = txt.slice(txt.indexOf('>')+1,txt.length);
+            txt = txt.slice(txt.indexOf('<table'),txt.length);
+            txt = txt.slice(0,txt.lastIndexOf('</table>')+8);
+
+            tab.table = txt;
+
+            if(caption.length){
+              tab.caption= caption;
+            };
+
+            tmp.children.push(tab);
+          } else if ( x.tagName == 'fig' ){
+            var fig = {
+              tag: 'figure'
+            };
+            Object.keys(x.attributes).forEach(function(att){
+              if(x.attributes[att].localName==='id'){
+                fig.refid = x.attributes[att].value;
+              }
+            });
+            var caption = [];
+            Array.prototype.forEach.call(x.childNodes,function(y){
+              if(y.tagName === 'label'){
+                caption.push({
+                  tag: 'text',
+                  content: y.textContent
+                });
+              }
+              if(y.tagName === 'caption'){
+                Array.prototype.forEach.call(y.childNodes,function(z){
+                  if( z.tagName == 'title'){
+                    caption.push({
+                      tag: 'text',
+                      content: z.textContent
+                    });
+                  } else {
+                    caption.push(_parseNode(z,xml));
+                  }
+                })
+              }
+            });
+            if(caption.length){
+              fig.caption= caption;
+            };
+            tmp.children.push(fig);
+          } else if ( x.tagName == 'supplementary-material' ){
+            var sup = {
+              tag: 'supplementary-material'
+            };
+
+            var caption = [];
+            Array.prototype.forEach.call(x.childNodes,function(y){
+              if(y.tagName === 'label'){
+                caption.push({
+                  tag: 'text',
+                  content: y.textContent
+                });
+              }
+              if(y.tagName === 'caption'){
+                Array.prototype.forEach.call(y.childNodes,function(z){
+                  if( z.tagName == 'title'){
+                    caption.push({
+                      tag: 'text',
+                      content: z.textContent
+                    });
+                  } else {
+                    caption.push(_parseNode(z,xml));
+                  }
+                })
+              }
+              if(y.tagName === 'media'){
+                Object.keys(y.attributes).forEach(function(att){
+                  if(y.attributes[att].name==='xlink:href'){
+                    sup.id = y.attributes[att].value;
+                  }
+                });
+              }
+            });
+            if(caption.length){
+              sup.caption= caption;
+            };
+            tmp.children.push(sup);
+
+          } else {
+            tmp.children.push(_parseNode(x,xml));
+          }
+        }
+      });
+      return tmp;
+    } else {
+      var txt = node.textContent.toString().replace(/(\r\n|\n|\r)/gm,"");
+      return {
+        tag: 'text',
+        content: txt
+      };
+    }
+  } else {
+    var txt = node.textContent.toString().replace(/(\r\n|\n|\r)/gm,"");
+    return {
+      tag: 'text',
+      content: txt
+    };
+  }
+}
+
+
+function _json2html(jsonBody,pkg){
+  var html  = "<!doctype html>";
+  html += "<html>";
+  html += "<head><title></title><meta charset='UTF-8'></head>";
+  html += _recConv(jsonBody,pkg);
+  html += "</html>";
+  return html;
+}
+
+
+function _recConv(jsonNode,pkg){
+  var knownTags = { 
+    'body': 'body', 
+    'sec': 'section', 
+    'title': 'header', 
+    'p': 'p', 
+    'disp-quote':'blockquote', 
+    'sup': 'sup', 
+    'sub': 'sub', 
+    'bold': 'strong class="bold"', 
+    'italic': 'strong class="italic"', 
+    'underline': 'strong class="underline"'
+  };
+  var txt = '';
+  if(Object.keys(knownTags).indexOf(jsonNode.tag)>-1){
+    txt += '<'+knownTags[jsonNode.tag]+'>\n';
+    jsonNode.children.forEach(function(x){
+      txt += _recConv(x,pkg);
+    });
+    txt += '\n';
+    txt += '</'+knownTags[jsonNode.tag]+'>\n';
+  } else if( jsonNode.tag === 'text' ){
+    if( (jsonNode.content.slice(0,1)==='.') || (jsonNode.content.slice(0,1)===')') ){ // TODO: regexp
+      txt += jsonNode.content;
+    } else {
+      txt += ' '+jsonNode.content;
+    }   
+  } else if( jsonNode.tag === 'ext-link' ){
+    txt += ' <a href="'+jsonNode.children[0].content+'">';
+    txt += jsonNode.children[0].content;
+    txt += '</a>';
+  } else if( jsonNode.tag === 'list' ){
+    txt += ' <li>';
+    jsonNode.children.forEach(function(ch){
+      if(ch.tag==='list-item'){
+        txt += ' <item>';
+        ch.children.forEach(function(ch2){
+          txt += _recConv(ch2,pkg);
+        })
+        txt += ' </item>';
+      }
+    })
+    txt += jsonNode.children[0].content;
+    txt += '</li>';
+  } else if( jsonNode.tag === 'bib-ref' ){
+    found = false;
+
+    pkg.article.forEach(function(art){
+      if(art.citation){
+        art.citation.forEach(function(cit){
+          if(cit.name == jsonNode.refid){
+            found = true;
+            if(cit.url){
+              txt += ' <a href="'+cit.url+'">';
+              jsonNode.children.forEach(function(x){
+                txt += _recConv(x,pkg);
+              })
+              txt += '</a>';
+            } else {
+              jsonNode.children.forEach(function(x){
+                txt += _recConv(x,pkg);
+              })
+            }
+          }
+        });
+
+      }
+    })
+    if(!found){
+      jsonNode.children.forEach(function(x){
+        txt += _recConv(x,pkg);
+      });
+    }
+  } else if( (jsonNode.tag === 'suppl-ref') || (jsonNode.tag === 'fig-ref') || (jsonNode.tag === 'table-ref') ){
+    found = false;
+    typeMap = { 'figure': 'figure', 'audio': 'audio', 'video': 'video', 'code': 'TargetProduct', 'dataset': 'distribution', 'article': 'encoding'};
+    Object.keys(typeMap).forEach(
+      function(type){
+        if(pkg[type]){
+          pkg[type].forEach(
+            function(r,i){
+              if(r.name == jsonNode.refid.replace(/\./g,'-')){
+                found = true;
+                if(r[typeMap[type]][0].contentUrl){
+                  txt += '<a href="'+r[typeMap[type]][0].contentUrl+'">';
+                  jsonNode.children.forEach(function(x){
+                    txt += _recConv(x,pkg);                   
+                  });
+                  txt += '</a>';
+                } else {
+                  jsonNode.children.forEach(function(x){
+                    txt += _recConv(x,pkg);                   
+                  });
+                }
+              }
+            }
+          )
+        }
+      }
+    );
+
+    if(!found){
+      jsonNode.children.forEach(function(x){
+        txt += _recConv(x,pkg);                   
+      });
+    }
+
+  } else if( jsonNode.tag === 'figure' ){
+
+    txt += '<figure>\n'; 
+    txt += 'TODO: Insert IMG thumnal here\n';
+    if(jsonNode.caption){
+      txt += '<figcaption>\n'; 
+      jsonNode.caption.forEach(function(x){
+        txt += _recConv(x,pkg);
+      });
+      txt += '</figcaption>\n'; 
+    }
+
+    txt += '</figure>\n'; 
+
+  } else if( jsonNode.tag === 'table' ){
+
+    txt += '<table>\n'; 
+    txt += jsonNode.table;
+    if(jsonNode.caption){
+      txt += '<caption>\n'; 
+      jsonNode.caption.forEach(function(x){
+        txt += _recConv(x,pkg);
+      });
+      txt += '\n</caption>\n'; 
+    }
+
+    txt += '</table>\n'; 
+
+  } else if( jsonNode.tag === 'supplementary-material' ){
+
+    txt += '<div>';
+    found = false;
+
+    typeMap = { 'figure': 'figure', 'audio': 'audio', 'video': 'video', 'code': 'TargetProduct', 'dataset': 'distribution', 'article': 'encoding'};
+    Object.keys(typeMap).forEach(
+      function(type){
+        if(pkg[type]){
+          pkg[type].forEach(
+            function(r,i){
+              if(r.name == path.basename(jsonNode.id,path.extname(jsonNode.id)).replace(/\./g,'-')){
+                found = true;
+                if(r[typeMap[type]][0].contentUrl){
+                  txt += '<a href="'+r[typeMap[type]][0].contentUrl+'">';
+                  txt += 'Click here to obtain the resource.';
+                  txt += '</a>';
+                } else {
+                  txt += jsonNode.id;  
+                }
+              }
+            }
+          )
+        }
+      }
+    );
+
+    if(!found){
+      txt += jsonNode.id; 
+    }
+
+    if(jsonNode.caption){
+      txt += '<caption>'; 
+      jsonNode.caption.forEach(function(x){
+        txt += _recConv(x,pkg);
+      });
+      txt += '</caption>'; 
+    }   
+
+    txt += '</div>'; 
+
+  } else {
+    console.log('pb, unknown tag', jsonNode.tag);
+    console.log(jsonNode);
+  }
+  return txt;
+}
+
+
+
 function _addMetadata(pkg,mainArticleName,uri,ldpm,opts,callback){
   var pmcid = _extractBetween(uri,'PMC');
   var parser = new xml2js.Parser();
@@ -589,9 +944,12 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,opts,callback){
     opts = {};
   }
 
+
   request(uri,
     function(error,response,body){
       if(error) return callback(error);
+
+      var jsonBody = _xml2jsonBody(body);
 
       var xmlBody = body;
 
@@ -1111,6 +1469,13 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,opts,callback){
                   ref.publicationDate = (new Date(traverse($articleMeta).get(relPaths['year'])[0])).toISOString();
                 }
 
+                if(x['$']){
+                  if(x['$']['id'] != undefined){
+                    ref.name = x['$']['id'];
+                  }
+                }
+                x['$']['id']
+
                 ref.header = '';
                 if(typeof y['article-title'] === 'string'){
                   ref.header = y['article-title'];
@@ -1505,30 +1870,59 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,opts,callback){
         }        
         newpkg.article = pkg.article;
 
-        if ( !opts.noPubmed ){
-          // call pubmed to check if there isn't additional info there
-          ldpm.markup('pubmed', meta.pmid, function(err,pubmed_pkg){
-            if(pubmed_pkg){
-              if(pubmed_pkg.keyword){
-                if(newpkg.keyword==undefined) newpkg.keyword = [];
-                pubmed_pkg.keyword.forEach(function(x){
-                  if(newpkg.keyword.indexOf(x)==-1){
-                    newpkg.keyword.push(x);
-                  }
-                })
+
+        var found = false;
+        var nxmlName = '';
+        var artInd = 0;
+        newpkg.article.forEach(function(art,i){
+          art.encoding.forEach(function(enc){
+            if(enc.encodingFormat === 'application/octet-stream'){
+              if(enc.contentPath){
+                nxmlName = path.basename(enc.contentPath,path.extname(enc.contentPath));
+              } else if(enc.contentUrl){
+                nxmlName = path.basename(enc.contentUrl,path.extname(enc.contentUrl));
               }
-              // if(pubmed_pkg.rawChemical){
-              //   newpkg.rawChemical = pubmed_pkg.rawChemical;
-              // }
-              // if(pubmed_pkg.rawMesh){
-              //   newpkg.rawMesh = pubmed_pkg.rawMesh;
-              // } 
+              found = true;
+              artInd = i;
             }
-            callback(null,newpkg);
           });
-        } else {
-          callback(null,newpkg);
-        }
+        });
+
+        htmlBody = _json2html(jsonBody,newpkg);
+        fs.writeFile(path.join(ldpm.root,nxmlName+'.html'),htmlBody,function(err){
+          if(err) return callback(err);
+          ldpm.paths2resources([path.join(ldpm.root,nxmlName+'.html')],{}, function(err,resources){
+            if(err) return callback(err);
+            newpkg.article[artInd].encoding.push(resources.article[0].encoding[0]);
+
+            if ( !opts.noPubmed ){
+              // call pubmed to check if there isn't additional info there
+              ldpm.markup('pubmed', meta.pmid, function(err,pubmed_pkg){
+                if(pubmed_pkg){
+                  if(pubmed_pkg.keyword){
+                    if(newpkg.keyword==undefined) newpkg.keyword = [];
+                    pubmed_pkg.keyword.forEach(function(x){
+                      if(newpkg.keyword.indexOf(x)==-1){
+                        newpkg.keyword.push(x);
+                      }
+                    })
+                  }
+                  // if(pubmed_pkg.rawChemical){
+                  //   newpkg.rawChemical = pubmed_pkg.rawChemical;
+                  // }
+                  // if(pubmed_pkg.rawMesh){
+                  //   newpkg.rawMesh = pubmed_pkg.rawMesh;
+                  // } 
+                }
+                callback(null,newpkg);
+              });
+            } else {
+              callback(null,newpkg);
+            }
+
+
+          });
+        });
 
       })
     }

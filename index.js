@@ -747,7 +747,7 @@ Ldpm.prototype.paths2resources = function(globs, opts, callback){
           cb(null, {type: 'dataset', value: dataset});
         }
 
-      } else if (['.png', '.jpg', '.jpeg', '.gif', '.tif', '.tiff', '.eps'].indexOf(ext.toLowerCase()) !== -1){
+      } else if (['.png', '.jpg', '.jpeg', '.gif', '.tif', '.tiff', '.eps', '.ppt'].indexOf(ext.toLowerCase()) !== -1){
 
         var figure = {
           name: myname,

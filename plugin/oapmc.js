@@ -738,21 +738,32 @@ function _parseNode(node,xml){
 }
 
 
-function _json2html(jsonBody,pkg){
-  var html  = "<!doctype html>";
-  html += "<html>";
-  html += "<head><title></title><meta charset='UTF-8'></head>";
-  html += _recConv(jsonBody,pkg);
+function _json2html(jsonBody,pkg,artInd,abstract){
+  var html  = "<!doctype html>\n";
+  html += "<html>\n";
+  html += "<head>\n<title>\n" + pkg.article[artInd].headline + "</title>\n<meta charset='UTF-8'>\n</head>\n";
+  html += "<body>\n";
+  html += "<article>\n";
+  html += "<h1>\n" + pkg.article[artInd].headline + "</h1>\n";
+  if(abstract!=undefined){
+    html += "<section>\n";
+    html += "<h2>Abstract</h2>\n";
+    var doc = new DOMParser().parseFromString("<sec>" + abstract + "</sec>",'text/xml');
+    var abs = doc.getElementsByTagName('sec')[0];
+    html += _recConv(_parseNode(abs,abstract),pkg,3);
+    html += "</section>\n";
+  }
+  html += _recConv(jsonBody,pkg,2);
+  html += "</article>\n";
+  html += "</body>\n";
   html += "</html>";
   return html;
 }
 
 
-function _recConv(jsonNode,pkg){
+function _recConv(jsonNode,pkg,hlevel){
   var knownTags = { 
-    'body': 'body', 
     'sec': 'section', 
-    'title': 'header', 
     'p': 'p', 
     'disp-quote':'blockquote', 
     'sup': 'sup', 
@@ -762,10 +773,20 @@ function _recConv(jsonNode,pkg){
     'underline': 'strong class="underline"'
   };
   var txt = '';
-  if(Object.keys(knownTags).indexOf(jsonNode.tag)>-1){
+  if( jsonNode.tag === 'body' ){
+    jsonNode.children.forEach(function(x){
+      txt += _recConv(x,pkg,hlevel);
+    });
+  } else if( jsonNode.tag === 'title' ){
+    txt += ' <h' + hlevel + '>';
+    jsonNode.children.forEach(function(x){
+      txt += _recConv(x,pkg,hlevel+1);
+    });
+    txt += ' </h' + hlevel + '>';
+  } else if(Object.keys(knownTags).indexOf(jsonNode.tag)>-1){
     txt += '<'+knownTags[jsonNode.tag]+'>\n';
     jsonNode.children.forEach(function(x){
-      txt += _recConv(x,pkg);
+      txt += _recConv(x,pkg,hlevel);
     });
     txt += '\n';
     txt += '</'+knownTags[jsonNode.tag]+'>\n';
@@ -785,7 +806,7 @@ function _recConv(jsonNode,pkg){
       if(ch.tag==='list-item'){
         txt += ' <item>';
         ch.children.forEach(function(ch2){
-          txt += _recConv(ch2,pkg);
+          txt += _recConv(ch2,pkg,hlevel);
         })
         txt += ' </item>';
       }
@@ -803,12 +824,12 @@ function _recConv(jsonNode,pkg){
             if(cit.url){
               txt += ' <a href="'+cit.url+'">';
               jsonNode.children.forEach(function(x){
-                txt += _recConv(x,pkg);
+                txt += _recConv(x,pkg,hlevel);
               })
               txt += '</a>';
             } else {
               jsonNode.children.forEach(function(x){
-                txt += _recConv(x,pkg);
+                txt += _recConv(x,pkg,hlevel);
               })
             }
           }
@@ -818,7 +839,7 @@ function _recConv(jsonNode,pkg){
     })
     if(!found){
       jsonNode.children.forEach(function(x){
-        txt += _recConv(x,pkg);
+        txt += _recConv(x,pkg,hlevel);
       });
     }
   } else if( (jsonNode.tag === 'suppl-ref') || (jsonNode.tag === 'fig-ref') || (jsonNode.tag === 'table-ref') ){
@@ -834,12 +855,12 @@ function _recConv(jsonNode,pkg){
                 if(r[typeMap[type]][0].contentUrl){
                   txt += '<a href="'+r[typeMap[type]][0].contentUrl+'">';
                   jsonNode.children.forEach(function(x){
-                    txt += _recConv(x,pkg);                   
+                    txt += _recConv(x,pkg,hlevel);                   
                   });
                   txt += '</a>';
                 } else {
                   jsonNode.children.forEach(function(x){
-                    txt += _recConv(x,pkg);                   
+                    txt += _recConv(x,pkg,hlevel);                   
                   });
                 }
               }
@@ -851,7 +872,7 @@ function _recConv(jsonNode,pkg){
 
     if(!found){
       jsonNode.children.forEach(function(x){
-        txt += _recConv(x,pkg);                   
+        txt += _recConv(x,pkg,hlevel);                   
       });
     }
 
@@ -862,7 +883,7 @@ function _recConv(jsonNode,pkg){
     if(jsonNode.caption){
       txt += '<figcaption>\n'; 
       jsonNode.caption.forEach(function(x){
-        txt += _recConv(x,pkg);
+        txt += _recConv(x,pkg,hlevel);
       });
       txt += '</figcaption>\n'; 
     }
@@ -876,7 +897,7 @@ function _recConv(jsonNode,pkg){
     if(jsonNode.caption){
       txt += '<caption>\n'; 
       jsonNode.caption.forEach(function(x){
-        txt += _recConv(x,pkg);
+        txt += _recConv(x,pkg,hlevel);
       });
       txt += '\n</caption>\n'; 
     }
@@ -917,7 +938,7 @@ function _recConv(jsonNode,pkg){
     if(jsonNode.caption){
       txt += '<caption>'; 
       jsonNode.caption.forEach(function(x){
-        txt += _recConv(x,pkg);
+        txt += _recConv(x,pkg,hlevel);
       });
       txt += '</caption>'; 
     }   
@@ -932,6 +953,29 @@ function _recConv(jsonNode,pkg){
 }
 
 
+function _addRefsHtml(htmlBody,article){
+  var indbeg = htmlBody.indexOf('</html>');
+  htmlBody = htmlBody.slice(0,indbeg);
+  article.citation.forEach(function(cit){
+    htmlBody += '<p>\n';
+    htmlBody += cit.description;
+    if(cit.doi){
+      htmlBody += '<br>\n'
+      htmlBody += 'doi:' + cit.doi + '\n';
+    }
+    if(cit.pmid){
+      htmlBody += '<br>\n'
+      htmlBody += 'pmid:' + cit.pmid + '\n';
+    }
+    if(cit.url){
+      htmlBody += '<br>\n'
+      htmlBody += '<a href="' + cit.url +'">link</a>' + '\n';
+    }
+    htmlBody += '\n</p>\n';
+  });
+  htmlBody += '</html>';
+  return htmlBody;
+}
 
 function _addMetadata(pkg,mainArticleName,uri,ldpm,opts,callback){
   var pmcid = _extractBetween(uri,'PMC');
@@ -1429,6 +1473,7 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,opts,callback){
                 _extractBetween(xmlBody,'<abstract>','</abstract>') +
                 '</xml>'
                 ,'text/xml');
+            meta.abstractHtml = _extractBetween(xmlBody,'<abstract>','</abstract>');
             meta.abstract = doc.lastChild.textContent.trim();
           }
         }
@@ -1888,7 +1933,8 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,opts,callback){
           });
         });
 
-        htmlBody = _json2html(jsonBody,newpkg);
+        htmlBody = _json2html(jsonBody,newpkg,artInd,meta.abstractHtml);
+        htmlBody = _addRefsHtml(htmlBody,newpkg.article[artInd]);
         fs.writeFile(path.join(ldpm.root,nxmlName+'.html'),htmlBody,function(err){
           if(err) return callback(err);
           ldpm.paths2resources([path.join(ldpm.root,nxmlName+'.html')],{}, function(err,resources){

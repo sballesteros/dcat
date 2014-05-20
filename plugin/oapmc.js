@@ -139,28 +139,28 @@ function _parseOAcontent(uri,doi,that,cb){
               files.forEach(function(f,i){
                 var found = false;
                 plosJournalsList.forEach(function(p,j){
-                  if( (path.basename(f).slice(0,p.length)===p) && (path.extname(f) != '.nxml') ) {
-                    found = true;
+                  // if( (path.basename(f).slice(0,p.length)===p) && (path.extname(f) != '.nxml') ) {
+                  //   found = true;
                     
-                    if( path.extname(f) === '.pdf' ){
-                      var tmp = path.basename(f,path.extname(f));
-                      tmp = '.'+tmp.split('.')[tmp.split('.').length-1];
-                      var tmpind = plosJournalsLinks[p].indexOf('info:doi');
-                      urls.push(plosJournalsLinks[p].slice(0,tmpind) + 'fetchObject.action?uri=info:doi/' + doi +  tmp.slice(0,tmp.lastIndexOf('.')) + '&representation=PDF');                      
-                    } else {
-                      var tmp = path.basename(f,path.extname(f));
-                      tmp = '.'+tmp.split('.')[tmp.split('.').length-1];
-                      var tmpind = plosJournalsLinks[p].indexOf('info:doi');
-                      urls.push(plosJournalsLinks[p].slice(0,tmpind) + 'fetchSingleRepresentation.action?uri=info:doi/' + doi +  tmp );
-                      if(['.gif','.jpg','.tif'].indexOf(path.extname(f))>-1){
-                        if(urls.indexOf(plosJournalsLinks[p] + doi +  tmp + '/' + 'powerpoint')==-1){
-                          urls.push(plosJournalsLinks[p] + doi +  tmp  + '/' + 'powerpoint');
-                          urls.push(plosJournalsLinks[p] + doi +  tmp  + '/' + 'largerimage');
-                          urls.push(plosJournalsLinks[p] + doi +  tmp  + '/' + 'originalimage');
-                        }
-                      }
-                    }                    
-                  }
+                  //   if( path.extname(f) === '.pdf' ){
+                  //     var tmp = path.basename(f,path.extname(f));
+                  //     tmp = '.'+tmp.split('.')[tmp.split('.').length-1];
+                  //     var tmpind = plosJournalsLinks[p].indexOf('info:doi');
+                  //     urls.push(plosJournalsLinks[p].slice(0,tmpind) + 'fetchObject.action?uri=info:doi/' + doi +  tmp.slice(0,tmp.lastIndexOf('.')) + '&representation=PDF');                      
+                  //   } else {
+                  //     var tmp = path.basename(f,path.extname(f));
+                  //     tmp = '.'+tmp.split('.')[tmp.split('.').length-1];
+                  //     var tmpind = plosJournalsLinks[p].indexOf('info:doi');
+                  //     urls.push(plosJournalsLinks[p].slice(0,tmpind) + 'fetchSingleRepresentation.action?uri=info:doi/' + doi +  tmp );
+                  //     if(['.gif','.jpg','.tif'].indexOf(path.extname(f))>-1){
+                  //       if(urls.indexOf(plosJournalsLinks[p] + doi +  tmp + '/' + 'powerpoint')==-1){
+                  //         urls.push(plosJournalsLinks[p] + doi +  tmp  + '/' + 'powerpoint');
+                  //         urls.push(plosJournalsLinks[p] + doi +  tmp  + '/' + 'largerimage');
+                  //         urls.push(plosJournalsLinks[p] + doi +  tmp  + '/' + 'originalimage');
+                  //       }
+                  //     }
+                  //   }                    
+                  // }
                 });
                 if(!found){
                   tmpfiles.push(f)
@@ -576,6 +576,9 @@ function _parseNode(node,xml){
       if(node.attributes[att].nodeValue==='fig'){
         tag = 'fig-ref';
       }
+      if(node.attributes[att].nodeValue==='sec'){
+        tag = 'sec-ref';
+      }
       if(node.attributes[att].nodeValue==='table'){
         tag = 'table-ref';
       }
@@ -583,15 +586,17 @@ function _parseNode(node,xml){
         tag = 'suppl-ref';
       }
       if(node.attributes[att].localName==='rid'){
-        if(tag!=''){
-          tmp.tag = tag;
-          tmp.refid = node.attributes[att].value;
-        } 
+        if(node.attributes[att].value!=undefined){
+          tmp.id = node.attributes[att].value; 
+        }
       }
       if(node.attributes[att].nodeName==='id'){
         tmp.id = node.attributes[att].value;
       }
     });
+    if(tag!=''){
+      tmp.tag = tag;
+    } 
     if(node.attributes.nodeName==='id'){
       tmp.id = node.attributes.value;      
     }
@@ -606,7 +611,7 @@ function _parseNode(node,xml){
             };
             Object.keys(x.attributes).forEach(function(att){
               if(x.attributes[att].localName==='id'){
-                tab.refid = x.attributes[att].value;
+                tab.id = x.attributes[att].value;
               }
             });
             var caption = [];
@@ -650,7 +655,7 @@ function _parseNode(node,xml){
             };
             Object.keys(x.attributes).forEach(function(att){
               if(x.attributes[att].localName==='id'){
-                fig.refid = x.attributes[att].value;
+                fig.id = x.attributes[att].value;
               }
             });
             var caption = [];
@@ -840,7 +845,7 @@ function _recConv(jsonNode,pkg,hlevel){
     pkg.article.forEach(function(art){
       if(art.citation){
         art.citation.forEach(function(cit){
-          if(cit.name == jsonNode.refid){
+          if(cit.name == jsonNode.id){
             found = true;
             if(cit.url){
               txt += ' <a href="'+cit.url+'">';
@@ -863,6 +868,10 @@ function _recConv(jsonNode,pkg,hlevel){
         txt += _recConv(x,pkg,hlevel);
       });
     }
+  } else if( jsonNode.tag === 'sec-ref' ){
+    jsonNode.children.forEach(function(x){
+      txt += _recConv(x,pkg,hlevel);
+    });
   } else if( (jsonNode.tag === 'suppl-ref') || (jsonNode.tag === 'fig-ref') || (jsonNode.tag === 'table-ref') ){
     found = false;
     typeMap = { 'figure': 'figure', 'audio': 'audio', 'video': 'video', 'code': 'TargetProduct', 'dataset': 'distribution', 'article': 'encoding'};
@@ -871,7 +880,7 @@ function _recConv(jsonNode,pkg,hlevel){
         if(pkg[type]){
           pkg[type].forEach(
             function(r,i){
-              if(r.name == jsonNode.refid.replace(/\./g,'-')){
+              if(r.name == jsonNode.id.replace(/\./g,'-')){
                 found = true;
                 if(r[typeMap[type]][0].contentUrl){
                   txt += '<a href="'+r[typeMap[type]][0].contentUrl+'">';
@@ -1003,24 +1012,25 @@ function _identifiedTitle(node){
 function _addRefsHtml(htmlBody,article){
   var indbeg = htmlBody.indexOf('</html>');
   htmlBody = htmlBody.slice(0,indbeg);
+  htmlBody += '<section property="http://purl.org/spar/doco/Bibliography">\n';
+  htmlBody += '<h2>Bibliography</h2>';
   article.citation.forEach(function(cit){
-    htmlBody += '<section property="http://purl.org/spar/doco/Bibliography">\n';
-    htmlBody += '<h2>Bibliography</h2>';
     htmlBody += cit.description;
     if(cit.doi){
-      htmlBody += '<br>\n'
+      htmlBody += '<br>\n';
       htmlBody += 'doi:' + cit.doi + '\n';
     }
     if(cit.pmid){
-      htmlBody += '<br>\n'
+      htmlBody += '<br>\n';
       htmlBody += 'pmid:' + cit.pmid + '\n';
     }
     if(cit.url){
-      htmlBody += '<br>\n'
+      htmlBody += '<br>\n';
       htmlBody += '<a href="' + cit.url +'">link</a>' + '\n';
     }
-    htmlBody += '\n</section>\n';
+    htmlBody += '<br>\n';
   });
+  htmlBody += '\n</section>\n';
   htmlBody += '</html>';
   return htmlBody;
 }
@@ -2001,12 +2011,64 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,opts,callback){
                       }
                     })
                   }
-                  // if(pubmed_pkg.rawChemical){
-                  //   newpkg.rawChemical = pubmed_pkg.rawChemical;
-                  // }
-                  // if(pubmed_pkg.rawMesh){
-                  //   newpkg.rawMesh = pubmed_pkg.rawMesh;
-                  // } 
+                  if(newpkg.annotation == undefined){
+                    newpkg.annotation = [];
+                  }
+                  var hasBody = {
+                    "@type": ["Tag", "Mesh"],
+                    "@context": "http://registry.standardanalytics.io/mesh.jsonld"
+                  };
+                  var graph = [];
+                  pubmed_pkg.rawMesh.forEach(function(x){
+                    var tmp = {
+                      "@type": "MeshHeading",
+                    };
+                    if(x.DescriptorName){
+                      tmp.descriptor = {
+                        name: x.DescriptorName[0]['_'],
+                        majorTopic: (x.DescriptorName[0]['$']['MajorTopicYN'] === 'Y')
+                      }
+                      if(x.QualifierName){
+                        tmp.qualifier = {
+                          name: x.QualifierName[0]['_'],
+                          majorTopic: (x.QualifierName[0]['$']['MajorTopicYN'] === 'Y')
+                        }
+                      }
+                    }
+                    graph.push(tmp)
+                  });
+                  hasBody['@graph'] = graph;
+
+                  newpkg.annotation.push({
+                    "@type": "Annotation",
+                    annotatedAt: newpkg.article[0].datePublished,
+                    annotatedBy: {
+                      "@id": "http://www.ncbi.nlm.nih.gov/pubmed",
+                      "@type": "Organization",
+                      name: "PubMed"
+                    },
+                    serializedBy: {
+                      "@id": "http://standardanalytics.io",
+                      "@type": "Organization",
+                      name: "Standard Analytics IO"
+                    },
+                    serializedAt: (new Date()).toISOString(),
+                    motivatedBy: "oa:tagging",
+                    hasBody: [
+                      hasBody
+                    ],
+                    hasTarget: [
+                      {
+                        "@type": "SpecificResource",
+                        hasSource: "r/f9b634be34cb3f2af4fbf4395e3f24b3834da926",
+                        hasScope: newpkg.name + '/' + newpkg.version + '/article/' + newpkg.article[artInd].name,
+                        hasState: {
+                          "@type": "HttpRequestState",
+                          value: "Accept: text/html"
+                        }
+                      }
+                    ]
+                  })
                 }
                 callback(null,newpkg);
               });

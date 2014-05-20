@@ -95,8 +95,8 @@ function pmxml2jsonld(pkg,body,callback){
   var meta = {};
   var relPaths;
 
-
   parser.parseString(body,function(err,body){
+
 
     if(err) return callback(err);
 
@@ -345,7 +345,7 @@ function pmxml2jsonld(pkg,body,callback){
             });
           }
         })
-        // pkg.rawMesh = mesh[0]['MeshHeading'];
+        pkg.rawMesh = mesh[0]['MeshHeading'];
       }  
     }         
 

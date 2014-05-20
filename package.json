@@ -63,6 +63,7 @@
     "jsdom": "0.10.4",
     "rimraf": "^2.2.6",
     "glob": "^3.2.8",
+    "node-uuid": "1.4.1",
     "minimatch": "^0.2.14",
     "github-url": "^1.1.0",
     "cookie": "^0.1.2",

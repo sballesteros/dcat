@@ -20,6 +20,7 @@ var request = require('request')
   , traverse = require('traverse')
   , recursiveReaddir = require('recursive-readdir')
   , Ldpm = require('../index')
+  , uuid = require('node-uuid')
   , DOMParser = require('xmldom').DOMParser;
 
 
@@ -746,7 +747,8 @@ function _json2html(jsonBody,pkg,artInd,abstract){
   html += "<article>\n";
   html += "<h1>\n" + pkg.article[artInd].headline + "</h1>\n";
   if(abstract!=undefined){
-    html += "<section>\n";
+    var id = uuid.v4();
+    html += '<section id="' + id + '" property="http://salt.semanticauthoring.org/ontologies/sro#Abstract">\n'; //+ '" resource="' + pkg.name + '/' + id + '">\n';
     html += "<h2>Abstract</h2>\n";
     var doc = new DOMParser().parseFromString("<sec>" + abstract + "</sec>",'text/xml');
     var abs = doc.getElementsByTagName('sec')[0];
@@ -763,8 +765,6 @@ function _json2html(jsonBody,pkg,artInd,abstract){
 
 function _recConv(jsonNode,pkg,hlevel){
   var knownTags = { 
-    'sec': 'section', 
-    'p': 'p', 
     'disp-quote':'blockquote', 
     'sup': 'sup', 
     'sub': 'sub', 
@@ -777,12 +777,31 @@ function _recConv(jsonNode,pkg,hlevel){
     jsonNode.children.forEach(function(x){
       txt += _recConv(x,pkg,hlevel);
     });
+  } else if( jsonNode.tag === 'sec' ){
+    var id = uuid.v4();
+    txt += '<section id="' + id + '"'; //+ '" resource="' + pkg.name + '/' + id + '">\n';
+    var iri = _identifiedTitle(jsonNode); 
+    if ( iri != ''){
+      txt += ' property="' + iri + '" ';
+    }
+    txt += '>\n';
+    jsonNode.children.forEach(function(x){
+      txt += _recConv(x,pkg,hlevel);
+    });
+    txt += '</section>\n\n';
+  } else if( jsonNode.tag === 'p' ){  
+    txt += '<p property="http://purl.org/spar/doco/Paragraph" >\n';
+    jsonNode.children.forEach(function(x){
+      txt += _recConv(x,pkg,hlevel);
+    });
+    txt += '\n';
+    txt += '</p>\n';
   } else if( jsonNode.tag === 'title' ){
-    txt += ' <h' + hlevel + '>';
+    txt += ' <h' + hlevel + '>\n';
     jsonNode.children.forEach(function(x){
       txt += _recConv(x,pkg,hlevel+1);
     });
-    txt += ' </h' + hlevel + '>';
+    txt += '\n </h' + hlevel + '>\n';
   } else if(Object.keys(knownTags).indexOf(jsonNode.tag)>-1){
     txt += '<'+knownTags[jsonNode.tag]+'>\n';
     jsonNode.children.forEach(function(x){
@@ -791,11 +810,13 @@ function _recConv(jsonNode,pkg,hlevel){
     txt += '\n';
     txt += '</'+knownTags[jsonNode.tag]+'>\n';
   } else if( jsonNode.tag === 'text' ){
-    if( (jsonNode.content.slice(0,1)==='.') || (jsonNode.content.slice(0,1)===')') ){ // TODO: regexp
-      txt += jsonNode.content;
-    } else {
-      txt += ' '+jsonNode.content;
-    }   
+    if(jsonNode.content.trim() != ''){
+      if( (jsonNode.content.slice(0,1)==='.') || (jsonNode.content.slice(0,1)===')') ){ // TODO: regexp
+        txt += jsonNode.content;
+      } else {
+        txt += ' '+jsonNode.content;
+      }   
+    }
   } else if( jsonNode.tag === 'ext-link' ){
     txt += ' <a href="'+jsonNode.children[0].content+'">';
     txt += jsonNode.children[0].content;
@@ -804,15 +825,15 @@ function _recConv(jsonNode,pkg,hlevel){
     txt += ' <li>';
     jsonNode.children.forEach(function(ch){
       if(ch.tag==='list-item'){
-        txt += ' <item>';
+        txt += ' <item>\n';
         ch.children.forEach(function(ch2){
           txt += _recConv(ch2,pkg,hlevel);
         })
-        txt += ' </item>';
+        txt += ' </item>\n';
       }
     })
     txt += jsonNode.children[0].content;
-    txt += '</li>';
+    txt += '</li>\n';
   } else if( jsonNode.tag === 'bib-ref' ){
     found = false;
 
@@ -877,11 +898,14 @@ function _recConv(jsonNode,pkg,hlevel){
     }
 
   } else if( jsonNode.tag === 'figure' ){
-
-    txt += '<figure>\n'; 
+    var id = uuid.v4();
+    txt += '<figure ';
+    txt += 'property="http://purl.org/spar/doco/FigureBox" ';
+    txt += 'id="' + id + '" resource="' + pkg.name + '/' + id + '"';
+    txt += '>\n'; 
     txt += 'TODO: Insert IMG thumnal here\n';
     if(jsonNode.caption){
-      txt += '<figcaption>\n'; 
+      txt += '<figcaption property="http://purl.org/spar/deo/Caption">\n'; 
       jsonNode.caption.forEach(function(x){
         txt += _recConv(x,pkg,hlevel);
       });
@@ -892,10 +916,10 @@ function _recConv(jsonNode,pkg,hlevel){
 
   } else if( jsonNode.tag === 'table' ){
 
-    txt += '<table>\n'; 
+    txt += '<table property="http://purl.org/spar/doco/Table" >\n'; 
     txt += jsonNode.table;
     if(jsonNode.caption){
-      txt += '<caption>\n'; 
+      txt += '<caption property="http://purl.org/spar/deo/Caption>\n'; 
       jsonNode.caption.forEach(function(x){
         txt += _recConv(x,pkg,hlevel);
       });
@@ -952,12 +976,36 @@ function _recConv(jsonNode,pkg,hlevel){
   return txt;
 }
 
+function _identifiedTitle(node){
+  var iris = {
+    'introduction': 'http://purl.org/spar/deo/Introduction',
+    'acknowledgements': 'http://purl.org/spar/deo/Acknowledgements',
+    'discussion': 'http://salt.semanticauthoring.org/ontologies/sro#Discussion',
+    'materials': 'http://purl.org/spar/deo/Materials',
+    'methods': 'http://purl.org/spar/deo/Methods',
+    'results': 'http://purl.org/spar/deo/Results'
+  }
+  var iri = ''
+  node.children.forEach(function(ch){
+    if(ch.tag==='title'){
+      ch.children.forEach(function(x){
+        if(x.tag==='text'){
+          if( Object.keys(iris).indexOf(x.content.toLowerCase())>-1){
+            iri = iris[x.content.toLowerCase()];
+          }
+        }
+      })
+    }
+  })
+  return iri;
+}
 
 function _addRefsHtml(htmlBody,article){
   var indbeg = htmlBody.indexOf('</html>');
   htmlBody = htmlBody.slice(0,indbeg);
   article.citation.forEach(function(cit){
-    htmlBody += '<p>\n';
+    htmlBody += '<section property="http://purl.org/spar/doco/Bibliography">\n';
+    htmlBody += '<h2>Bibliography</h2>';
     htmlBody += cit.description;
     if(cit.doi){
       htmlBody += '<br>\n'
@@ -971,7 +1019,7 @@ function _addRefsHtml(htmlBody,article){
       htmlBody += '<br>\n'
       htmlBody += '<a href="' + cit.url +'">link</a>' + '\n';
     }
-    htmlBody += '\n</p>\n';
+    htmlBody += '\n</section>\n';
   });
   htmlBody += '</html>';
   return htmlBody;

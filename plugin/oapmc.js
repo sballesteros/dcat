@@ -9,9 +9,11 @@ var request = require('request')
   , path = require('path')
   , temp = require('temp')
   , _ = require('underscore')
+  , crypto = require('crypto')
   , emitter = require('events').EventEmitter
   , events = require('events')
   , tar = require('tar')
+  , once = require('once')
   , targz = require('tar.gz')
   , Client = require('ftp')
   , xml2js = require('xml2js')
@@ -139,28 +141,28 @@ function _parseOAcontent(uri,doi,that,cb){
               files.forEach(function(f,i){
                 var found = false;
                 plosJournalsList.forEach(function(p,j){
-                  // if( (path.basename(f).slice(0,p.length)===p) && (path.extname(f) != '.nxml') ) {
-                  //   found = true;
+                  if( (path.basename(f).slice(0,p.length)===p) && (path.extname(f) != '.nxml') ) {
+                    found = true;
                     
-                  //   if( path.extname(f) === '.pdf' ){
-                  //     var tmp = path.basename(f,path.extname(f));
-                  //     tmp = '.'+tmp.split('.')[tmp.split('.').length-1];
-                  //     var tmpind = plosJournalsLinks[p].indexOf('info:doi');
-                  //     urls.push(plosJournalsLinks[p].slice(0,tmpind) + 'fetchObject.action?uri=info:doi/' + doi +  tmp.slice(0,tmp.lastIndexOf('.')) + '&representation=PDF');                      
-                  //   } else {
-                  //     var tmp = path.basename(f,path.extname(f));
-                  //     tmp = '.'+tmp.split('.')[tmp.split('.').length-1];
-                  //     var tmpind = plosJournalsLinks[p].indexOf('info:doi');
-                  //     urls.push(plosJournalsLinks[p].slice(0,tmpind) + 'fetchSingleRepresentation.action?uri=info:doi/' + doi +  tmp );
-                  //     if(['.gif','.jpg','.tif'].indexOf(path.extname(f))>-1){
-                  //       if(urls.indexOf(plosJournalsLinks[p] + doi +  tmp + '/' + 'powerpoint')==-1){
-                  //         urls.push(plosJournalsLinks[p] + doi +  tmp  + '/' + 'powerpoint');
-                  //         urls.push(plosJournalsLinks[p] + doi +  tmp  + '/' + 'largerimage');
-                  //         urls.push(plosJournalsLinks[p] + doi +  tmp  + '/' + 'originalimage');
-                  //       }
-                  //     }
-                  //   }                    
-                  // }
+                    if( path.extname(f) === '.pdf' ){
+                      var tmp = path.basename(f,path.extname(f));
+                      tmp = '.'+tmp.split('.')[tmp.split('.').length-1];
+                      var tmpind = plosJournalsLinks[p].indexOf('info:doi');
+                      urls.push(plosJournalsLinks[p].slice(0,tmpind) + 'fetchObject.action?uri=info:doi/' + doi +  tmp.slice(0,tmp.lastIndexOf('.')) + '&representation=PDF');                      
+                    } else {
+                      var tmp = path.basename(f,path.extname(f));
+                      tmp = '.'+tmp.split('.')[tmp.split('.').length-1];
+                      var tmpind = plosJournalsLinks[p].indexOf('info:doi');
+                      urls.push(plosJournalsLinks[p].slice(0,tmpind) + 'fetchSingleRepresentation.action?uri=info:doi/' + doi +  tmp );
+                      if(['.gif','.jpg','.tif'].indexOf(path.extname(f))>-1){
+                        if(urls.indexOf(plosJournalsLinks[p] + doi +  tmp + '/' + 'powerpoint')==-1){
+                          urls.push(plosJournalsLinks[p] + doi +  tmp  + '/' + 'powerpoint');
+                          urls.push(plosJournalsLinks[p] + doi +  tmp  + '/' + 'largerimage');
+                          urls.push(plosJournalsLinks[p] + doi +  tmp  + '/' + 'originalimage');
+                        }
+                      }
+                    }                    
+                  }
                 });
                 if(!found){
                   tmpfiles.push(f)
@@ -489,6 +491,11 @@ function _findFigures(xmlBody){
   var figures = [];
   Array.prototype.forEach.call(doc.getElementsByTagName('fig'),function(x){
     var fig = {};
+    Array.prototype.forEach.call(x.attributes, function(att){
+      if(att.name==='id'){
+        fig.alternateName = att.value;
+      }
+    })
     if(x.getElementsByTagName('label')[0]!=undefined){
       fig.label = x.getElementsByTagName('label')[0].textContent;
     }
@@ -557,7 +564,11 @@ function _findFigures(xmlBody){
 
 function _xml2jsonBody(xml){
   var doc = new DOMParser().parseFromString(xml,'text/xml');
-  var body = doc.getElementsByTagName('body')[0];
+  if(doc.getElementsByTagName('body').length){
+    var body = doc.getElementsByTagName('body')[0];
+  } else {
+    var body = doc.getElementsByTagName('article')[0];
+  }
   return _parseNode(body,xml);
 }
 
@@ -570,6 +581,9 @@ function _parseNode(node,xml){
   if(node.attributes != undefined){
     var tag = '';
     Object.keys(node.attributes).forEach(function(att){
+      if(node.attributes[att].nodeValue==='inline-formula'){
+        console.log(node)
+      }
       if(node.attributes[att].nodeValue==='bibr'){
         tag = 'bib-ref';
       }
@@ -744,7 +758,7 @@ function _parseNode(node,xml){
 }
 
 
-function _json2html(jsonBody,pkg,artInd,abstract){
+function _json2html(jsonBody,pkg,artInd,abstract, callback){
   var html  = "<!doctype html>\n";
   html += "<html>\n";
   html += "<head>\n<title>\n" + pkg.article[artInd].headline + "</title>\n<meta charset='UTF-8'>\n</head>\n";
@@ -757,31 +771,64 @@ function _json2html(jsonBody,pkg,artInd,abstract){
     html += "<h2>Abstract</h2>\n";
     var doc = new DOMParser().parseFromString("<sec>" + abstract + "</sec>",'text/xml');
     var abs = doc.getElementsByTagName('sec')[0];
-    html += _recConv(_parseNode(abs,abstract),pkg,3);
-    html += "</section>\n";
+    _recConv(_parseNode(abs,abstract),pkg,3, function(err,newTxt){
+      if(err) return callback(err);
+      html += newTxt;
+      html += "</section>\n";
+      _recConv(jsonBody,pkg,2, function(err,newTxt){
+        if(err) return callback(err);
+        html += newTxt;
+        html += "</article>\n";
+        html += "</body>\n";
+        html += "</html>";
+        callback(null,html);
+      });
+    });
+  } else {
+    _recConv(jsonBody,pkg,2, function(err,newTxt){
+      if(newTxt != '<div>undefined</div>'){
+        html += newTxt;
+      } else {
+        html += '<div>Empty article.</div>\n';
+      }
+      html += "</article>\n";
+      html += "</body>\n";
+      html += "</html>";
+      callback(null,html);
+    });
   }
-  html += _recConv(jsonBody,pkg,2);
-  html += "</article>\n";
-  html += "</body>\n";
-  html += "</html>";
-  return html;
 }
 
 
-function _recConv(jsonNode,pkg,hlevel){
+function _recConv(jsonNode,pkg,hlevel,callback){
+  callback = once(callback);
+
   var knownTags = { 
     'disp-quote':'blockquote', 
     'sup': 'sup', 
     'sub': 'sub', 
     'bold': 'strong class="bold"', 
     'italic': 'strong class="italic"', 
-    'underline': 'strong class="underline"'
+    'underline': 'strong class="underline"',
+    'inline-formula': 'math'
   };
   var txt = '';
   if( jsonNode.tag === 'body' ){
-    jsonNode.children.forEach(function(x){
-      txt += _recConv(x,pkg,hlevel);
-    });
+    var index = 0;
+    async.eachSeries(jsonNode.children,
+      function(x,cb){
+        index+=1;
+        _recConv(x,pkg,hlevel,function(err,newTxt){
+          txt += newTxt;
+          cb();
+        });
+      },
+      function(err){
+        if(err) return callback(err);
+        return callback(null,txt);
+      }
+    );    
+
   } else if( jsonNode.tag === 'sec' ){
     var id = uuid.v4();
     txt += '<section id="' + id + '"'; //+ '" resource="' + pkg.name + '/' + id + '">\n';
@@ -790,30 +837,75 @@ function _recConv(jsonNode,pkg,hlevel){
       txt += ' property="' + iri + '" ';
     }
     txt += '>\n';
-    jsonNode.children.forEach(function(x){
-      txt += _recConv(x,pkg,hlevel);
-    });
-    txt += '</section>\n\n';
+    var index = 100;
+    async.eachSeries(jsonNode.children,
+      function(x,cb){
+        index += 1;
+        _recConv(x,pkg,hlevel,function(err,newTxt){
+          txt += newTxt;
+          return cb();
+        });
+      },
+      function(err){
+        if(err) return callback(err);
+        txt += '</section>\n\n';
+        return callback(null,txt);
+      }
+    ); 
+
   } else if( jsonNode.tag === 'p' ){  
     txt += '<p property="http://purl.org/spar/doco/Paragraph" >\n';
-    jsonNode.children.forEach(function(x){
-      txt += _recConv(x,pkg,hlevel);
-    });
-    txt += '\n';
-    txt += '</p>\n';
+    var index = 10000;
+    async.eachSeries(jsonNode.children,
+      function(x,cb){
+        index += 1;
+        _recConv(x,pkg,hlevel,function(err,newTxt){
+          if(err) return cb(err);
+          txt += newTxt;
+          return cb(null);
+        });
+      },
+      function(err){
+        if(err) return callback(err);
+        txt += '\n';
+        txt += '</p>\n';
+        return callback(null,txt);
+      }
+    ); 
+
   } else if( jsonNode.tag === 'title' ){
     txt += ' <h' + hlevel + '>\n';
-    jsonNode.children.forEach(function(x){
-      txt += _recConv(x,pkg,hlevel+1);
-    });
-    txt += '\n </h' + hlevel + '>\n';
+    async.eachSeries(jsonNode.children,
+      function(x,cb){
+        _recConv(x,pkg,hlevel,function(err,newTxt){
+          txt += newTxt;
+          cb();
+        });
+      },
+      function(err){
+        if(err) return callback(err);
+        txt += '\n </h' + hlevel + '>\n';
+        return callback(null,txt);
+      }
+    );   
+
   } else if(Object.keys(knownTags).indexOf(jsonNode.tag)>-1){
     txt += '<'+knownTags[jsonNode.tag]+'>\n';
-    jsonNode.children.forEach(function(x){
-      txt += _recConv(x,pkg,hlevel);
-    });
-    txt += '\n';
-    txt += '</'+knownTags[jsonNode.tag]+'>\n';
+    async.eachSeries(jsonNode.children,
+      function(x,cb){
+        _recConv(x,pkg,hlevel,function(err,newTxt){
+          txt += newTxt;
+          cb();
+        });
+      },
+      function(err){
+        if(err) return callback(err);
+        txt += '\n';
+        txt += '</'+knownTags[jsonNode.tag]+'>\n';
+        return callback(null,txt);
+      }
+    );   
+
   } else if( jsonNode.tag === 'text' ){
     if(jsonNode.content.trim() != ''){
       if( (jsonNode.content.slice(0,1)==='.') || (jsonNode.content.slice(0,1)===')') ){ // TODO: regexp
@@ -822,23 +914,43 @@ function _recConv(jsonNode,pkg,hlevel){
         txt += ' '+jsonNode.content;
       }   
     }
+    return callback(null,txt);
+
   } else if( jsonNode.tag === 'ext-link' ){
     txt += ' <a href="'+jsonNode.children[0].content+'">';
     txt += jsonNode.children[0].content;
     txt += '</a>';
+    return callback(null,txt);
+
   } else if( jsonNode.tag === 'list' ){
+
     txt += ' <li>';
-    jsonNode.children.forEach(function(ch){
-      if(ch.tag==='list-item'){
-        txt += ' <item>\n';
-        ch.children.forEach(function(ch2){
-          txt += _recConv(ch2,pkg,hlevel);
-        })
-        txt += ' </item>\n';
+    async.eachSeries(jsonNode.children,
+      function(ch,cb){
+        if(ch.tag==='list-item'){
+          txt += ' <item>\n';
+          async.eachSeries(ch.children,
+            function(ch2,cb2){
+              _recConv(ch2,pkg,hlevel,function(err,newTxt){
+                txt += newTxt;
+                cb2(null);
+              });
+            },
+            function(err){
+              txt += ' </item>\n';
+              cb(null);
+            }
+          )
+        }
+      },
+      function(err){
+        if(err) return callback(err);
+        txt += jsonNode.children[0].content;
+        txt += '</li>\n';
+        return callback(null,txt);
       }
-    })
-    txt += jsonNode.children[0].content;
-    txt += '</li>\n';
+    ); 
+
   } else if( jsonNode.tag === 'bib-ref' ){
     found = false;
 
@@ -849,62 +961,138 @@ function _recConv(jsonNode,pkg,hlevel){
             found = true;
             if(cit.url){
               txt += ' <a href="'+cit.url+'">';
-              jsonNode.children.forEach(function(x){
-                txt += _recConv(x,pkg,hlevel);
-              })
-              txt += '</a>';
+
+              async.eachSeries(jsonNode.children,
+                function(x,cb){
+                  _recConv(x,pkg,hlevel,function(err,newTxt){
+                    txt += newTxt;
+                    cb();
+                  });
+                },
+                function(err){
+                  if(err) return callback(err);
+                  txt += '</a>';
+                  return callback(null,txt);
+                }
+              ); 
             } else {
-              jsonNode.children.forEach(function(x){
-                txt += _recConv(x,pkg,hlevel);
-              })
+              async.eachSeries(jsonNode.children,
+                function(x,cb){
+                  _recConv(x,pkg,hlevel,function(err,newTxt){
+                    txt += newTxt;
+                    cb();
+                  });
+                },
+                function(err){
+                  if(err) return callback(err);
+                  return callback(null,txt);
+                }
+              ); 
             }
           }
-        });
-
-      }
+        })
+      }  
     })
+
+
+
     if(!found){
-      jsonNode.children.forEach(function(x){
-        txt += _recConv(x,pkg,hlevel);
-      });
+      async.eachSeries(jsonNode.children,
+        function(x,cb){
+          _recConv(x,pkg,hlevel,function(err,newTxt){
+            txt += newTxt;
+            cb();
+          });
+        },
+        function(err){
+          if(err) return callback(err);
+          return callback(null,txt);
+        }
+      ); 
     }
+
   } else if( jsonNode.tag === 'sec-ref' ){
-    jsonNode.children.forEach(function(x){
-      txt += _recConv(x,pkg,hlevel);
-    });
+    async.eachSeries(jsonNode.children,
+      function(x,cb){
+        _recConv(x,pkg,hlevel,function(err,newTxt){
+          txt += newTxt;
+          cb();
+        });
+      },
+      function(err){
+        if(err) return callback(err);
+        return callback(null,txt);
+      }
+    ); 
   } else if( (jsonNode.tag === 'suppl-ref') || (jsonNode.tag === 'fig-ref') || (jsonNode.tag === 'table-ref') ){
     found = false;
     typeMap = { 'figure': 'figure', 'audio': 'audio', 'video': 'video', 'code': 'TargetProduct', 'dataset': 'distribution', 'article': 'encoding'};
     Object.keys(typeMap).forEach(
       function(type){
         if(pkg[type]){
-          pkg[type].forEach(
-            function(r,i){
-              if(r.name == jsonNode.id.replace(/\./g,'-')){
+          pkg[type].forEach(function(r,cb){
+            if(jsonNode.id != undefined){
+              if( (r.name == jsonNode.id.replace(/\./g,'-')) || (r.alternateName == jsonNode.id.replace(/\./g,'-')) ){
+
                 found = true;
+
                 if(r[typeMap[type]][0].contentUrl){
+
                   txt += '<a href="'+r[typeMap[type]][0].contentUrl+'">';
-                  jsonNode.children.forEach(function(x){
-                    txt += _recConv(x,pkg,hlevel);                   
-                  });
-                  txt += '</a>';
+                  async.eachSeries(jsonNode.children,
+                    function(x,cb){
+                      _recConv(x,pkg,hlevel,function(err,newTxt){
+                        txt += newTxt;
+                        return cb(null);
+                      });
+                    },
+                    function(err){
+                      if(err) return callback(err);
+                      txt += '</a>';
+                      return callback(null,txt);
+                    }
+                  ); 
+
                 } else {
-                  jsonNode.children.forEach(function(x){
-                    txt += _recConv(x,pkg,hlevel);                   
-                  });
+                  var sha1 = crypto.createHash('sha1');
+                  var size = 0
+                  var p = path.resolve('/Users/dureaujoseph/dwnlds', r[typeMap[type]][0].contentPath);
+                  var s = fs.createReadStream(p).pipe(zlib.createGzip());
+                  s.on('error',  function(err){cb(err)});
+                  s.on('data', function(d) { size += d.length; sha1.update(d); });
+                  s.on('end', function() { 
+                    var sha = sha1.digest('hex');
+                    txt += '<a href="http://registry.standardanalytics.io/r/'+sha+'">';
+                    
+                    async.eachSeries(jsonNode.children,
+                      function(x,cb){
+                        _recConv(x,pkg,hlevel,function(err,newTxt){
+                          txt += newTxt;
+                          return cb();
+                        });
+                      },
+                      function(err){
+                        if(err) return callback(err);
+                        txt += '</a>';
+                        return callback(null,txt);
+                      }
+                    );
+                  });  
                 }
               }
-            }
-          )
+            } 
+          })
+          if(!found){
+            jsonNode.children.forEach(function(x){
+              _recConv(x,pkg,hlevel,function(err,newTxt){
+                txt += newTxt;
+                return callback(null,txt);
+              });
+            });
+          }
         }
       }
     );
-
-    if(!found){
-      jsonNode.children.forEach(function(x){
-        txt += _recConv(x,pkg,hlevel);                   
-      });
-    }
 
   } else if( jsonNode.tag === 'figure' ){
     var id = uuid.v4();
@@ -915,13 +1103,24 @@ function _recConv(jsonNode,pkg,hlevel){
     txt += 'TODO: Insert IMG thumnal here\n';
     if(jsonNode.caption){
       txt += '<figcaption property="http://purl.org/spar/deo/Caption">\n'; 
-      jsonNode.caption.forEach(function(x){
-        txt += _recConv(x,pkg,hlevel);
-      });
-      txt += '</figcaption>\n'; 
+      async.eachSeries(jsonNode.caption,
+        function(x,cb){
+          _recConv(x,pkg,hlevel,function(err,newTxt){
+            txt += newTxt;
+            cb();
+          });
+        },
+        function(err){
+          if(err) return callback(err);
+          txt += '</figcaption>\n'; 
+          txt += '</figure>\n'; 
+          return callback(null,txt);
+        }
+      ); 
+    } else {
+      txt += '</figure>\n'; 
+      return callback(null,txt);
     }
-
-    txt += '</figure>\n'; 
 
   } else if( jsonNode.tag === 'table' ){
 
@@ -929,13 +1128,24 @@ function _recConv(jsonNode,pkg,hlevel){
     txt += jsonNode.table;
     if(jsonNode.caption){
       txt += '<caption property="http://purl.org/spar/deo/Caption>\n'; 
-      jsonNode.caption.forEach(function(x){
-        txt += _recConv(x,pkg,hlevel);
-      });
-      txt += '\n</caption>\n'; 
+      async.eachSeries(jsonNode.caption,
+        function(x,cb){
+          _recConv(x,pkg,hlevel,function(err,newTxt){
+            txt += newTxt;
+            cb();
+          });
+        },
+        function(err){
+          if(err) return callback(err);
+          txt += '\n</caption>\n'; 
+          txt += '</table>\n'; 
+          return callback(null,txt);
+        }
+      ); 
+    } else {
+      txt += '</table>\n'; 
+      return callback(null,txt);
     }
-
-    txt += '</table>\n'; 
 
   } else if( jsonNode.tag === 'supplementary-material' ){
 
@@ -964,25 +1174,37 @@ function _recConv(jsonNode,pkg,hlevel){
       }
     );
 
+
     if(!found){
       txt += jsonNode.id; 
     }
 
     if(jsonNode.caption){
       txt += '<caption>'; 
-      jsonNode.caption.forEach(function(x){
-        txt += _recConv(x,pkg,hlevel);
-      });
-      txt += '</caption>'; 
-    }   
-
-    txt += '</div>'; 
+      async.eachSeries(jsonNode.caption,
+        function(x,cb){
+          _recConv(x,pkg,hlevel,function(err,newTxt){
+            txt += newTxt;
+            cb();
+          });
+        },
+        function(err){
+          if(err) return callback(err);
+          txt += '</caption>'; 
+          txt += '</div>'; 
+          return callback(null,txt);
+        }
+      );
+    } else {
+      txt += '</div>'; 
+      return callback(null,txt);
+    }  
 
   } else {
     console.log('pb, unknown tag', jsonNode.tag);
     console.log(jsonNode);
+    return callback(null,txt);
   }
-  return txt;
 }
 
 function _identifiedTitle(node){
@@ -1012,25 +1234,28 @@ function _identifiedTitle(node){
 function _addRefsHtml(htmlBody,article){
   var indbeg = htmlBody.indexOf('</html>');
   htmlBody = htmlBody.slice(0,indbeg);
-  htmlBody += '<section property="http://purl.org/spar/doco/Bibliography">\n';
-  htmlBody += '<h2>Bibliography</h2>';
-  article.citation.forEach(function(cit){
-    htmlBody += cit.description;
-    if(cit.doi){
+  if(article.citation){
+    htmlBody += '<section property="http://purl.org/spar/doco/Bibliography">\n';
+    htmlBody += '<h2>Bibliography</h2>';
+    article.citation.forEach(function(cit){
+      htmlBody += cit.description;
+      if(cit.doi){
+        htmlBody += '<br>\n';
+        htmlBody += 'doi:' + cit.doi + '\n';
+      }
+      if(cit.pmid){
+        htmlBody += '<br>\n';
+        htmlBody += 'pmid:' + cit.pmid + '\n';
+      }
+      if(cit.url){
+        htmlBody += '<br>\n';
+        htmlBody += '<a href="' + cit.url +'">link</a>' + '\n';
+      }
       htmlBody += '<br>\n';
-      htmlBody += 'doi:' + cit.doi + '\n';
-    }
-    if(cit.pmid){
       htmlBody += '<br>\n';
-      htmlBody += 'pmid:' + cit.pmid + '\n';
-    }
-    if(cit.url){
-      htmlBody += '<br>\n';
-      htmlBody += '<a href="' + cit.url +'">link</a>' + '\n';
-    }
-    htmlBody += '<br>\n';
-  });
-  htmlBody += '\n</section>\n';
+    });
+    htmlBody += '\n</section>\n';
+  }
   htmlBody += '</html>';
   return htmlBody;
 }
@@ -1045,7 +1270,6 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,opts,callback){
     callback = opts;
     opts = {};
   }
-
 
   request(uri,
     function(error,response,body){
@@ -1856,6 +2080,7 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,opts,callback){
 
               pkg[type][i] = x;
 
+
               figures.forEach(function(fig){
                 var v = [fig.id, fig.href];
                 if(fig.id){
@@ -1872,6 +2097,9 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,opts,callback){
                   if (fig.caption){
                     descr += fig.caption;
                     x.caption = descr;
+                  }
+                  if(fig.alternateName){
+                    x.alternateName = fig.alternateName;
                   }
                 }
               });
@@ -1991,94 +2219,100 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,opts,callback){
           });
         });
 
-        htmlBody = _json2html(jsonBody,newpkg,artInd,meta.abstractHtml);
-        htmlBody = _addRefsHtml(htmlBody,newpkg.article[artInd]);
-        fs.writeFile(path.join(ldpm.root,nxmlName+'.html'),htmlBody,function(err){
-          if(err) return callback(err);
-          ldpm.paths2resources([path.join(ldpm.root,nxmlName+'.html')],{}, function(err,resources){
+        _json2html(jsonBody,newpkg,artInd,meta.abstractHtml, function(err, htmlBody){
+          htmlBody = _addRefsHtml(htmlBody,newpkg.article[artInd]);
+          fs.writeFile(path.join(ldpm.root,nxmlName+'.html'),htmlBody,function(err){
             if(err) return callback(err);
-            newpkg.article[artInd].encoding.push(resources.article[0].encoding[0]);
+            ldpm.paths2resources([path.join(ldpm.root,nxmlName+'.html')],{}, function(err,resources){
+              if(err) return callback(err);
+              newpkg.article[artInd].encoding.push(resources.article[0].encoding[0]);
 
-            if ( !opts.noPubmed ){
-              // call pubmed to check if there isn't additional info there
-              ldpm.markup('pubmed', meta.pmid, function(err,pubmed_pkg){
-                if(pubmed_pkg){
-                  if(pubmed_pkg.keyword){
-                    if(newpkg.keyword==undefined) newpkg.keyword = [];
-                    pubmed_pkg.keyword.forEach(function(x){
-                      if(newpkg.keyword.indexOf(x)==-1){
-                        newpkg.keyword.push(x);
-                      }
-                    })
-                  }
-                  if(newpkg.annotation == undefined){
-                    newpkg.annotation = [];
-                  }
-                  var hasBody = {
-                    "@type": ["Tag", "Mesh"],
-                    "@context": "http://registry.standardanalytics.io/mesh.jsonld"
-                  };
-                  var graph = [];
-                  pubmed_pkg.rawMesh.forEach(function(x){
-                    var tmp = {
-                      "@type": "MeshHeading",
-                    };
-                    if(x.DescriptorName){
-                      tmp.descriptor = {
-                        name: x.DescriptorName[0]['_'],
-                        majorTopic: (x.DescriptorName[0]['$']['MajorTopicYN'] === 'Y')
-                      }
-                      if(x.QualifierName){
-                        tmp.qualifier = {
-                          name: x.QualifierName[0]['_'],
-                          majorTopic: (x.QualifierName[0]['$']['MajorTopicYN'] === 'Y')
+              if ( (!opts.noPubmed) && (meta.pmid!=undefined) ){
+                // call pubmed to check if there isn't additional info there
+                ldpm.markup('pubmed', meta.pmid, function(err,pubmed_pkg){
+                  if(pubmed_pkg){
+                    if(pubmed_pkg.keyword){
+                      if(newpkg.keyword==undefined) newpkg.keyword = [];
+                      pubmed_pkg.keyword.forEach(function(x){
+                        if(newpkg.keyword.indexOf(x)==-1){
+                          newpkg.keyword.push(x);
                         }
-                      }
+                      })
                     }
-                    graph.push(tmp)
-                  });
-                  hasBody['@graph'] = graph;
+                    if(newpkg.annotation == undefined){
+                      newpkg.annotation = [];
+                    }
+                    var hasBody = {
+                      "@type": ["Tag", "Mesh"],
+                      "@context": "http://registry.standardanalytics.io/mesh.jsonld"
+                    };
+                    var graph = [];
+                    if(pubmed_pkg.rawMesh){
 
-                  newpkg.annotation.push({
-                    "@type": "Annotation",
-                    annotatedAt: newpkg.article[0].datePublished,
-                    annotatedBy: {
-                      "@id": "http://www.ncbi.nlm.nih.gov/pubmed",
-                      "@type": "Organization",
-                      name: "PubMed"
-                    },
-                    serializedBy: {
-                      "@id": "http://standardanalytics.io",
-                      "@type": "Organization",
-                      name: "Standard Analytics IO"
-                    },
-                    serializedAt: (new Date()).toISOString(),
-                    motivatedBy: "oa:tagging",
-                    hasBody: [
-                      hasBody
-                    ],
-                    hasTarget: [
-                      {
-                        "@type": "SpecificResource",
-                        hasSource: "r/f9b634be34cb3f2af4fbf4395e3f24b3834da926",
-                        hasScope: newpkg.name + '/' + newpkg.version + '/article/' + newpkg.article[artInd].name,
-                        hasState: {
-                          "@type": "HttpRequestState",
-                          value: "Accept: text/html"
+                      pubmed_pkg.rawMesh.forEach(function(x){
+                        var tmp = {
+                          "@type": "MeshHeading",
+                        };
+                        if(x.DescriptorName){
+                          tmp.descriptor = {
+                            name: x.DescriptorName[0]['_'],
+                            majorTopic: (x.DescriptorName[0]['$']['MajorTopicYN'] === 'Y')
+                          }
+                          if(x.QualifierName){
+                            tmp.qualifier = {
+                              name: x.QualifierName[0]['_'],
+                              majorTopic: (x.QualifierName[0]['$']['MajorTopicYN'] === 'Y')
+                            }
+                          }
                         }
-                      }
-                    ]
-                  })
-                }
+                        graph.push(tmp)
+                      });
+                      hasBody['@graph'] = graph;
+
+                      newpkg.annotation.push({
+                        "@type": "Annotation",
+                        annotatedAt: newpkg.article[0].datePublished,
+                        annotatedBy: {
+                          "@id": "http://www.ncbi.nlm.nih.gov/pubmed",
+                          "@type": "Organization",
+                          name: "PubMed"
+                        },
+                        serializedBy: {
+                          "@id": "http://standardanalytics.io",
+                          "@type": "Organization",
+                          name: "Standard Analytics IO"
+                        },
+                        serializedAt: (new Date()).toISOString(),
+                        motivatedBy: "oa:tagging",
+                        hasBody: [
+                          hasBody
+                        ],
+                        hasTarget: [
+                          {
+                            "@type": "SpecificResource",
+                            hasSource: "r/f9b634be34cb3f2af4fbf4395e3f24b3834da926",
+                            hasScope: newpkg.name + '/' + newpkg.version + '/article/' + newpkg.article[artInd].name,
+                            hasState: {
+                              "@type": "HttpRequestState",
+                              value: "Accept: text/html"
+                            }
+                          }
+                        ]
+                      })
+
+                    }
+                  }
+                  callback(null,newpkg);
+                });
+              } else {
                 callback(null,newpkg);
-              });
-            } else {
-              callback(null,newpkg);
-            }
+              }
 
 
+            });
           });
         });
+        
 
       })
     }

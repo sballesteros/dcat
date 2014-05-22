@@ -697,16 +697,22 @@ function _parseNode(node,xml){
               fig.caption= caption;
             };
             tmp.children.push(fig);
-          } else if ( x.tagName == 'img' ){
-            var img = {
-              tag: 'inline-graphic'
+          } else if ( x.tagName == 'disp-formula' ){
+            var form = {
+              tag: 'disp-formula'
             }
-            Object.keys(x.attributes).forEach(function(att){
-              if(y.attributes[att].name==='xlink:href'){
-                img.id = y.attributes[att].value;
+            Array.prototype.forEach.call(x.childNodes,function(y){
+              if(y.tagName == 'label'){
+                form.label = y.textContent;
+              } else if(y.tagName == 'graphic') {
+                Object.keys(y.attributes).forEach(function(att){
+                  if(y.attributes[att].name==='xlink:href'){
+                    form.id = y.attributes[att].value;
+                  }
+                });
               }
-            });
-            tmp.children.push(img);
+            })
+            tmp.children.push(form);
           } else if ( x.tagName == 'supplementary-material' ){
             var sup = {
               tag: 'supplementary-material'
@@ -1271,6 +1277,60 @@ function _recConv(jsonNode,pkg,hlevel,callback){
         }
       }
     );
+
+  } else if ( jsonNode.tag === 'disp-formula'){
+
+    txt += '\n<div class="formula" ';
+    if(jsonNode.label){
+      txt += 'id="' + jsonNode.label + '"';
+    } 
+    txt += '>\n';
+
+    found = false;
+    var typeMap = { 'figure': 'figure' };
+    Object.keys(typeMap).forEach(
+      function(type){
+        if(pkg[type]){
+          pkg[type].forEach(function(r,cb){
+            if(jsonNode.id != undefined){
+              if(r.name == path.basename(jsonNode.id,path.extname(jsonNode.id)).replace(/\./g,'-')){
+                found = true;
+
+                if(r[typeMap[type]][0].contentUrl){
+
+                  txt += '<img src="'+r[typeMap[type]][0].contentUrl+'">';
+                  return callback(null,txt);
+
+                } else {
+                  var sha1 = crypto.createHash('sha1');
+                  var size = 0
+                  var p = path.resolve('/Users/dureaujoseph/dwnlds', r[typeMap[type]][0].contentPath);
+                  var s = fs.createReadStream(p).pipe(zlib.createGzip());
+                  s.on('error',  function(err){cb(err)});
+                  s.on('data', function(d) { size += d.length; sha1.update(d); });
+                  s.on('end', function() { 
+                    var sha = sha1.digest('hex');
+                    txt += '<img src="http://registry.standardanalytics.io/r/'+sha+'">';
+                    if(jsonNode.label){
+                      txt += '\n<span class="eq-label">\n';
+                      txt += jsonNode.label;
+                      txt += '\n</span>\n';
+                    }
+                    txt += '\n</div>\n';
+                    return callback(null,txt);
+                  });  
+                }
+              }
+            } 
+          })
+
+          // if(!found){
+          //   return callback(null,txt);
+          // }
+        }
+      }
+    ); 
+
 
 
   } else {

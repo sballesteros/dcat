@@ -581,8 +581,8 @@ function _parseNode(node,xml){
   if(node.attributes != undefined){
     var tag = '';
     Object.keys(node.attributes).forEach(function(att){
-      if(node.attributes[att].nodeValue==='inline-formula'){
-        console.log(node)
+      if(node.attributes[att].nodeValue==='image'){
+        tag = 'img';
       }
       if(node.attributes[att].nodeValue==='bibr'){
         tag = 'bib-ref';
@@ -697,6 +697,16 @@ function _parseNode(node,xml){
               fig.caption= caption;
             };
             tmp.children.push(fig);
+          } else if ( x.tagName == 'img' ){
+            var img = {
+              tag: 'inline-graphic'
+            }
+            Object.keys(x.attributes).forEach(function(att){
+              if(y.attributes[att].name==='xlink:href'){
+                img.id = y.attributes[att].value;
+              }
+            });
+            tmp.children.push(img);
           } else if ( x.tagName == 'supplementary-material' ){
             var sup = {
               tag: 'supplementary-material'
@@ -741,13 +751,33 @@ function _parseNode(node,xml){
         }
       });
       return tmp;
-    } else {
+    } else if(tmp.tag === 'img'){
+      var img = {
+        tag: 'inline-graphic'
+      }
+      Object.keys(node.attributes).forEach(function(att){
+        if(node.attributes[att].name==='xlink:href'){
+          img.id = node.attributes[att].value;
+        }
+      });
+      return img;
+    }  else {
       var txt = node.textContent.toString().replace(/(\r\n|\n|\r)/gm,"");
       return {
         tag: 'text',
         content: txt
       };
     }
+  } else if(tmp.tag === 'img'){
+    var img = {
+      tag: 'inline-graphic'
+    }
+    Object.keys(node.attributes).forEach(function(att){
+      if(y.attributes[att].name==='xlink:href'){
+        img.id = y.attributes[att].value;
+      }
+    });
+    return img;
   } else {
     var txt = node.textContent.toString().replace(/(\r\n|\n|\r)/gm,"");
     return {
@@ -767,7 +797,7 @@ function _json2html(jsonBody,pkg,artInd,abstract, callback){
   html += "<h1>\n" + pkg.article[artInd].headline + "</h1>\n";
   if(abstract!=undefined){
     var id = uuid.v4();
-    html += '<section id="' + id + '" property="http://salt.semanticauthoring.org/ontologies/sro#Abstract">\n'; //+ '" resource="' + pkg.name + '/' + id + '">\n';
+    html += '<section id="' + id + '" typeof="http://salt.semanticauthoring.org/ontologies/sro#Abstract">\n'; //+ '" resource="' + pkg.name + '/' + id + '">\n';
     html += "<h2>Abstract</h2>\n";
     var doc = new DOMParser().parseFromString("<sec>" + abstract + "</sec>",'text/xml');
     var abs = doc.getElementsByTagName('sec')[0];
@@ -810,7 +840,7 @@ function _recConv(jsonNode,pkg,hlevel,callback){
     'bold': 'strong class="bold"', 
     'italic': 'strong class="italic"', 
     'underline': 'strong class="underline"',
-    'inline-formula': 'math'
+    'inline-formula': 'span'
   };
   var txt = '';
   if( jsonNode.tag === 'body' ){
@@ -834,7 +864,7 @@ function _recConv(jsonNode,pkg,hlevel,callback){
     txt += '<section id="' + id + '"'; //+ '" resource="' + pkg.name + '/' + id + '">\n';
     var iri = _identifiedTitle(jsonNode); 
     if ( iri != ''){
-      txt += ' property="' + iri + '" ';
+      txt += ' typeof="' + iri + '" ';
     }
     txt += '>\n';
     var index = 100;
@@ -854,7 +884,7 @@ function _recConv(jsonNode,pkg,hlevel,callback){
     ); 
 
   } else if( jsonNode.tag === 'p' ){  
-    txt += '<p property="http://purl.org/spar/doco/Paragraph" >\n';
+    txt += '<p typeof="http://purl.org/spar/doco/Paragraph" >\n';
     var index = 10000;
     async.eachSeries(jsonNode.children,
       function(x,cb){
@@ -1026,7 +1056,7 @@ function _recConv(jsonNode,pkg,hlevel,callback){
     ); 
   } else if( (jsonNode.tag === 'suppl-ref') || (jsonNode.tag === 'fig-ref') || (jsonNode.tag === 'table-ref') ){
     found = false;
-    typeMap = { 'figure': 'figure', 'audio': 'audio', 'video': 'video', 'code': 'TargetProduct', 'dataset': 'distribution', 'article': 'encoding'};
+    var typeMap = { 'figure': 'figure', 'audio': 'audio', 'video': 'video', 'code': 'TargetProduct', 'dataset': 'distribution', 'article': 'encoding'};
     Object.keys(typeMap).forEach(
       function(type){
         if(pkg[type]){
@@ -1097,12 +1127,12 @@ function _recConv(jsonNode,pkg,hlevel,callback){
   } else if( jsonNode.tag === 'figure' ){
     var id = uuid.v4();
     txt += '<figure ';
-    txt += 'property="http://purl.org/spar/doco/FigureBox" ';
+    txt += 'typeof="http://purl.org/spar/doco/FigureBox" ';
     txt += 'id="' + id + '" resource="' + pkg.name + '/' + id + '"';
     txt += '>\n'; 
     txt += 'TODO: Insert IMG thumnal here\n';
     if(jsonNode.caption){
-      txt += '<figcaption property="http://purl.org/spar/deo/Caption">\n'; 
+      txt += '<figcaption typeof="http://purl.org/spar/deo/Caption">\n'; 
       async.eachSeries(jsonNode.caption,
         function(x,cb){
           _recConv(x,pkg,hlevel,function(err,newTxt){
@@ -1124,10 +1154,10 @@ function _recConv(jsonNode,pkg,hlevel,callback){
 
   } else if( jsonNode.tag === 'table' ){
 
-    txt += '<table property="http://purl.org/spar/doco/Table" >\n'; 
+    txt += '<table typeof="http://purl.org/spar/doco/Table" >\n'; 
     txt += jsonNode.table;
     if(jsonNode.caption){
-      txt += '<caption property="http://purl.org/spar/deo/Caption>\n'; 
+      txt += '<caption typeof="http://purl.org/spar/deo/Caption>\n'; 
       async.eachSeries(jsonNode.caption,
         function(x,cb){
           _recConv(x,pkg,hlevel,function(err,newTxt){
@@ -1152,7 +1182,7 @@ function _recConv(jsonNode,pkg,hlevel,callback){
     txt += '<div>';
     found = false;
 
-    typeMap = { 'figure': 'figure', 'audio': 'audio', 'video': 'video', 'code': 'TargetProduct', 'dataset': 'distribution', 'article': 'encoding'};
+    var typeMap = { 'figure': 'figure', 'audio': 'audio', 'video': 'video', 'code': 'TargetProduct', 'dataset': 'distribution', 'article': 'encoding'};
     Object.keys(typeMap).forEach(
       function(type){
         if(pkg[type]){
@@ -1195,10 +1225,53 @@ function _recConv(jsonNode,pkg,hlevel,callback){
           return callback(null,txt);
         }
       );
+
     } else {
       txt += '</div>'; 
       return callback(null,txt);
-    }  
+    }
+
+  } else if( jsonNode.tag === 'inline-graphic' ){
+
+    found = false;
+    var typeMap = { 'figure': 'figure' };
+    Object.keys(typeMap).forEach(
+      function(type){
+        if(pkg[type]){
+          pkg[type].forEach(function(r,cb){
+            if(jsonNode.id != undefined){
+              if(r.name == path.basename(jsonNode.id,path.extname(jsonNode.id)).replace(/\./g,'-')){
+                found = true;
+
+                if(r[typeMap[type]][0].contentUrl){
+
+                  txt += '<img src="'+r[typeMap[type]][0].contentUrl+'">';
+                  return callback(null,txt);
+
+                } else {
+                  var sha1 = crypto.createHash('sha1');
+                  var size = 0
+                  var p = path.resolve('/Users/dureaujoseph/dwnlds', r[typeMap[type]][0].contentPath);
+                  var s = fs.createReadStream(p).pipe(zlib.createGzip());
+                  s.on('error',  function(err){cb(err)});
+                  s.on('data', function(d) { size += d.length; sha1.update(d); });
+                  s.on('end', function() { 
+                    var sha = sha1.digest('hex');
+                    txt += '<img src="http://registry.standardanalytics.io/r/'+sha+'">';
+                    return callback(null,txt);
+                  });  
+                }
+              }
+            } 
+          })
+
+          // if(!found){
+          //   return callback(null,txt);
+          // }
+        }
+      }
+    );
+
 
   } else {
     console.log('pb, unknown tag', jsonNode.tag);
@@ -1235,9 +1308,11 @@ function _addRefsHtml(htmlBody,article){
   var indbeg = htmlBody.indexOf('</html>');
   htmlBody = htmlBody.slice(0,indbeg);
   if(article.citation){
-    htmlBody += '<section property="http://purl.org/spar/doco/Bibliography">\n';
-    htmlBody += '<h2>Bibliography</h2>';
+    htmlBody += '<section typeof="http://purl.org/spar/doco/Bibliography">\n';
+    htmlBody += '<h2>Bibliography</h2>\n';
+    htmlBody += '<li>\n';
     article.citation.forEach(function(cit){
+      htmlBody += '<item>\n';
       htmlBody += cit.description;
       if(cit.doi){
         htmlBody += '<br>\n';
@@ -1251,8 +1326,7 @@ function _addRefsHtml(htmlBody,article){
         htmlBody += '<br>\n';
         htmlBody += '<a href="' + cit.url +'">link</a>' + '\n';
       }
-      htmlBody += '<br>\n';
-      htmlBody += '<br>\n';
+      htmlBody += '</item>\n';
     });
     htmlBody += '\n</section>\n';
   }
@@ -1270,6 +1344,8 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,opts,callback){
     callback = opts;
     opts = {};
   }
+
+  console.log(uri)
 
   request(uri,
     function(error,response,body){

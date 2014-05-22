@@ -13,6 +13,7 @@ var request = require('request')
   , emitter = require('events').EventEmitter
   , events = require('events')
   , tar = require('tar')
+  , BASE = require('package-jsonld').BASE
   , once = require('once')
   , targz = require('tar.gz')
   , Client = require('ftp')
@@ -794,24 +795,134 @@ function _parseNode(node,xml){
 }
 
 
-function _json2html(jsonBody,pkg,artInd,abstract, callback){
+function _json2html(ldpm,jsonBody,pkg,artInd,abstract, callback){
   var html  = "<!doctype html>\n";
   html += "<html>\n";
   html += "<head>\n<title>\n" + pkg.article[artInd].headline + "</title>\n<meta charset='UTF-8'>\n</head>\n";
   html += "<body>\n";
   html += "<article>\n";
   html += "<h1>\n" + pkg.article[artInd].headline + "</h1>\n";
+  if(pkg.keyword){
+    html += '<div class="keywords" property="http://schema.org/keywords" >\n';
+    html += '<h3>Keywords</h3>\n';
+    html += '<ul>\n';
+    pkg.keyword.forEach(function(k){
+      html += '<li>\n';
+      html += k + '\n';
+      html += '</li>\n';
+    })
+    html += '</ul>\n';
+    html += '</div>\n';
+  }
+  if(pkg.author){
+    html += '<div class="authors" typeof="http://purl.org/spar/doco/ListOfAuthors" >\n';
+    html += '<h3>Authors</h3>\n';
+    html += '<div class="author" property="http://schema.org/author" >\n';
+    html += '<span property="http://schema.org/name" >\n';
+    html += pkg.author.name;
+    html += '</span>\n';
+    if(pkg.author.email){
+      html += '<span property="http://schema.org/email" >\n';
+      html += pkg.author.email;
+      html += '</span>\n';
+    }
+    if(pkg.author.affiliation){
+      html += '<ul>\n';
+      pkg.author.affiliation.forEach(function(aff){
+        html += '<li>\n';
+        html += '<span property="http://schema.org/affiliation">\n';
+        html += aff.description;
+        html += '</span>\n';
+        html += '</li>\n';        
+      })
+      html += '</ul>\n';
+    }
+    html += '</div>\n';    
+  }
+  if(pkg.contributor){
+    pkg.contributor.forEach(function(contr){
+      html += '<div class="contributor" property="http://schema.org/contributor" >\n';
+      html += '<span property="http://schema.org/name" >\n';
+      html += contr.name;
+      html += '</span>\n';
+      if(contr.email){
+        html += '<span property="http://schema.org/email" >\n';
+        html += contr.email;
+        html += '</span>\n';
+      }
+      if(contr.affiliation){
+        html += '<ul>\n';
+        contr.affiliation.forEach(function(aff){
+          html += '<li>\n';
+          html += '<span property="http://schema.org/affiliation">\n';
+          html += aff.description;
+          html += '</span>\n';
+          html += '</li>\n';        
+        })
+        html += '</ul>\n';
+      }
+      html += '</div>\n';    
+    })
+  }
+  html += '</div>\n';
+  if(pkg.provider){
+    html += '<div class="provider" property="http://schema.org/provider" >\n';
+    html += '<h3>Provider</h3>\n';
+    html += pkg.provider.description;
+    html += '</div>\n';
+  }
+  if(pkg.editor){
+    html += '<div class="editors" property="http://schema.org/editor" >\n';
+    html += '<h3>Editor</h3>\n';
+    pkg.editor.forEach(function(ed){
+      html += '<div>\n';
+      if(ed.name){
+        html += '<span property="http://schema.org/name" >\n';
+        html += ed.name;
+        html += '</span>\n';
+      }
+      if(ed.affiliation){
+        html += '<ul>\n';
+        ed.affiliation.forEach(function(aff){
+          html += '<li>\n';
+          html += '<span property="http://schema.org/affiliation">\n';
+          html += aff.description;
+          html += '</span>\n';
+          html += '</li>\n';        
+        })
+        html += '</ul>\n';
+      }
+      html += '</div>\n';
+    })
+    html += '</div>\n'
+  }
+  if(pkg.journal){
+    html += '<div class="journal" property="http://schema.org/journal" >\n';
+    html += '<h3>Journal</h3>';
+    if(pkg.journal.name){
+      html += '<span property="http://schema.org/name">\n';
+      html += pkg.journal.name;
+      html += '</span>\n';
+    }
+    if(pkg.journal.name){
+      html += '<span property="http://purl.org/ontology/bibo/issn">\n';
+      html += pkg.journal.issn;
+      html += '</span>\n';
+    }
+    html += '</div>\n';
+  }
+
   if(abstract!=undefined){
     var id = uuid.v4();
     html += '<section id="' + id + '" typeof="http://salt.semanticauthoring.org/ontologies/sro#Abstract">\n'; //+ '" resource="' + pkg.name + '/' + id + '">\n';
     html += "<h2>Abstract</h2>\n";
     var doc = new DOMParser().parseFromString("<sec>" + abstract + "</sec>",'text/xml');
     var abs = doc.getElementsByTagName('sec')[0];
-    _recConv(_parseNode(abs,abstract),pkg,3, function(err,newTxt){
+    _recConv(ldpm,_parseNode(abs,abstract),pkg,3, function(err,newTxt){
       if(err) return callback(err);
       html += newTxt;
       html += "</section>\n";
-      _recConv(jsonBody,pkg,2, function(err,newTxt){
+      _recConv(ldpm,jsonBody,pkg,2, function(err,newTxt){
         if(err) return callback(err);
         html += newTxt;
         html += "</article>\n";
@@ -821,7 +932,7 @@ function _json2html(jsonBody,pkg,artInd,abstract, callback){
       });
     });
   } else {
-    _recConv(jsonBody,pkg,2, function(err,newTxt){
+    _recConv(ldpm,jsonBody,pkg,2, function(err,newTxt){
       if(newTxt != '<div>undefined</div>'){
         html += newTxt;
       } else {
@@ -836,7 +947,7 @@ function _json2html(jsonBody,pkg,artInd,abstract, callback){
 }
 
 
-function _recConv(jsonNode,pkg,hlevel,callback){
+function _recConv(ldpm,jsonNode,pkg,hlevel,callback){
   callback = once(callback);
 
   var knownTags = { 
@@ -854,7 +965,7 @@ function _recConv(jsonNode,pkg,hlevel,callback){
     async.eachSeries(jsonNode.children,
       function(x,cb){
         index+=1;
-        _recConv(x,pkg,hlevel,function(err,newTxt){
+        _recConv(ldpm,x,pkg,hlevel,function(err,newTxt){
           txt += newTxt;
           cb();
         });
@@ -877,7 +988,7 @@ function _recConv(jsonNode,pkg,hlevel,callback){
     async.eachSeries(jsonNode.children,
       function(x,cb){
         index += 1;
-        _recConv(x,pkg,hlevel,function(err,newTxt){
+        _recConv(ldpm,x,pkg,hlevel,function(err,newTxt){
           txt += newTxt;
           return cb();
         });
@@ -895,7 +1006,7 @@ function _recConv(jsonNode,pkg,hlevel,callback){
     async.eachSeries(jsonNode.children,
       function(x,cb){
         index += 1;
-        _recConv(x,pkg,hlevel,function(err,newTxt){
+        _recConv(ldpm,x,pkg,hlevel,function(err,newTxt){
           if(err) return cb(err);
           txt += newTxt;
           return cb(null);
@@ -913,7 +1024,7 @@ function _recConv(jsonNode,pkg,hlevel,callback){
     txt += ' <h' + hlevel + '>\n';
     async.eachSeries(jsonNode.children,
       function(x,cb){
-        _recConv(x,pkg,hlevel,function(err,newTxt){
+        _recConv(ldpm,x,pkg,hlevel,function(err,newTxt){
           txt += newTxt;
           cb();
         });
@@ -929,7 +1040,7 @@ function _recConv(jsonNode,pkg,hlevel,callback){
     txt += '<'+knownTags[jsonNode.tag]+'>\n';
     async.eachSeries(jsonNode.children,
       function(x,cb){
-        _recConv(x,pkg,hlevel,function(err,newTxt){
+        _recConv(ldpm,x,pkg,hlevel,function(err,newTxt){
           txt += newTxt;
           cb();
         });
@@ -967,7 +1078,7 @@ function _recConv(jsonNode,pkg,hlevel,callback){
           txt += ' <item>\n';
           async.eachSeries(ch.children,
             function(ch2,cb2){
-              _recConv(ch2,pkg,hlevel,function(err,newTxt){
+              _recConv(ldpm,ch2,pkg,hlevel,function(err,newTxt){
                 txt += newTxt;
                 cb2(null);
               });
@@ -990,6 +1101,7 @@ function _recConv(jsonNode,pkg,hlevel,callback){
   } else if( jsonNode.tag === 'bib-ref' ){
     found = false;
 
+    txt += '<span property="http://schema.org/citation">'
     pkg.article.forEach(function(art){
       if(art.citation){
         art.citation.forEach(function(cit){
@@ -1000,7 +1112,7 @@ function _recConv(jsonNode,pkg,hlevel,callback){
 
               async.eachSeries(jsonNode.children,
                 function(x,cb){
-                  _recConv(x,pkg,hlevel,function(err,newTxt){
+                  _recConv(ldpm,x,pkg,hlevel,function(err,newTxt){
                     txt += newTxt;
                     cb();
                   });
@@ -1008,19 +1120,24 @@ function _recConv(jsonNode,pkg,hlevel,callback){
                 function(err){
                   if(err) return callback(err);
                   txt += '</a>';
+                  txt += '</span>';
                   return callback(null,txt);
                 }
               ); 
             } else {
+              var ind = parseInt(jsonNode.children[0]['content'].slice(1,jsonNode.children[0]['content'].length-1),10);
+              txt += ' <a href="#ref_' + ind + '">';
               async.eachSeries(jsonNode.children,
                 function(x,cb){
-                  _recConv(x,pkg,hlevel,function(err,newTxt){
+                  _recConv(ldpm,x,pkg,hlevel,function(err,newTxt){
                     txt += newTxt;
                     cb();
                   });
                 },
                 function(err){
                   if(err) return callback(err);
+                  txt += '</a>';
+                  txt += '</span>';
                   return callback(null,txt);
                 }
               ); 
@@ -1035,7 +1152,7 @@ function _recConv(jsonNode,pkg,hlevel,callback){
     if(!found){
       async.eachSeries(jsonNode.children,
         function(x,cb){
-          _recConv(x,pkg,hlevel,function(err,newTxt){
+          _recConv(ldpm,x,pkg,hlevel,function(err,newTxt){
             txt += newTxt;
             cb();
           });
@@ -1050,7 +1167,7 @@ function _recConv(jsonNode,pkg,hlevel,callback){
   } else if( jsonNode.tag === 'sec-ref' ){
     async.eachSeries(jsonNode.children,
       function(x,cb){
-        _recConv(x,pkg,hlevel,function(err,newTxt){
+        _recConv(ldpm,x,pkg,hlevel,function(err,newTxt){
           txt += newTxt;
           cb();
         });
@@ -1077,7 +1194,7 @@ function _recConv(jsonNode,pkg,hlevel,callback){
                   txt += '<a href="'+r[typeMap[type]][0].contentUrl+'">';
                   async.eachSeries(jsonNode.children,
                     function(x,cb){
-                      _recConv(x,pkg,hlevel,function(err,newTxt){
+                      _recConv(ldpm,x,pkg,hlevel,function(err,newTxt){
                         txt += newTxt;
                         return cb(null);
                       });
@@ -1092,17 +1209,17 @@ function _recConv(jsonNode,pkg,hlevel,callback){
                 } else {
                   var sha1 = crypto.createHash('sha1');
                   var size = 0
-                  var p = path.resolve('/Users/dureaujoseph/dwnlds', r[typeMap[type]][0].contentPath);
+                  var p = path.resolve(ldpm.root, r[typeMap[type]][0].contentPath);
                   var s = fs.createReadStream(p).pipe(zlib.createGzip());
                   s.on('error',  function(err){cb(err)});
                   s.on('data', function(d) { size += d.length; sha1.update(d); });
                   s.on('end', function() { 
                     var sha = sha1.digest('hex');
-                    txt += '<a href="http://registry.standardanalytics.io/r/'+sha+'">';
+                    txt += '<a href="' + BASE + '/r/'+sha+'">';
                     
                     async.eachSeries(jsonNode.children,
                       function(x,cb){
-                        _recConv(x,pkg,hlevel,function(err,newTxt){
+                        _recConv(ldpm,x,pkg,hlevel,function(err,newTxt){
                           txt += newTxt;
                           return cb();
                         });
@@ -1120,7 +1237,7 @@ function _recConv(jsonNode,pkg,hlevel,callback){
           })
           if(!found){
             jsonNode.children.forEach(function(x){
-              _recConv(x,pkg,hlevel,function(err,newTxt){
+              _recConv(ldpm,x,pkg,hlevel,function(err,newTxt){
                 txt += newTxt;
                 return callback(null,txt);
               });
@@ -1141,7 +1258,7 @@ function _recConv(jsonNode,pkg,hlevel,callback){
       txt += '<figcaption typeof="http://purl.org/spar/deo/Caption">\n'; 
       async.eachSeries(jsonNode.caption,
         function(x,cb){
-          _recConv(x,pkg,hlevel,function(err,newTxt){
+          _recConv(ldpm,x,pkg,hlevel,function(err,newTxt){
             txt += newTxt;
             cb();
           });
@@ -1166,7 +1283,7 @@ function _recConv(jsonNode,pkg,hlevel,callback){
       txt += '<caption typeof="http://purl.org/spar/deo/Caption>\n'; 
       async.eachSeries(jsonNode.caption,
         function(x,cb){
-          _recConv(x,pkg,hlevel,function(err,newTxt){
+          _recConv(ldpm,x,pkg,hlevel,function(err,newTxt){
             txt += newTxt;
             cb();
           });
@@ -1219,7 +1336,7 @@ function _recConv(jsonNode,pkg,hlevel,callback){
       txt += '<caption>'; 
       async.eachSeries(jsonNode.caption,
         function(x,cb){
-          _recConv(x,pkg,hlevel,function(err,newTxt){
+          _recConv(ldpm,x,pkg,hlevel,function(err,newTxt){
             txt += newTxt;
             cb();
           });
@@ -1257,13 +1374,13 @@ function _recConv(jsonNode,pkg,hlevel,callback){
                 } else {
                   var sha1 = crypto.createHash('sha1');
                   var size = 0
-                  var p = path.resolve('/Users/dureaujoseph/dwnlds', r[typeMap[type]][0].contentPath);
+                  var p = path.resolve(ldpm.root, r[typeMap[type]][0].contentPath);
                   var s = fs.createReadStream(p).pipe(zlib.createGzip());
                   s.on('error',  function(err){cb(err)});
                   s.on('data', function(d) { size += d.length; sha1.update(d); });
                   s.on('end', function() { 
                     var sha = sha1.digest('hex');
-                    txt += '<img src="http://registry.standardanalytics.io/r/'+sha+'">';
+                    txt += '<img src="' + BASE + '/r/'+sha+'">';
                     return callback(null,txt);
                   });  
                 }
@@ -1304,13 +1421,13 @@ function _recConv(jsonNode,pkg,hlevel,callback){
                 } else {
                   var sha1 = crypto.createHash('sha1');
                   var size = 0
-                  var p = path.resolve('/Users/dureaujoseph/dwnlds', r[typeMap[type]][0].contentPath);
+                  var p = path.resolve(ldpm.root, r[typeMap[type]][0].contentPath);
                   var s = fs.createReadStream(p).pipe(zlib.createGzip());
                   s.on('error',  function(err){cb(err)});
                   s.on('data', function(d) { size += d.length; sha1.update(d); });
                   s.on('end', function() { 
                     var sha = sha1.digest('hex');
-                    txt += '<img src="http://registry.standardanalytics.io/r/'+sha+'">';
+                    txt += '<img src="' + BASE + '/r/'+sha+'">';
                     if(jsonNode.label){
                       txt += '\n<span class="eq-label">\n';
                       txt += jsonNode.label;
@@ -1370,24 +1487,23 @@ function _addRefsHtml(htmlBody,article){
   if(article.citation){
     htmlBody += '<section typeof="http://purl.org/spar/doco/Bibliography">\n';
     htmlBody += '<h2>Bibliography</h2>\n';
-    htmlBody += '<li>\n';
-    article.citation.forEach(function(cit){
-      htmlBody += '<item>\n';
+    htmlBody += '<ol>\n';
+    article.citation.forEach(function(cit,i){
+      htmlBody += '<li id="ref_' + parseInt(i+1,10) + '">\n';
       htmlBody += cit.description;
+      htmlBody += '<br>\n';
       if(cit.doi){
-        htmlBody += '<br>\n';
         htmlBody += 'doi:' + cit.doi + '\n';
       }
       if(cit.pmid){
-        htmlBody += '<br>\n';
         htmlBody += 'pmid:' + cit.pmid + '\n';
       }
       if(cit.url){
-        htmlBody += '<br>\n';
         htmlBody += '<a href="' + cit.url +'">link</a>' + '\n';
       }
-      htmlBody += '</item>\n';
+      htmlBody += '</li>\n';
     });
+    htmlBody += '</ol>\n';
     htmlBody += '\n</section>\n';
   }
   htmlBody += '</html>';
@@ -2355,7 +2471,7 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,opts,callback){
           });
         });
 
-        _json2html(jsonBody,newpkg,artInd,meta.abstractHtml, function(err, htmlBody){
+        _json2html(ldpm,jsonBody,newpkg,artInd,meta.abstractHtml, function(err, htmlBody){
           htmlBody = _addRefsHtml(htmlBody,newpkg.article[artInd]);
           fs.writeFile(path.join(ldpm.root,nxmlName+'.html'),htmlBody,function(err){
             if(err) return callback(err);
@@ -2367,20 +2483,20 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,opts,callback){
                 // call pubmed to check if there isn't additional info there
                 ldpm.markup('pubmed', meta.pmid, function(err,pubmed_pkg){
                   if(pubmed_pkg){
-                    if(pubmed_pkg.keyword){
-                      if(newpkg.keyword==undefined) newpkg.keyword = [];
-                      pubmed_pkg.keyword.forEach(function(x){
-                        if(newpkg.keyword.indexOf(x)==-1){
-                          newpkg.keyword.push(x);
-                        }
-                      })
-                    }
+                    // if(pubmed_pkg.keyword){
+                    //   if(newpkg.keyword==undefined) newpkg.keyword = [];
+                    //   pubmed_pkg.keyword.forEach(function(x){
+                    //     if(newpkg.keyword.indexOf(x)==-1){
+                    //       newpkg.keyword.push(x);
+                    //     }
+                    //   })
+                    // }
                     if(newpkg.annotation == undefined){
                       newpkg.annotation = [];
                     }
                     var hasBody = {
                       "@type": ["Tag", "Mesh"],
-                      "@context": "http://registry.standardanalytics.io/mesh.jsonld"
+                      "@context": BASE + "/mesh.jsonld"
                     };
                     var graph = [];
                     if(pubmed_pkg.rawMesh){

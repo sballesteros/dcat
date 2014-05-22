@@ -37,6 +37,7 @@
   "dependencies": {
     "preview-tabular-data": "*",
     "jsonld-context-infer": "*",
+    "package-jsonld": "*",
     "temp": "^0.6.0",
     "fstream-ignore": "0.0.7",
     "tar": "~0.1.18",
@@ -47,7 +48,6 @@
     "clone": "~0.1.11",
     "semver": "~2.2.1",
     "npm-user-validate": "0.0.3",
-    "package-jsonld": "0.10.0",
     "read": "~1.0.5",
     "colors": "~0.6.2",
     "mkdirp": "~0.3.5",

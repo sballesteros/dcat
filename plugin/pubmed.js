@@ -11,6 +11,7 @@ var request = require('request')
   , _ = require('underscore')
   , emitter = require('events').EventEmitter
   , events = require('events')
+  , BASE = require('package-jsonld').BASE
   , tar = require('tar')
   , targz = require('tar.gz')
   , uuid = require('node-uuid')
@@ -284,6 +285,7 @@ function pmxml2jsonld(pkg,body,callback){
       description: 'From MEDLINE®/PubMed®, a database of the U.S. National Library of Medicine.'
     }
 
+
     pkg.name = '';
     if(meta.journalShortName){
       pkg.name = meta.journalShortName;
@@ -293,14 +295,14 @@ function pmxml2jsonld(pkg,body,callback){
       //   pkg.name += x.replace(/\W/g, '');
       // })
     }
-    if(pkg.article[0].author){
-      if(pkg.article[0].author.familyName){
-        pkg.name += '-' + removeDiacritics(pkg.article[0].author.familyName.toLowerCase()).replace(/\W/g, '');
+    if(pkg.author){
+      if(pkg.author.familyName){
+        pkg.name += '-' + removeDiacritics(pkg.author.familyName.toLowerCase()).replace(/\W/g, '');
       } else {
         callback(new Error('did not find the author family name'));
       }
     } else {
-      pkg.name += '-' + removeDiacritics(pkg.article[0].headline.split(' ')[0].toLowerCase()).replace(/\W/g, '');
+      pkg.name += '-' + removeDiacritics(pkg.headline.split(' ')[0].toLowerCase()).replace(/\W/g, '');
     }
     if(meta.year){
       pkg.name += '-' + meta.year;
@@ -311,51 +313,100 @@ function pmxml2jsonld(pkg,body,callback){
     pkg.dateCreated = pkg.article[0].datePublished;
 
   
-    var keyword = [];
 
-    // TODO: take full advantage of this markup storing it as annotations
-
-    var path = _findNodePaths(data,['ChemicalList']);
-    if(path['ChemicalList']){
-      var chemical = traverse(data).get(path['ChemicalList']);
-      if(chemical[0]['Chemical']){
-        chemical[0]['Chemical'].forEach(function(x){
-          if(keyword.indexOf(x.NameOfSubstance[0])==-1){
-            keyword.push(x.NameOfSubstance[0]);
-          }
-        })
-        pkg.rawChemical = chemical[0]['Chemical'];
-      }  
-    }
+    // var path = _findNodePaths(data,['ChemicalList']);
+    // if(path['ChemicalList']){
+    //   var chemical = traverse(data).get(path['ChemicalList']);
+    //   if(chemical[0]['Chemical']){
+    //     chemical[0]['Chemical'].forEach(function(x){
+    //       if(keyword.indexOf(x.NameOfSubstance[0])==-1){
+    //         keyword.push(x.NameOfSubstance[0]);
+    //       }
+    //     })
+    //     pkg.rawChemical = chemical[0]['Chemical'];
+    //   }  
+    // }
 
 
     var path = _findNodePaths(data,['MeshHeadingList']);
     if(path['MeshHeadingList']){
       var mesh = traverse(data).get(path['MeshHeadingList']);
       if(mesh[0]['MeshHeading']){
+        // mesh[0]['MeshHeading'].forEach(function(x){
+        //   x.DescriptorName[0]['_'].split(',').forEach(function(y){
+        //     if(keyword.indexOf(y.trim())==-1){
+        //       keyword.push(y.trim());
+        //     }
+        //   })
+        //   if(x.QualifierName){
+        //     x.QualifierName[0]['_'].split(',').forEach(function(y){
+        //       if(keyword.indexOf(y.trim())==-1){
+        //         keyword.push(y.trim());
+        //       }
+        //     });
+        //   }
+        // })
+
+        pkg.annotation = [];
+        var graph = [];
+        var hasBody = {
+          "@type": ["Tag", "Mesh"],
+          "@context": BASE + "/mesh.jsonld"
+        };
         mesh[0]['MeshHeading'].forEach(function(x){
-          x.DescriptorName[0]['_'].split(',').forEach(function(y){
-            if(keyword.indexOf(y.trim())==-1){
-              keyword.push(y.trim());
+          var tmp = {
+            "@type": "MeshHeading",
+          };
+          if(x.DescriptorName){
+            tmp.descriptor = {
+              name: x.DescriptorName[0]['_'],
+              majorTopic: (x.DescriptorName[0]['$']['MajorTopicYN'] === 'Y')
             }
-          })
-          if(x.QualifierName){
-            x.QualifierName[0]['_'].split(',').forEach(function(y){
-              if(keyword.indexOf(y.trim())==-1){
-                keyword.push(y.trim());
+            if(x.QualifierName){
+              tmp.qualifier = {
+                name: x.QualifierName[0]['_'],
+                majorTopic: (x.QualifierName[0]['$']['MajorTopicYN'] === 'Y')
               }
-            });
+            }
           }
+          graph.push(tmp)
+        });
+        hasBody['@graph'] = graph;
+
+
+        pkg.annotation.push({
+          "@type": "Annotation",
+          annotatedAt: pkg.article[0].datePublished,
+          annotatedBy: {
+            "@id": "http://www.ncbi.nlm.nih.gov/pubmed",
+            "@type": "Organization",
+            name: "PubMed"
+          },
+          serializedBy: {
+            "@id": "http://standardanalytics.io",
+            "@type": "Organization",
+            name: "Standard Analytics IO"
+          },
+          serializedAt: (new Date()).toISOString(),
+          motivatedBy: "oa:tagging",
+          hasBody: [
+            hasBody
+          ],
+          hasTarget: [
+            {
+              "@type": "SpecificResource",
+              hasSource: "r/f9b634be34cb3f2af4fbf4395e3f24b3834da926",
+              hasScope: pkg.name + '/' + pkg.version + '/article/' + pkg.article[0].name,
+              hasState: {
+                "@type": "HttpRequestState",
+                value: "Accept: text/html"
+              }
+            }
+          ]
         })
-        pkg.rawMesh = mesh[0]['MeshHeading'];
       }  
     }         
 
-
-    if(keyword.length){
-      pkg.article[0].keyword = keyword;
-      pkg.keyword = keyword;
-    }
 
     var citations = [];
     var path = _findNodePaths(data,['CommentsCorrectionsList']);
@@ -393,9 +444,6 @@ function _json2html(ldpm,pkg,callback){
   var html  = "<!doctype html>\n";
   html += "<html>\n";
   html += "<head>\n<title>\n" + pkg.article[0].headline + "</title>\n<meta charset='UTF-8'>\n";
-  html += '<script type="application/ld+json">\n';
-  html += JSON.stringify(pkg,null,4);
-  html += "</script>\n";
   html += "\n</head>\n";
   html += "<body>\n";
   html += "<article>\n";

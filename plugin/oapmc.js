@@ -12,6 +12,7 @@ var request = require('request')
   , crypto = require('crypto')
   , emitter = require('events').EventEmitter
   , events = require('events')
+  , gm = require('gm')
   , tar = require('tar')
   , BASE = require('package-jsonld').BASE
   , once = require('once')
@@ -142,7 +143,7 @@ function _parseOAcontent(uri,doi,that,cb){
               files.forEach(function(f,i){
                 var found = false;
                 plosJournalsList.forEach(function(p,j){
-                  if( (path.basename(f).slice(0,p.length)===p) && (path.extname(f) != '.nxml') ) {
+                  if( (path.basename(f).slice(0,p.length)===p) && (path.extname(f) != '.nxml') && (f.split('.')[f.split('.').length-2][0] != 'e') ) {
                     found = true;
                     
                     if( path.extname(f) === '.pdf' ){
@@ -799,9 +800,6 @@ function _json2html(ldpm,jsonBody,pkg,artInd,abstract, callback){
   var html  = "<!doctype html>\n";
   html += "<html>\n";
   html += "<head>\n<title>\n" + pkg.article[artInd].headline + "</title>\n<meta charset='UTF-8'>\n";
-  html += '<script type="application/ld+json">\n';
-  html += JSON.stringify(pkg,null,4);
-  html += "</script>\n";
   html += "\n</head>\n";
   html += "<body>\n";
   html += "<article>\n";
@@ -1003,7 +1001,7 @@ function _recConv(ldpm,jsonNode,pkg,hlevel,callback){
     ); 
 
   } else if( jsonNode.tag === 'p' ){  
-    txt += '<p typeof="http://purl.org/spar/doco/Paragraph" >\n';
+    txt += '<p>\n';
     var index = 10000;
     async.eachSeries(jsonNode.children,
       function(x,cb){
@@ -1260,7 +1258,6 @@ function _recConv(ldpm,jsonNode,pkg,hlevel,callback){
   } else if( jsonNode.tag === 'figure' ){
     var id = uuid.v4();
     txt += '<figure ';
-    txt += 'typeof="http://purl.org/spar/doco/FigureBox" ';
     txt += 'id="' + id + '" resource="' + pkg.name + '/' + id + '"';
     txt += '>\n'; 
     txt += 'TODO: Insert IMG thumnal here\n';
@@ -1287,7 +1284,7 @@ function _recConv(ldpm,jsonNode,pkg,hlevel,callback){
 
   } else if( jsonNode.tag === 'table' ){
 
-    txt += '<table typeof="http://purl.org/spar/doco/Table" >\n'; 
+    txt += '<table>\n'; 
     txt += jsonNode.table;
     if(jsonNode.caption){
       txt += '<caption typeof="http://purl.org/spar/deo/Caption>\n'; 
@@ -1376,31 +1373,24 @@ function _recConv(ldpm,jsonNode,pkg,hlevel,callback){
               if(r.name == path.basename(jsonNode.id,path.extname(jsonNode.id)).replace(/\./g,'-')){
                 found = true;
 
-                if(r[typeMap[type]][0].contentUrl){
+                var indjpg;
+                r[typeMap[type]].forEach(function(enc,i){
+                  if(enc.encodingFormat === 'image/jpeg'){
+                    indjpg = i;
+                  }
+                })
 
-                  txt += '<img src="'+r[typeMap[type]][0].contentUrl+'">';
-                  return callback(null,txt);
+                gm(r[typeMap[type]][indjpg].contentPath)
+                 .toBuffer(function (err, buffer) {
+                   if (err) return callback(err);
+                   var dataUrl =  "data:" + 'image/jpg' + ";base64,"  + buffer.toString('base64');
+                    txt += '<img src="' + dataUrl +'">';
+                   return callback(null,txt);
+                });
 
-                } else {
-                  var sha1 = crypto.createHash('sha1');
-                  var size = 0
-                  var p = path.resolve(ldpm.root, r[typeMap[type]][0].contentPath);
-                  var s = fs.createReadStream(p).pipe(zlib.createGzip());
-                  s.on('error',  function(err){cb(err)});
-                  s.on('data', function(d) { size += d.length; sha1.update(d); });
-                  s.on('end', function() { 
-                    var sha = sha1.digest('hex');
-                    txt += '<img src="' + BASE + '/r/'+sha+'">';
-                    return callback(null,txt);
-                  });  
-                }
               }
             } 
           })
-
-          // if(!found){
-          //   return callback(null,txt);
-          // }
         }
       }
     );
@@ -1423,37 +1413,31 @@ function _recConv(ldpm,jsonNode,pkg,hlevel,callback){
               if(r.name == path.basename(jsonNode.id,path.extname(jsonNode.id)).replace(/\./g,'-')){
                 found = true;
 
-                if(r[typeMap[type]][0].contentUrl){
+                var indjpg;
+                r[typeMap[type]].forEach(function(enc,i){
+                  if(enc.encodingFormat === 'image/jpeg'){
+                    indjpg = i;
+                  }
+                })
 
-                  txt += '<img src="'+r[typeMap[type]][0].contentUrl+'">';
-                  return callback(null,txt);
 
-                } else {
-                  var sha1 = crypto.createHash('sha1');
-                  var size = 0
-                  var p = path.resolve(ldpm.root, r[typeMap[type]][0].contentPath);
-                  var s = fs.createReadStream(p).pipe(zlib.createGzip());
-                  s.on('error',  function(err){cb(err)});
-                  s.on('data', function(d) { size += d.length; sha1.update(d); });
-                  s.on('end', function() { 
-                    var sha = sha1.digest('hex');
-                    txt += '<img src="' + BASE + '/r/'+sha+'">';
+                gm(r[typeMap[type]][indjpg].contentPath)
+                 .toBuffer(function (err, buffer) {
+                   if (err) return callback(err);
+                   var dataUrl =  "data:" + 'image/jpg' + ";base64,"  + buffer.toString('base64');
+                    txt += '<img src="' + dataUrl +'">';
                     if(jsonNode.label){
                       txt += '\n<span class="eq-label">\n';
                       txt += jsonNode.label;
                       txt += '\n</span>\n';
                     }
-                    txt += '\n</div>\n';
-                    return callback(null,txt);
-                  });  
-                }
+                  txt += '</div>\n';
+                   return callback(null,txt);
+                });
+            
               }
             } 
           })
-
-          // if(!found){
-          //   return callback(null,txt);
-          // }
         }
       }
     ); 
@@ -1495,7 +1479,7 @@ function _addRefsHtml(htmlBody,article){
   var indbeg = htmlBody.indexOf('</html>');
   htmlBody = htmlBody.slice(0,indbeg);
   if(article.citation){
-    htmlBody += '<section typeof="http://purl.org/spar/doco/Bibliography">\n';
+    htmlBody += '<section typeof="http://purl.org/spar/deo/BibliographicReference">\n';
     htmlBody += '<h2>Bibliography</h2>\n';
     htmlBody += '<ol>\n';
     article.citation.forEach(function(cit,i){
@@ -2509,58 +2493,33 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,opts,callback){
                       "@context": BASE + "/mesh.jsonld"
                     };
                     var graph = [];
-                    if(pubmed_pkg.rawMesh){
 
-                      pubmed_pkg.rawMesh.forEach(function(x){
-                        var tmp = {
-                          "@type": "MeshHeading",
-                        };
-                        if(x.DescriptorName){
-                          tmp.descriptor = {
-                            name: x.DescriptorName[0]['_'],
-                            majorTopic: (x.DescriptorName[0]['$']['MajorTopicYN'] === 'Y')
-                          }
-                          if(x.QualifierName){
-                            tmp.qualifier = {
-                              name: x.QualifierName[0]['_'],
-                              majorTopic: (x.QualifierName[0]['$']['MajorTopicYN'] === 'Y')
-                            }
+                    if(pubmed_pkg.annotation){
+
+                      var found = false;
+                      var pmfile = pubmed_pkg.article[0].encoding[0].contentPath;
+                      newpkg.article[artInd].encoding.forEach(function(enc){
+                        if(enc.contentPath === pmfile){
+                          found = true;
+                        }
+                      })
+
+                      if(!found){
+                        fs.unlinkSync(pmfile);
+                      }
+
+                      pubmed_pkg.annotation[0].hasTarget = [
+                        {
+                          "@type": "SpecificResource",
+                          hasSource: "r/f9b634be34cb3f2af4fbf4395e3f24b3834da926",
+                          hasScope: newpkg.name + '/' + newpkg.version + '/article/' + newpkg.article[artInd].name,
+                          hasState: {
+                            "@type": "HttpRequestState",
+                            value: "Accept: text/html"
                           }
                         }
-                        graph.push(tmp)
-                      });
-                      hasBody['@graph'] = graph;
-
-                      newpkg.annotation.push({
-                        "@type": "Annotation",
-                        annotatedAt: newpkg.article[0].datePublished,
-                        annotatedBy: {
-                          "@id": "http://www.ncbi.nlm.nih.gov/pubmed",
-                          "@type": "Organization",
-                          name: "PubMed"
-                        },
-                        serializedBy: {
-                          "@id": "http://standardanalytics.io",
-                          "@type": "Organization",
-                          name: "Standard Analytics IO"
-                        },
-                        serializedAt: (new Date()).toISOString(),
-                        motivatedBy: "oa:tagging",
-                        hasBody: [
-                          hasBody
-                        ],
-                        hasTarget: [
-                          {
-                            "@type": "SpecificResource",
-                            hasSource: "r/f9b634be34cb3f2af4fbf4395e3f24b3834da926",
-                            hasScope: newpkg.name + '/' + newpkg.version + '/article/' + newpkg.article[artInd].name,
-                            hasState: {
-                              "@type": "HttpRequestState",
-                              value: "Accept: text/html"
-                            }
-                          }
-                        ]
-                      })
+                      ]
+                      newpkg.annotation = newpkg.annotation.concat(pubmed_pkg.annotation)
 
                     }
                   }

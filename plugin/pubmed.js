@@ -13,6 +13,7 @@ var request = require('request')
   , events = require('events')
   , tar = require('tar')
   , targz = require('tar.gz')
+  , uuid = require('node-uuid')
   , Client = require('ftp')
   , xml2js = require('xml2js')
   , DecompressZip = require('decompress-zip')
@@ -65,6 +66,7 @@ function _extractBetween(str,str_beg,str_end){
   }
   return str.slice(beg,end);
 }
+
 
 
 function _initPkg(uri,article){
@@ -223,8 +225,8 @@ function pmxml2jsonld(pkg,body,callback){
     }
 
     if(relPaths['ArticleTitle']){
-      pkg.article[0].header = traverse($article).get(relPaths['ArticleTitle'])[0];
-      pkg.description = pkg.article[0].header;
+      pkg.article[0].headline = traverse($article).get(relPaths['ArticleTitle'])[0];
+      pkg.description = pkg.article[0].headline;
     } else {
       callback(new Error('could not find the article title'));
     }
@@ -298,7 +300,7 @@ function pmxml2jsonld(pkg,body,callback){
         callback(new Error('did not find the author family name'));
       }
     } else {
-      pkg.name += '-' + removeDiacritics(pkg.article[0].header.split(' ')[0].toLowerCase()).replace(/\W/g, '');
+      pkg.name += '-' + removeDiacritics(pkg.article[0].headline.split(' ')[0].toLowerCase()).replace(/\W/g, '');
     }
     if(meta.year){
       pkg.name += '-' + meta.year;
@@ -387,16 +389,155 @@ function pmxml2jsonld(pkg,body,callback){
 }
 
 
+function _json2html(ldpm,pkg,callback){
+  var html  = "<!doctype html>\n";
+  html += "<html>\n";
+  html += "<head>\n<title>\n" + pkg.article[0].headline + "</title>\n<meta charset='UTF-8'>\n";
+  html += '<script type="application/ld+json">\n';
+  html += JSON.stringify(pkg,null,4);
+  html += "</script>\n";
+  html += "\n</head>\n";
+  html += "<body>\n";
+  html += "<article>\n";
+  html += "<h1>\n" + pkg.article[0].headline + "\n</h1>\n";
+  if(pkg.keyword){
+    html += '<section class="keywords">\n';
+    html += '<ul>\n';
+    pkg.keyword.forEach(function(k){
+      html += '<li>\n';
+      html += k + '\n';
+      html += '</li>\n';
+    })
+    html += '</ul>\n';
+    html += '</section>\n';
+  }
+  if(pkg.author){
+    html += '<section class="authors" >\n';
+    html += '<section class="author" >\n';
+    html += '<span>\n';
+    html += pkg.author.name + '\n';
+    html += '</span>\n';
+    if(pkg.author.email){
+      html += '<span>\n';
+      html += pkg.author.email + '\n';
+      html += '</span>\n';
+    }
+    if(pkg.author.affiliation){
+      html += '<ul>\n';
+      pkg.author.affiliation.forEach(function(aff){
+        html += '<li>\n';
+        html += '<span>\n';
+        html += aff.description + '\n';
+        html += '</span>\n';
+        html += '</li>\n';        
+      })
+      html += '</ul>\n';
+    }
+    html += '</section>\n';    
+  }
+  if(pkg.contributor){
+    pkg.contributor.forEach(function(contr){
+      html += '<section class="contributor">\n';
+      html += '<span>\n';
+      html += contr.name + '\n';
+      html += '</span>\n';
+      if(contr.email){
+        html += '<span>\n';
+        html += contr.email  + '\n';
+        html += '</span>\n';
+      }
+      if(contr.affiliation){
+        html += '<ul>\n';
+        contr.affiliation.forEach(function(aff){
+          html += '<li>\n';
+          html += '<span>\n';
+          html += aff.description + '\n';
+          html += '</span>\n';
+          html += '</li>\n';        
+        })
+        html += '</ul>\n';
+      }
+      html += '</section>\n';    
+    })
+  }
+  html += '</section>\n';
+  if(pkg.provider){
+    html += '<section class="provider">\n';
+    html += '<h3>Provider</h3>\n';
+    html += pkg.provider.description + '\n';
+    html += '</section>\n';
+  }
+  if(pkg.editor){
+    html += '<section class="editors">\n';
+    html += '<h3>Editor</h3>\n';
+    pkg.editor.forEach(function(ed){
+      html += '<section>\n';
+      if(ed.name){
+        html += '<span>\n';
+        html += ed.name + '\n';
+        html += '</span>\n';
+      }
+      if(ed.affiliation){
+        html += '<ul>\n';
+        ed.affiliation.forEach(function(aff){
+          html += '<li>\n';
+          html += '<span>\n';
+          html += aff.description + '\n';
+          html += '</span>\n';
+          html += '</li>\n';        
+        })
+        html += '</ul>\n';
+      }
+      html += '</section>\n';
+    })
+    html += '</section>\n'
+  }
+  if(pkg.journal){
+    html += '<section class="journal">\n';
+    html += '<h3>Journal</h3>';
+    if(pkg.journal.name){
+      html += '<span>\n';
+      html += pkg.journal.name + '\n';
+      html += '</span>\n';
+    }
+    if(pkg.journal.name){
+      html += '<span>\n';
+      html += pkg.journal.issn + '\n';
+      html += '</span>\n';
+    }
+    html += '</section>\n';
+  }
+
+  if(pkg.article[0].abstract!=undefined){
+    var id = uuid.v4();
+    html += '<section id="' + id + '" typeof="http://salt.semanticauthoring.org/ontologies/sro#Abstract">\n'; //+ '" resource="' + pkg.name + '/' + id + '">\n';
+    html += "<h2>Abstract</h2>\n";
+    html += pkg.article[0].abstract;
+    html += '\n</section>\n';
+  } 
+  html += "</article>\n";
+  html += "</body>\n";
+  html += "</html>";
+  fs.writeFile(pkg.article[0].name + '.html',html,function(err){
+    if(err) return callback(err);
+    pkg.article[0].encoding = [{
+      contentPath: pkg.article[0].name + '.html',
+      encodingFormat: "text/html"
+    }]
+    callback(null,pkg);
+  })
+}
 
 function _addMetadata(pkg,uri,ldpm,callback){
   var pmcid = _extractBetween(uri,'PMC');
-
   ldpm.logHttp('GET', uri);
   request(uri,
     function(error,response,body){
       if(error) return callback(error);
       ldpm.logHttp(response.statusCode, uri)
-      pmxml2jsonld(pkg,body,callback)
+      pmxml2jsonld(pkg,body,function(err,pkg){
+        _json2html(ldpm,pkg, callback);
+      })
     }
   );
 }

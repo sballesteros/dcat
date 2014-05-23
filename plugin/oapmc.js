@@ -798,13 +798,16 @@ function _parseNode(node,xml){
 function _json2html(ldpm,jsonBody,pkg,artInd,abstract, callback){
   var html  = "<!doctype html>\n";
   html += "<html>\n";
-  html += "<head>\n<title>\n" + pkg.article[artInd].headline + "</title>\n<meta charset='UTF-8'>\n</head>\n";
+  html += "<head>\n<title>\n" + pkg.article[artInd].headline + "</title>\n<meta charset='UTF-8'>\n";
+  html += '<script type="application/ld+json">\n';
+  html += JSON.stringify(pkg,null,4);
+  html += "</script>\n";
+  html += "\n</head>\n";
   html += "<body>\n";
   html += "<article>\n";
   html += "<h1>\n" + pkg.article[artInd].headline + "</h1>\n";
   if(pkg.keyword){
-    html += '<div class="keywords" property="http://schema.org/keywords" >\n';
-    html += '<h3>Keywords</h3>\n';
+    html += '<section class="keywords">\n';
     html += '<ul>\n';
     pkg.keyword.forEach(function(k){
       html += '<li>\n';
@@ -812,104 +815,103 @@ function _json2html(ldpm,jsonBody,pkg,artInd,abstract, callback){
       html += '</li>\n';
     })
     html += '</ul>\n';
-    html += '</div>\n';
+    html += '</section>\n';
   }
   if(pkg.author){
-    html += '<div class="authors" typeof="http://purl.org/spar/doco/ListOfAuthors" >\n';
-    html += '<h3>Authors</h3>\n';
-    html += '<div class="author" property="http://schema.org/author" >\n';
-    html += '<span property="http://schema.org/name" >\n';
-    html += pkg.author.name;
+    html += '<section class="authors" >\n';
+    html += '<section class="author" >\n';
+    html += '<span>\n';
+    html += pkg.author.name + '\n';
     html += '</span>\n';
     if(pkg.author.email){
-      html += '<span property="http://schema.org/email" >\n';
-      html += pkg.author.email;
+      html += '<span>\n';
+      html += pkg.author.email + '\n';
       html += '</span>\n';
     }
     if(pkg.author.affiliation){
       html += '<ul>\n';
       pkg.author.affiliation.forEach(function(aff){
         html += '<li>\n';
-        html += '<span property="http://schema.org/affiliation">\n';
-        html += aff.description;
+        html += '<span>\n';
+        html += aff.description + '\n';
         html += '</span>\n';
         html += '</li>\n';        
       })
       html += '</ul>\n';
     }
-    html += '</div>\n';    
+    html += '</section>\n';    
   }
   if(pkg.contributor){
     pkg.contributor.forEach(function(contr){
-      html += '<div class="contributor" property="http://schema.org/contributor" >\n';
-      html += '<span property="http://schema.org/name" >\n';
-      html += contr.name;
+      html += '<section class="contributor">\n';
+      html += '<span>\n';
+      html += contr.name + '\n';
       html += '</span>\n';
       if(contr.email){
-        html += '<span property="http://schema.org/email" >\n';
-        html += contr.email;
+        html += '<span>\n';
+        html += contr.email  + '\n';
         html += '</span>\n';
       }
       if(contr.affiliation){
         html += '<ul>\n';
         contr.affiliation.forEach(function(aff){
           html += '<li>\n';
-          html += '<span property="http://schema.org/affiliation">\n';
-          html += aff.description;
+          html += '<span>\n';
+          html += aff.description + '\n';
           html += '</span>\n';
           html += '</li>\n';        
         })
         html += '</ul>\n';
       }
-      html += '</div>\n';    
+      html += '</section>\n';    
     })
   }
-  html += '</div>\n';
+  html += '</section>\n';
   if(pkg.provider){
-    html += '<div class="provider" property="http://schema.org/provider" >\n';
+    html += '<section class="provider">\n';
     html += '<h3>Provider</h3>\n';
-    html += pkg.provider.description;
-    html += '</div>\n';
+    html += pkg.provider.description + '\n';
+    html += '</section>\n';
   }
   if(pkg.editor){
-    html += '<div class="editors" property="http://schema.org/editor" >\n';
+    html += '<section class="editors">\n';
     html += '<h3>Editor</h3>\n';
     pkg.editor.forEach(function(ed){
-      html += '<div>\n';
+      html += '<section>\n';
       if(ed.name){
-        html += '<span property="http://schema.org/name" >\n';
-        html += ed.name;
+        html += '<span>\n';
+        html += ed.name + '\n';
         html += '</span>\n';
       }
       if(ed.affiliation){
         html += '<ul>\n';
         ed.affiliation.forEach(function(aff){
           html += '<li>\n';
-          html += '<span property="http://schema.org/affiliation">\n';
-          html += aff.description;
+          html += '<span>\n';
+          html += aff.description + '\n';
           html += '</span>\n';
           html += '</li>\n';        
         })
         html += '</ul>\n';
       }
-      html += '</div>\n';
+      html += '</section>\n';
     })
-    html += '</div>\n'
+    html += '</section>\n'
   }
   if(pkg.journal){
-    html += '<div class="journal" property="http://schema.org/journal" >\n';
+    html += '<section class="journal">\n';
     html += '<h3>Journal</h3>';
     if(pkg.journal.name){
-      html += '<span property="http://schema.org/name">\n';
-      html += pkg.journal.name;
+      html += '<span>\n';
+      html += pkg.journal.name + '\n';
       html += '</span>\n';
     }
     if(pkg.journal.name){
-      html += '<span property="http://purl.org/ontology/bibo/issn">\n';
-      html += pkg.journal.issn;
+      html += '<span>\n';
+      html += pkg.journal.issn + '\n';
       html += '</span>\n';
     }
-    html += '</div>\n';
+    html += '</section>\n';
   }
 
   if(abstract!=undefined){
@@ -954,9 +956,9 @@ function _recConv(ldpm,jsonNode,pkg,hlevel,callback){
     'disp-quote':'blockquote', 
     'sup': 'sup', 
     'sub': 'sub', 
-    'bold': 'strong class="bold"', 
-    'italic': 'strong class="italic"', 
-    'underline': 'strong class="underline"',
+    'bold': ['span class="bold"','span'], 
+    'italic': ['span class="italic"','span'], 
+    'underline': ['span class="underline"','span'],
     'inline-formula': 'span'
   };
   var txt = '';
@@ -1037,7 +1039,11 @@ function _recConv(ldpm,jsonNode,pkg,hlevel,callback){
     );   
 
   } else if(Object.keys(knownTags).indexOf(jsonNode.tag)>-1){
-    txt += '<'+knownTags[jsonNode.tag]+'>\n';
+    if(typeof knownTags[jsonNode.tag] === 'string'){
+      txt += '\n<'+knownTags[jsonNode.tag]+'>\n';
+    } else {
+      txt += '\n<'+knownTags[jsonNode.tag][0]+'>\n';          
+    }
     async.eachSeries(jsonNode.children,
       function(x,cb){
         _recConv(ldpm,x,pkg,hlevel,function(err,newTxt){
@@ -1048,7 +1054,11 @@ function _recConv(ldpm,jsonNode,pkg,hlevel,callback){
       function(err){
         if(err) return callback(err);
         txt += '\n';
-        txt += '</'+knownTags[jsonNode.tag]+'>\n';
+        if(typeof knownTags[jsonNode.tag] === 'string'){
+          txt += '</'+knownTags[jsonNode.tag]+'>\n';
+        } else {
+          txt += '</'+knownTags[jsonNode.tag][1]+'>\n';          
+        }
         return callback(null,txt);
       }
     );   
@@ -2408,10 +2418,10 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,opts,callback){
                 article.pageEnd = meta.pageEnd;
               }
               pkg.article[i] = article;
-              var doc = new DOMParser().parseFromString(xmlBody,'text/xml');
-              if(doc.getElementsByTagName('body').length){
-                pkg.article[i].articleBody = doc.getElementsByTagName('body')[0].textContent;
-              }
+              // var doc = new DOMParser().parseFromString(xmlBody,'text/xml');
+              // if(doc.getElementsByTagName('body').length){
+              //   pkg.article[i].articleBody = doc.getElementsByTagName('body')[0].textContent;
+              // }
             }
 
           });

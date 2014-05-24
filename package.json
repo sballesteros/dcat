@@ -78,7 +78,8 @@
     "tar.gz": "0.1.1",
     "recursive-readdir": "1.0.0",
     "xmldom": "0.1.19",
-    "decompress-zip": "0.0.6"
+    "decompress-zip": "0.0.6",
+    "gm": "^1.16.0"
   },
   "devDependencies": {
     "mocha": "~1.15.1"

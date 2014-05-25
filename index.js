@@ -207,49 +207,70 @@ Ldpm.prototype.unpublish = function(pkgId, callback){
 
 };
 
-
-Ldpm.prototype.markup = function(api, uri, opts, callback){
+Ldpm.prototype.convert = function(id,opts,callback){
 
   var that = this;
-
-  if(arguments.length === 3){
+  
+  if(arguments.length === 2){
     callback = opts;
     opts = {};
   }
 
-  if (api === 'oapmc'){
-
-    if(uri.slice(0,3)!='PMC'){
-      uri = 'PMC' + uri;
-    }
-
-    // oapmc api consumes PMCID's
-    uri = 'http://www.pubmedcentral.nih.gov/utils/oa/oa.fcgi?id=' + uri;
+  if(id.indexOf('.')>-1){
+    // we assume it's a doi.
+    var uri = "http://www.pubmedcentral.nih.gov/utils/idconv/v1.0/?ids=" + id;
+    request(uri,function(error,response,body){
+      if(body.indexOf('pmcid=')>-1){
+        pmcid = body.slice(body.indexOf('pmcid=')+7,body.indexOf('pmcid=')+17);
+        uri = 'http://www.pubmedcentral.nih.gov/utils/oa/oa.fcgi?id=' + pmcid;
+        oapmc.call(that, uri, opts, function(err,pkg){
+          if(err) return callback(err);
+          callback(null,pkg);
+        });
+      } else if(body.indexOf('pmid')>-1){
+        pmid = body.slice(body.indexOf('pmid')+6,body.indexOf('pmid')+14);
+        uri = 'http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id='+id+'&rettype=abstract&retmode=xml';
+        pubmed.call(that, uri, function(err,pkg){
+          if(err) return callback(err);
+          callback(null,pkg);
+        });
+      } else {
+        err = new Error('the id cannot be recognized');
+        err.code = '404';
+        callback(err);
+      }
+    });
+  } else if(id.slice(0,3)==='PMC'){
+    // we assume it's a PMCID
+    var uri = 'http://www.pubmedcentral.nih.gov/utils/oa/oa.fcgi?id=' + id;
     oapmc.call(that, uri, opts, function(err,pkg){
       if(err) return callback(err);
       callback(null,pkg);
     });
-
-  } else if (api === 'pubmed'){
-
-    // pubmed api consumes PMID's
-    var uri = 'http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id='+uri+'&rettype=abstract&retmode=xml';
-    pubmed.call(that, uri, function(err,pkg){
-      if(err) return callback(err);
-      callback(null,pkg);
-    });
-
-  } else if (api === 'annotator'){
-
-    annotator.call(that, pkg, opts, function(err,pkg){
-      if(err) return callback(err);
-      callback(null,pkg);
-    });
-
   } else {
-    err = new Error('unkown api');
-    err.code = '404';
-    callback(err);
+    // we assume it's a PMID
+    var uri = "http://www.pubmedcentral.nih.gov/utils/idconv/v1.0/?ids=" + id;
+    request(uri,function(error,response,body){
+      if(body.indexOf('pmcid=')>-1){
+        pmcid = body.slice(body.indexOf('pmcid=')+7,body.indexOf('pmcid=')+17);
+        uri = 'http://www.pubmedcentral.nih.gov/utils/oa/oa.fcgi?id=' + pmcid;
+        oapmc.call(that, uri, opts, function(err,pkg){
+          if(err) return callback(err);
+          callback(null,pkg);
+        });
+      } else if(body.indexOf('pmid')>-1){
+        pmid = body.slice(body.indexOf('pmid')+6,body.indexOf('pmid')+14);
+        uri = 'http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id='+id+'&rettype=abstract&retmode=xml';
+        pubmed.call(that, uri, function(err,pkg){
+          if(err) return callback(err);
+          callback(null,pkg);
+        });
+      } else {
+        err = new Error('the id cannot be recognized');
+        err.code = '404';
+        callback(err);
+      }
+    });
   }
 
 };
@@ -836,6 +857,8 @@ Ldpm.prototype.paths2resources = function(globs, opts, callback){
         cb(null, {type: 'video', value: video});
 
       } else {
+        console.log(this.root)
+        console.log(p)
         cb(new Error('non suported file type: ' + path.relative(this.root, p) + " If it is part of a code project, use --codebundle and the directory to be bundled"));
       }
 

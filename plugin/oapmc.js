@@ -17,6 +17,7 @@ var request = require('request')
   , BASE = require('package-jsonld').BASE
   , once = require('once')
   , targz = require('tar.gz')
+  , pubmed = require('./pubmed').pubmed
   , Client = require('ftp')
   , xml2js = require('xml2js')
   , DecompressZip = require('decompress-zip')
@@ -36,6 +37,8 @@ module.exports = oapmc;
  */
 
 function oapmc(uri, opts, callback){
+
+  callback = once(callback);
 
   if(arguments.length === 2){
     callback = opts;
@@ -143,28 +146,28 @@ function _parseOAcontent(uri,doi,that,cb){
               files.forEach(function(f,i){
                 var found = false;
                 plosJournalsList.forEach(function(p,j){
-                  if( (path.basename(f).slice(0,p.length)===p) && (path.extname(f) != '.nxml') && (f.split('.')[f.split('.').length-2][0] != 'e') ) {
-                    found = true;
+                  // if( (path.basename(f).slice(0,p.length)===p) && (path.extname(f) != '.nxml') && (f.split('.')[f.split('.').length-2][0] != 'e') ) {
+                  //   found = true;
                     
-                    if( path.extname(f) === '.pdf' ){
-                      var tmp = path.basename(f,path.extname(f));
-                      tmp = '.'+tmp.split('.')[tmp.split('.').length-1];
-                      var tmpind = plosJournalsLinks[p].indexOf('info:doi');
-                      urls.push(plosJournalsLinks[p].slice(0,tmpind) + 'fetchObject.action?uri=info:doi/' + doi +  tmp.slice(0,tmp.lastIndexOf('.')) + '&representation=PDF');                      
-                    } else {
-                      var tmp = path.basename(f,path.extname(f));
-                      tmp = '.'+tmp.split('.')[tmp.split('.').length-1];
-                      var tmpind = plosJournalsLinks[p].indexOf('info:doi');
-                      urls.push(plosJournalsLinks[p].slice(0,tmpind) + 'fetchSingleRepresentation.action?uri=info:doi/' + doi +  tmp );
-                      if(['.gif','.jpg','.tif'].indexOf(path.extname(f))>-1){
-                        if(urls.indexOf(plosJournalsLinks[p] + doi +  tmp + '/' + 'powerpoint')==-1){
-                          urls.push(plosJournalsLinks[p] + doi +  tmp  + '/' + 'powerpoint');
-                          urls.push(plosJournalsLinks[p] + doi +  tmp  + '/' + 'largerimage');
-                          urls.push(plosJournalsLinks[p] + doi +  tmp  + '/' + 'originalimage');
-                        }
-                      }
-                    }                    
-                  }
+                  //   if( path.extname(f) === '.pdf' ){
+                  //     var tmp = path.basename(f,path.extname(f));
+                  //     tmp = '.'+tmp.split('.')[tmp.split('.').length-1];
+                  //     var tmpind = plosJournalsLinks[p].indexOf('info:doi');
+                  //     urls.push(plosJournalsLinks[p].slice(0,tmpind) + 'fetchObject.action?uri=info:doi/' + doi +  tmp.slice(0,tmp.lastIndexOf('.')) + '&representation=PDF');                      
+                  //   } else {
+                  //     var tmp = path.basename(f,path.extname(f));
+                  //     tmp = '.'+tmp.split('.')[tmp.split('.').length-1];
+                  //     var tmpind = plosJournalsLinks[p].indexOf('info:doi');
+                  //     urls.push(plosJournalsLinks[p].slice(0,tmpind) + 'fetchSingleRepresentation.action?uri=info:doi/' + doi +  tmp );
+                  //     if(['.gif','.jpg','.tif'].indexOf(path.extname(f))>-1){
+                  //       if(urls.indexOf(plosJournalsLinks[p] + doi +  tmp + '/' + 'powerpoint')==-1){
+                  //         urls.push(plosJournalsLinks[p] + doi +  tmp  + '/' + 'powerpoint');
+                  //         urls.push(plosJournalsLinks[p] + doi +  tmp  + '/' + 'largerimage');
+                  //         urls.push(plosJournalsLinks[p] + doi +  tmp  + '/' + 'originalimage');
+                  //       }
+                  //     }
+                  //   }                    
+                  // }
                 });
                 if(!found){
                   tmpfiles.push(f)
@@ -196,8 +199,14 @@ function _parseOAcontent(uri,doi,that,cb){
                             function(x){
                               if(x.name.indexOf('SingleRepresentation')>-1){
                                 x.name = x[type][0].contentUrl.split('/')[x[type][0].contentUrl.split('/').length-1];                                
-                              } else {
+                              } else if(x[type][0].contentUrl.indexOf('/powerpoint')>-1){
                                 x.name = x[type][0].contentUrl.split('/')[x[type][0].contentUrl.split('/').length-2];
+                              } else if(x[type][0].contentUrl.indexOf('/largerimage')>-1){
+                                x.name = x[type][0].contentUrl.split('/')[x[type][0].contentUrl.split('/').length-2];
+                              } else if(x[type][0].contentUrl.indexOf('/originalimage')>-1){
+                                x.name = x[type][0].contentUrl.split('/')[x[type][0].contentUrl.split('/').length-2];
+                              } else {
+                                x.name = x[type][0].contentUrl.split('/')[x[type][0].contentUrl.split('/').length-1];
                               }
                               if(x.name.slice(0,8)==='journal.'){
                                 x.name = x.name.slice(8);
@@ -206,7 +215,7 @@ function _parseOAcontent(uri,doi,that,cb){
                           )
                         }
                       );
-
+  
                       resourcesFromUrls['code'].forEach(
                         function(x){
                           if(x.name.indexOf('SingleRepresentation')>-1){
@@ -236,9 +245,11 @@ function _parseOAcontent(uri,doi,that,cb){
                       resourcesFromUrls['article'].forEach(
                         function(x){
                           if(x.name.indexOf('fetchObject')>-1){
-                            x.name = x['encoding'][0].contentUrl.slice(0,x[['encoding']][0].contentUrl.indexOf('&representation=PDF')).split('/')[x[['encoding']][0].contentUrl.split('/').length-1];                                
+                            x.name = x['encoding'][0].contentUrl.slice(0,x['encoding'][0].contentUrl.indexOf('&representation=PDF')).split('/')[x[['encoding']][0].contentUrl.split('/').length-1];                                
+                          } else if(x['encoding'].indexOf("representation=PDF")>-1){
+                            x.name = x['encoding'][0].contentUrl.slice(0,x['encoding'][0].contentUrl.indexOf('&representation=PDF')).split('/')[x[['encoding']][0].contentUrl.split('/').length-2];
                           } else {
-                            x.name = x[['encoding']][0].contentUrl.slice(0,x[['encoding']][0].contentUrl.indexOf('&representation=PDF')).split('/')[x[['encoding']][0].contentUrl.split('/').length-2];
+                            x.name = x['encoding'][0].contentUrl.split('/')[x['encoding'][0].contentUrl.split('/').length-1];
                           }
                           if(x.name.slice(0,8)==='journal.'){
                             x.name = x.name.slice(8);
@@ -251,15 +262,17 @@ function _parseOAcontent(uri,doi,that,cb){
                       for (var type in resources){
                         resources[type] = resources[type].concat(resourcesFromUrls[type]); //merge
                       }
+                      var pushed = false;
                       if(mainArticleName!=undefined){
                         resources.dataset.forEach(function(x,i){
                           if(x.name===path.basename(mainArticleName,'.pdf').slice(0,path.basename(mainArticleName,'.pdf').lastIndexOf('.'))){
                             resources.dataset.splice(i,1);
                             resources.article.forEach(function(y,i){
-                              if(x.name==y.name){
+                              if( (x.name==y.name) && (!pushed) ){
                                 var tmp = y.encoding ;
                                 tmp.push(x.distribution[0]);
                                 resources.article[i].encoding = tmp;
+                                pushed = true;
                               }
                             });
                           }
@@ -273,7 +286,6 @@ function _parseOAcontent(uri,doi,that,cb){
                           }
                         });
                       }
-
                       
                       ['figure','audio','video'].forEach(
                         function(type){
@@ -306,6 +318,7 @@ function _parseOAcontent(uri,doi,that,cb){
                           )
                         }
                       );
+
                       resources['article'].forEach(
                         function(r,i){
                           resources['article'].slice(i+1,resources['article'].length).forEach(
@@ -374,6 +387,20 @@ function _parseOAcontent(uri,doi,that,cb){
                       if(resources!=undefined){
                         pkg = that.addResources(pkg,resources);
                       }
+
+                      pkg.dataset.forEach(function(d,i){
+                        if(d.name==='license'){
+                          fs.readFile(path.join(that.root,d.distribution[0].contentPath),function(err,txt){
+                            if(err) return cb(err);
+                            pkg.license = txt.toString();
+                            pkg.dataset.splice(i,1);
+                            fs.unlink(path.join(that.root,d.distribution[0].contentPath), function(err){
+                              if(err) return cb(err);
+                              cb(null,pkg,mainArticleName);
+                            });
+                          })
+                        }
+                      })
                       cb(null,pkg,mainArticleName);
                     });
                   });
@@ -1445,8 +1472,6 @@ function _recConv(ldpm,jsonNode,pkg,hlevel,callback){
 
 
   } else {
-    console.log('pb, unknown tag', jsonNode.tag);
-    console.log(jsonNode);
     return callback(null,txt);
   }
 }
@@ -1514,6 +1539,8 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,opts,callback){
     callback = opts;
     opts = {};
   }
+
+  callback = once(callback);
 
   console.log(uri)
 
@@ -2251,9 +2278,16 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,opts,callback){
         }
         newpkg.datePublished = (new Date()).toISOString();
 
-        if(meta.license){
-          newpkg.license = 'CC0-1.0';
+        if(pkg.license != undefined){
+          newpkg.license = pkg.license;
+        } else {
+          if(meta.license){
+            newpkg.license = 'CC0-1.0';
+          }
         }
+          
+
+
         if(meta.url){
           newpkg.sameAs = meta.url;
         }
@@ -2471,20 +2505,22 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,opts,callback){
             if(err) return callback(err);
             ldpm.paths2resources([path.join(ldpm.root,nxmlName+'.html')],{}, function(err,resources){
               if(err) return callback(err);
-              newpkg.article[artInd].encoding.push(resources.article[0].encoding[0]);
+              var found = false;
+              newpkg.article[artInd].encoding.forEach(function(enc){
+                if(enc.encodingFormat == "text/html"){
+                  found = true;
+                }
+              })
+              if(!found){
+                newpkg.article[artInd].encoding.push(resources.article[0].encoding[0]);                
+              }
+              pushed = true;
 
               if ( (!opts.noPubmed) && (meta.pmid!=undefined) ){
                 // call pubmed to check if there isn't additional info there
-                ldpm.markup('pubmed', meta.pmid, function(err,pubmed_pkg){
+                uri = 'http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id='+meta.pmid+'&rettype=abstract&retmode=xml';
+                pubmed.call(ldpm, uri, function(err,pubmed_pkg){
                   if(pubmed_pkg){
-                    // if(pubmed_pkg.keyword){
-                    //   if(newpkg.keyword==undefined) newpkg.keyword = [];
-                    //   pubmed_pkg.keyword.forEach(function(x){
-                    //     if(newpkg.keyword.indexOf(x)==-1){
-                    //       newpkg.keyword.push(x);
-                    //     }
-                    //   })
-                    // }
                     if(newpkg.annotation == undefined){
                       newpkg.annotation = [];
                     }

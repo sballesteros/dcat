@@ -37,7 +37,7 @@ module.exports = {
  */
 
 function pubmed(uri, opts, callback){
-
+  console.log('urin',uri);
   if(arguments.length === 2){
     callback = opts;
     opts = {};

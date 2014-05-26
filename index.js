@@ -27,6 +27,7 @@ var crypto = require('crypto')
   , publish = require('./lib/publish')
   , pubmed = require('./plugin/pubmed').pubmed
   , pmxml2jsonld = require('./plugin/pubmed').pmxml2jsonld
+  , json2html = require('./plugin/pubmed').json2html
   , oapmc = require('./plugin/oapmc')
   , annotator = require('./plugin/annotator')
   , binaryCSV = require('binary-csv')
@@ -280,6 +281,16 @@ Ldpm.prototype.pmxml2jsonld = function(pkg, body, callback){
   var that = this;
 
   pmxml2jsonld.call(that, pkg, body, function(err,pkg){
+    if(err) return callback(err);
+    callback(null,pkg);
+  });
+
+}
+
+Ldpm.prototype.json2html = function(pkg, callback){
+
+  var that = this;
+  json2html.call(that, that, pkg, function(err,pkg){
     if(err) return callback(err);
     callback(null,pkg);
   });

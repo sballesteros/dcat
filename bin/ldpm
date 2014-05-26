@@ -455,10 +455,30 @@ if (argv._[0] === 'init') {
     } else if(id.slice(0,3)==='PMC'){
       // we assume it's a PMCID
       var uri = 'http://www.pubmedcentral.nih.gov/utils/oa/oa.fcgi?id=' + id;
-      oapmc.call(ldpm, uri, { noPubmed: argv.noPubmed }, function(err,pkg){
-        if(err) _fail(err);
-        fs.writeFileSync(path.resolve(ldpm.root, 'package.jsonld'), JSON.stringify(pkg, null, 2));
+      request(uri, function(error, response, body) {
+        if(body.toString().indexOf('idDoesNotExist')==-1){
+          oapmc.call(ldpm, uri, { noPubmed: argv.noPubmed }, function(err,pkg){
+            if(err) _fail(err);
+            fs.writeFileSync(path.resolve(ldpm.root, 'package.jsonld'), JSON.stringify(pkg, null, 2));
+          });
+        } else {
+          console.log('This pmc article does not belong to the OA subset of PMC')
+          var uri = "http://www.pubmedcentral.nih.gov/utils/idconv/v1.0/?ids=" + id;
+          request(uri,function(error,response,body){
+            if(body.indexOf('pmid')>-1){
+              pmid = body.slice(body.indexOf('pmid')+6,body.indexOf('pmid')+14);
+              uri = 'http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id='+id+'&rettype=abstract&retmode=xml';
+              pubmed.call(ldpm, uri, function(err,pkg){
+                if(err) _fail(err);
+                fs.writeFileSync(path.resolve(ldpm.root, 'package.jsonld'), JSON.stringify(pkg, null, 2));
+              });
+            } else {
+              _fail(new Error('the id cannot be recognized'));
+            }
+          });
+        }
       });
+
     } else {
       // we assume it's a PMID
       var uri = "http://www.pubmedcentral.nih.gov/utils/idconv/v1.0/?ids=" + id;

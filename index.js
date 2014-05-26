@@ -210,7 +210,7 @@ Ldpm.prototype.unpublish = function(pkgId, callback){
 Ldpm.prototype.convert = function(id,opts,callback){
 
   var that = this;
-  
+
   if(arguments.length === 2){
     callback = opts;
     opts = {};
@@ -1107,7 +1107,7 @@ Ldpm.prototype.urls2resources = function(urls, callback){
       var r = typedResources[i];
       resources[r.type].push(r.value);
     }
-    
+
     callback(null, resources);
 
   });

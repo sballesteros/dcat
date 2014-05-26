@@ -28,7 +28,8 @@ var request = require('request')
 
 module.exports = {
   pubmed: pubmed,
-  pmxml2jsonld: pmxml2jsonld
+  pmxml2jsonld: pmxml2jsonld,
+  json2html: json2html
 }
 
 
@@ -37,7 +38,7 @@ module.exports = {
  */
 
 function pubmed(uri, opts, callback){
-  console.log('urin',uri);
+
   if(arguments.length === 2){
     callback = opts;
     opts = {};
@@ -47,7 +48,7 @@ function pubmed(uri, opts, callback){
 
   if(uri.slice(0,57)=='http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?'){
     var pkg = _initPkg();
-    _addMetadata(pkg,uri,that,function(err,pkg){
+    _addMetadata(pkg,uri,that,opts,function(err,pkg){
       callback(null,pkg);
     });
   } else {
@@ -136,7 +137,10 @@ function pmxml2jsonld(pkg,body,callback){
     );
 
     if(relPaths['Title']){
-      pkg.article[0].journal = { name: traverse($journal).get(relPaths['Title'])[0] };
+      pkg.article[0].journal = { 
+        '@type': 'bibo:Journal',
+        name: traverse($journal).get(relPaths['Title'])[0] 
+      };
     }
 
     if(relPaths['Volume']){
@@ -236,7 +240,9 @@ function pmxml2jsonld(pkg,body,callback){
       var allAffilsNames = [];
       var allAffils = [];
       traverse($article).get(relPaths['AuthorList'])[0]['Author'].forEach(function(x){
-        var author = {};
+        var author = {
+          '@type': 'Person'
+        };
         if(x.LastName){
           author.familyName = x.LastName[0];
         }
@@ -251,7 +257,10 @@ function pmxml2jsonld(pkg,body,callback){
           x.Affiliation[0].split(';').forEach(function(y){
             author.affiliation.push({ description: y.trim() });
             if(allAffilsNames.indexOf(y.trim())==-1){
-              allAffils.push({ description: y.trim() });
+              allAffils.push({ 
+                '@type': 'Organization',
+                description: y.trim() 
+              });
               allAffilsNames.push(y.trim());
             }
           })
@@ -267,10 +276,12 @@ function pmxml2jsonld(pkg,body,callback){
         }
       })
       pkg.sourceOrganisation = [ {
+        '@type': 'Organization',
         '@id': 'http://www.nlm.nih.gov/',
         name: 'National Library of Medecine',
         department: 'Department of Health and Human Services',
         address: {
+          '@type': 'PostalAddress',
           addressCountry: 'US'
         }
       }]
@@ -281,6 +292,7 @@ function pmxml2jsonld(pkg,body,callback){
     }
 
     pkg.provider = {
+      '@type': 'Organization',
       '@id': 'http://www.ncbi.nlm.nih.gov/pubmed/',
       description: 'From MEDLINE®/PubMed®, a database of the U.S. National Library of Medicine.'
     }
@@ -289,11 +301,6 @@ function pmxml2jsonld(pkg,body,callback){
     pkg.name = '';
     if(meta.journalShortName){
       pkg.name = meta.journalShortName;
-      // var tmp = meta.journalShortName.toLowerCase();
-      // tmp.split(' ').forEach(function(x){
-      //   if(pkg.name!='') pkg.name+='-';
-      //   pkg.name += x.replace(/\W/g, '');
-      // })
     }
     if(pkg.author){
       if(pkg.author.familyName){
@@ -312,40 +319,11 @@ function pmxml2jsonld(pkg,body,callback){
     pkg.datePublished = (new Date()).toISOString();
     pkg.dateCreated = pkg.article[0].datePublished;
 
-  
-
-    // var path = _findNodePaths(data,['ChemicalList']);
-    // if(path['ChemicalList']){
-    //   var chemical = traverse(data).get(path['ChemicalList']);
-    //   if(chemical[0]['Chemical']){
-    //     chemical[0]['Chemical'].forEach(function(x){
-    //       if(keyword.indexOf(x.NameOfSubstance[0])==-1){
-    //         keyword.push(x.NameOfSubstance[0]);
-    //       }
-    //     })
-    //     pkg.rawChemical = chemical[0]['Chemical'];
-    //   }  
-    // }
-
 
     var path = _findNodePaths(data,['MeshHeadingList']);
     if(path['MeshHeadingList']){
       var mesh = traverse(data).get(path['MeshHeadingList']);
       if(mesh[0]['MeshHeading']){
-        // mesh[0]['MeshHeading'].forEach(function(x){
-        //   x.DescriptorName[0]['_'].split(',').forEach(function(y){
-        //     if(keyword.indexOf(y.trim())==-1){
-        //       keyword.push(y.trim());
-        //     }
-        //   })
-        //   if(x.QualifierName){
-        //     x.QualifierName[0]['_'].split(',').forEach(function(y){
-        //       if(keyword.indexOf(y.trim())==-1){
-        //         keyword.push(y.trim());
-        //       }
-        //     });
-        //   }
-        // })
 
         pkg.annotation = [];
         var graph = [];
@@ -355,15 +333,17 @@ function pmxml2jsonld(pkg,body,callback){
         };
         mesh[0]['MeshHeading'].forEach(function(x){
           var tmp = {
-            "@type": "MeshHeading",
+            "@type": "Heading",
           };
           if(x.DescriptorName){
             tmp.descriptor = {
+              '@type': 'Record',
               name: x.DescriptorName[0]['_'],
               majorTopic: (x.DescriptorName[0]['$']['MajorTopicYN'] === 'Y')
             }
             if(x.QualifierName){
               tmp.qualifier = {
+                '@type': 'Record',
                 name: x.QualifierName[0]['_'],
                 majorTopic: (x.QualifierName[0]['$']['MajorTopicYN'] === 'Y')
               }
@@ -440,7 +420,13 @@ function pmxml2jsonld(pkg,body,callback){
 }
 
 
-function _json2html(ldpm,pkg,callback){
+function json2html(ldpm,pkg,opts,callback){
+
+  if(arguments.length === 3){
+    callback = opts;
+    opts = { writeHTML: false };
+  }
+
   var html  = "<!doctype html>\n";
   html += "<html>\n";
   html += "<head>\n<title>\n" + pkg.article[0].headline + "</title>\n<meta charset='UTF-8'>\n";
@@ -566,17 +552,25 @@ function _json2html(ldpm,pkg,callback){
   html += "</article>\n";
   html += "</body>\n";
   html += "</html>";
-  fs.writeFile(pkg.article[0].name + '.html',html,function(err){
-    if(err) return callback(err);
+  if(opts.writeHTML){
+    fs.writeFile(pkg.article[0].name + '.html',html,function(err){
+      if(err) return callback(err);
+      pkg.article[0].encoding = [{
+        contentPath: pkg.article[0].name + '.html',
+        encodingFormat: "text/html"
+      }]
+      callback(null,pkg);
+    })
+  } else {
     pkg.article[0].encoding = [{
       contentPath: pkg.article[0].name + '.html',
       encodingFormat: "text/html"
-    }]
+    }];
     callback(null,pkg);
-  })
+  }
 }
 
-function _addMetadata(pkg,uri,ldpm,callback){
+function _addMetadata(pkg,uri,ldpm,opts,callback){
   var pmcid = _extractBetween(uri,'PMC');
   ldpm.logHttp('GET', uri);
   request(uri,
@@ -584,7 +578,7 @@ function _addMetadata(pkg,uri,ldpm,callback){
       if(error) return callback(error);
       ldpm.logHttp(response.statusCode, uri)
       pmxml2jsonld(pkg,body,function(err,pkg){
-        _json2html(ldpm,pkg, callback);
+        json2html(ldpm,pkg,opts, callback);
       })
     }
   );

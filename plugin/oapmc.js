@@ -80,6 +80,8 @@ function oapmc(uri, opts, callback){
 
 function _parseOAcontent(uri,doi,that,cb){
 
+  callback = once(cb);
+
   that.logHttp('GET', uri);
 
   request(uri, function (error, response, body) {
@@ -146,28 +148,28 @@ function _parseOAcontent(uri,doi,that,cb){
               files.forEach(function(f,i){
                 var found = false;
                 plosJournalsList.forEach(function(p,j){
-                  // if( (path.basename(f).slice(0,p.length)===p) && (path.extname(f) != '.nxml') && (f.split('.')[f.split('.').length-2][0] != 'e') ) {
-                  //   found = true;
+                  if( (path.basename(f).slice(0,p.length)===p) && (path.extname(f) != '.nxml') && (f.split('.')[f.split('.').length-2][0] != 'e') ) {
+                    found = true;
                     
-                  //   if( path.extname(f) === '.pdf' ){
-                  //     var tmp = path.basename(f,path.extname(f));
-                  //     tmp = '.'+tmp.split('.')[tmp.split('.').length-1];
-                  //     var tmpind = plosJournalsLinks[p].indexOf('info:doi');
-                  //     urls.push(plosJournalsLinks[p].slice(0,tmpind) + 'fetchObject.action?uri=info:doi/' + doi +  tmp.slice(0,tmp.lastIndexOf('.')) + '&representation=PDF');                      
-                  //   } else {
-                  //     var tmp = path.basename(f,path.extname(f));
-                  //     tmp = '.'+tmp.split('.')[tmp.split('.').length-1];
-                  //     var tmpind = plosJournalsLinks[p].indexOf('info:doi');
-                  //     urls.push(plosJournalsLinks[p].slice(0,tmpind) + 'fetchSingleRepresentation.action?uri=info:doi/' + doi +  tmp );
-                  //     if(['.gif','.jpg','.tif'].indexOf(path.extname(f))>-1){
-                  //       if(urls.indexOf(plosJournalsLinks[p] + doi +  tmp + '/' + 'powerpoint')==-1){
-                  //         urls.push(plosJournalsLinks[p] + doi +  tmp  + '/' + 'powerpoint');
-                  //         urls.push(plosJournalsLinks[p] + doi +  tmp  + '/' + 'largerimage');
-                  //         urls.push(plosJournalsLinks[p] + doi +  tmp  + '/' + 'originalimage');
-                  //       }
-                  //     }
-                  //   }                    
-                  // }
+                    if( path.extname(f) === '.pdf' ){
+                      var tmp = path.basename(f,path.extname(f));
+                      tmp = '.'+tmp.split('.')[tmp.split('.').length-1];
+                      var tmpind = plosJournalsLinks[p].indexOf('info:doi');
+                      urls.push(plosJournalsLinks[p].slice(0,tmpind) + 'fetchObject.action?uri=info:doi/' + doi +  tmp.slice(0,tmp.lastIndexOf('.')) + '&representation=PDF');                      
+                    } else {
+                      var tmp = path.basename(f,path.extname(f));
+                      tmp = '.'+tmp.split('.')[tmp.split('.').length-1];
+                      var tmpind = plosJournalsLinks[p].indexOf('info:doi');
+                      urls.push(plosJournalsLinks[p].slice(0,tmpind) + 'fetchSingleRepresentation.action?uri=info:doi/' + doi +  tmp );
+                      if(['.gif','.jpg','.tif'].indexOf(path.extname(f))>-1){
+                        if(urls.indexOf(plosJournalsLinks[p] + doi +  tmp + '/' + 'powerpoint')==-1){
+                          urls.push(plosJournalsLinks[p] + doi +  tmp  + '/' + 'powerpoint');
+                          urls.push(plosJournalsLinks[p] + doi +  tmp  + '/' + 'largerimage');
+                          urls.push(plosJournalsLinks[p] + doi +  tmp  + '/' + 'originalimage');
+                        }
+                      }
+                    }                    
+                  }
                 });
                 if(!found){
                   tmpfiles.push(f)
@@ -388,8 +390,10 @@ function _parseOAcontent(uri,doi,that,cb){
                         pkg = that.addResources(pkg,resources);
                       }
 
+                      var found = false;
                       pkg.dataset.forEach(function(d,i){
                         if(d.name==='license'){
+                          found = true;
                           fs.readFile(path.join(that.root,d.distribution[0].contentPath),function(err,txt){
                             if(err) return cb(err);
                             pkg.license = txt.toString();
@@ -401,7 +405,9 @@ function _parseOAcontent(uri,doi,that,cb){
                           })
                         }
                       })
-                      cb(null,pkg,mainArticleName);
+                      if(!found){
+                        cb(null,pkg,mainArticleName);
+                      }
                     });
                   });
                 }
@@ -1287,27 +1293,70 @@ function _recConv(ldpm,jsonNode,pkg,hlevel,callback){
     txt += '<figure ';
     txt += 'id="' + id + '" resource="' + pkg.name + '/' + id + '"';
     txt += '>\n'; 
-    txt += 'TODO: Insert IMG thumnal here\n';
-    if(jsonNode.caption){
-      txt += '<figcaption typeof="http://purl.org/spar/deo/Caption">\n'; 
-      async.eachSeries(jsonNode.caption,
-        function(x,cb){
-          _recConv(ldpm,x,pkg,hlevel,function(err,newTxt){
-            txt += newTxt;
-            cb();
-          });
-        },
-        function(err){
-          if(err) return callback(err);
-          txt += '</figcaption>\n'; 
-          txt += '</figure>\n'; 
-          return callback(null,txt);
-        }
-      ); 
-    } else {
-      txt += '</figure>\n'; 
-      return callback(null,txt);
-    }
+    pkg.figure.forEach(function(fig){
+      if( (fig.name == jsonNode.id.replace(/\./g,'-')) || (fig.alternateName == jsonNode.id.replace(/\./g,'-')) ){
+        var found = false;
+        fig.figure.forEach(function(enc){
+          if( (!found) && ( (enc.encodingFormat==='image/jpeg') || (enc.encodingFormat==='image/png') ) ){
+            found = true;
+            if(enc.contentUrl){
+              txt += '<img src="' + enc.contentUrl +'">';
+              if(jsonNode.caption){
+                txt += '<figcaption typeof="http://purl.org/spar/deo/Caption">\n'; 
+                async.eachSeries(jsonNode.caption,
+                  function(x,cb){
+                    _recConv(ldpm,x,pkg,hlevel,function(err,newTxt){
+                      txt += newTxt;
+                      cb();
+                    });
+                  },
+                  function(err){
+                    if(err) return callback(err);
+                    txt += '</figcaption>\n'; 
+                    txt += '</figure>\n'; 
+                    return callback(null,txt);
+                  }
+                ); 
+              } else {
+                txt += '</figure>\n'; 
+                return callback(null,txt);
+              }    
+            } else {
+              var sha1 = crypto.createHash('sha1');
+              var size = 0
+              var p = path.resolve(ldpm.root, enc.contentPath);
+              var s = fs.createReadStream(p).pipe(zlib.createGzip());
+              s.on('error',  function(err){cb(err)});
+              s.on('data', function(d) { size += d.length; sha1.update(d); });
+              s.on('end', function() { 
+                var sha = sha1.digest('hex');
+                txt += '<img src="' + BASE + '/r/'+sha+'">';
+                if(jsonNode.caption){
+                  txt += '<figcaption typeof="http://purl.org/spar/deo/Caption">\n'; 
+                  async.eachSeries(jsonNode.caption,
+                    function(x,cb){
+                      _recConv(ldpm,x,pkg,hlevel,function(err,newTxt){
+                        txt += newTxt;
+                        cb();
+                      });
+                    },
+                    function(err){
+                      if(err) return callback(err);
+                      txt += '</figcaption>\n'; 
+                      txt += '</figure>\n'; 
+                      return callback(null,txt);
+                    }
+                  ); 
+                } else {
+                  txt += '</figure>\n'; 
+                  return callback(null,txt);
+                }         
+              });
+            }
+          }
+        })
+      }
+    })
 
   } else if( jsonNode.tag === 'table' ){
 
@@ -1569,7 +1618,7 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,opts,callback){
             pkg.article = [{}];
           }
           var data = traverse(body).get(pathArt['article'])[0];
-          pkg.article[0]['@type'] = [ 'ScholarlyArticle' ];
+          pkg.article[0]['@type'] = 'ScholarlyArticle';
           if(data['$']['article-type'] != undefined){
             pkg.article[0].publicationType = data['$']['article-type'].replace(/-/g,' ');
           }
@@ -1709,8 +1758,6 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,opts,callback){
                 tmp = x['institution'][0] + '. ';
               }
               if(x['addr-line']){
-                // affiliation.address = {};
-                // affiliation.address.description = x['addr-line'][0];
                 tmp += x['addr-line'][0] + '. ';
               }
               if(x['country']){
@@ -2061,7 +2108,7 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,opts,callback){
               // if (y['$']['publication-type'] == 'journal'){
 
                 var ref = {
-                  '@type': [ 'ScholarlyArticle' ],
+                  '@type':  'ScholarlyArticle' ,
                   header: y['article-title']
                 };
 
@@ -2157,7 +2204,7 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,opts,callback){
                     if(z['surname']){
                       var familyName = z['surname'][0];
                     }
-                    var tmpauth = {};
+                    var tmpauth = { '@type': 'Person' };
                     var tmpname = '';
                     if(givenName){
                       tmpauth.givenName = givenName;
@@ -2292,18 +2339,25 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,opts,callback){
           newpkg.sameAs = meta.url;
         }
 
+        author['@type'] = 'Person';
         newpkg.author =  meta.author;
+
 
         if(meta.contributor.length){
           newpkg.contributor =  meta.contributor;
+          newpkg.contributor.forEach(function(y){
+            y['@type'] = 'Person';
+          })
         }
 
 
         newpkg.sourceOrganisation = [ {
+          '@type': 'Organization',
           '@id': 'http://www.nlm.nih.gov/',
           name: 'National Library of Medecine',
           department: 'Department of Health and Human Services',
           address: {
+            '@type': 'PostalAddress',
             addressCountry: 'US'
           }
         }]
@@ -2311,10 +2365,17 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,opts,callback){
         if(meta.sourceOrganisation.length){
           if(meta.sourceOrganisation[0] != {}){
             newpkg.sourceOrganisation = newpkg.sourceOrganisation.concat(meta.sourceOrganisation);
+            newpkg.sourceOrganisation.forEach(function(y){
+              y['@type'] = 'Organization';
+              if(y.address){
+                y.address['@type'] = 'PostalAddress';
+              }
+            });
           }
         }
 
         newpkg.provider = {
+          '@type': 'Organization',
           '@id': 'http://www.ncbi.nlm.nih.gov/pmc/',
           description: 'From PMC®, a database of the U.S. National Library of Medicine.'
         };
@@ -2322,15 +2383,26 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,opts,callback){
         if(meta.editor.length){
           if(meta.editor[0] != {}){
             newpkg.editor = meta.editor;
+            newpkg.editor.forEach(function(y){
+              y['@type'] = 'Person';
+            });
+            if(newpkg.editor.affiliation){
+              newpkg.editor.affiliation['@type'] = 'Organization';
+            }
           }
         }
 
         if(meta.publisher){
           newpkg.publisher = meta.publisher;
+          newpkg.publisher['@type'] = 'Organization';
+          if(newpkg.publisher.location){
+            newpkg.publisher.location['@type'] = 'PostalAddress';
+          }
         }
 
         if(meta.journal){
           newpkg.journal = meta.journal;
+          newpkg.journal['@type'] = 'bibo:Journal';
         }
         
         newpkg.accountablePerson = {
@@ -2343,8 +2415,16 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,opts,callback){
           newpkg.copyrightHolder = meta.copyrightHolder;
         } else if (meta.publisher) {
           newpkg.copyrightHolder = meta.publisher;
+          newpkg.copyrightHolder['@type'] = 'Organization';
         }
 
+        var typeMap = {
+          'dataset': 'Dataset',
+          'code': 'Code',
+          'figure': 'ImageObject',
+          'audio': 'AudioObject',
+          'video': 'VideoObject'
+        };
 
         ['dataset','code','figure','audio','video','article'].forEach(function(type){
           if (pkg[type] != undefined){
@@ -2354,6 +2434,10 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,opts,callback){
               }
               x.name = x.name.replace(/\./g,'-');
               
+              if(typeMap[type]){
+                x['@type'] = typeMap[type];
+              }
+
               if(meta.publicationDate){
                 x.datePublished = meta.publicationDate;
               }
@@ -2436,10 +2520,6 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,opts,callback){
                 article.pageEnd = meta.pageEnd;
               }
               pkg.article[i] = article;
-              // var doc = new DOMParser().parseFromString(xmlBody,'text/xml');
-              // if(doc.getElementsByTagName('body').length){
-              //   pkg.article[i].articleBody = doc.getElementsByTagName('body')[0].textContent;
-              // }
             }
 
           });
@@ -2499,6 +2579,14 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,opts,callback){
           });
         });
 
+        ['dataset','code','figure','audio','video','article'].forEach(function(type){
+          if(newpkg[type]){
+            if(newpkg[type].length===0){
+              delete newpkg[type];
+            }            
+          }
+        });
+
         _json2html(ldpm,jsonBody,newpkg,artInd,meta.abstractHtml, function(err, htmlBody){
           htmlBody = _addRefsHtml(htmlBody,newpkg.article[artInd]);
           fs.writeFile(path.join(ldpm.root,nxmlName+'.html'),htmlBody,function(err){
@@ -2519,7 +2607,7 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,opts,callback){
               if ( (!opts.noPubmed) && (meta.pmid!=undefined) ){
                 // call pubmed to check if there isn't additional info there
                 uri = 'http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id='+meta.pmid+'&rettype=abstract&retmode=xml';
-                pubmed.call(ldpm, uri, function(err,pubmed_pkg){
+                pubmed.call(ldpm, uri, { writeHTML: false }, function(err,pubmed_pkg){
                   if(pubmed_pkg){
                     if(newpkg.annotation == undefined){
                       newpkg.annotation = [];
@@ -2540,9 +2628,9 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,opts,callback){
                         }
                       })
 
-                      if(!found){
-                        fs.unlinkSync(pmfile);
-                      }
+                      // if(!found){
+                      //   fs.unlinkSync(pmfile);
+                      // }
 
                       pubmed_pkg.annotation[0].hasTarget = [
                         {

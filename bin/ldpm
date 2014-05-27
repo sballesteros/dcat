@@ -457,6 +457,7 @@ if (argv._[0] === 'init') {
       var uri = 'http://www.pubmedcentral.nih.gov/utils/oa/oa.fcgi?id=' + id;
       request(uri, function(error, response, body) {
         if(body.toString().indexOf('idDoesNotExist')==-1){
+          var uri = 'http://www.pubmedcentral.nih.gov/utils/oa/oa.fcgi?id=' + id;
           oapmc.call(ldpm, uri, { noPubmed: argv.noPubmed }, function(err,pkg){
             if(err) _fail(err);
             fs.writeFileSync(path.resolve(ldpm.root, 'package.jsonld'), JSON.stringify(pkg, null, 2));

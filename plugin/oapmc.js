@@ -53,7 +53,6 @@ function oapmc(uri, opts, callback){
     var convurl = 'http://www.pubmedcentral.nih.gov/utils/idconv/v1.0/?ids='+'PMC'+pmcid+'&format=json';
     that.logHttp('GET', convurl);
     request(convurl, function(error, response, body) {
-      console.log(body)
       that.logHttp(response.statusCode,convurl);
       var res = JSON.parse(response.body);
       if(res.status ==='ok'){

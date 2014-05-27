@@ -242,12 +242,35 @@ Ldpm.prototype.convert = function(id,opts,callback){
       }
     });
   } else if(id.slice(0,3)==='PMC'){
-    // we assume it's a PMCID
+
     var uri = 'http://www.pubmedcentral.nih.gov/utils/oa/oa.fcgi?id=' + id;
-    oapmc.call(that, uri, opts, function(err,pkg){
-      if(err) return callback(err);
-      callback(null,pkg);
+    request(uri, function(error, response, body) {
+      if(body.toString().indexOf('idDoesNotExist')==-1){
+        var uri = 'http://www.pubmedcentral.nih.gov/utils/oa/oa.fcgi?id=' + id;
+        oapmc.call(that, uri, opts, function(err,pkg){
+          if(err) return callback(err);
+          callback(null,pkg);
+        });
+      } else {
+        console.log('This pmc article does not belong to the OA subset of PMC')
+        var uri = "http://www.pubmedcentral.nih.gov/utils/idconv/v1.0/?ids=" + id;
+        request(uri,function(error,response,body){
+          if(body.indexOf('pmid')>-1){
+            pmid = body.slice(body.indexOf('pmid')+6,body.indexOf('pmid')+14);
+            uri = 'http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id='+id+'&rettype=abstract&retmode=xml';
+            pubmed.call(that, uri, function(err,pkg){
+              if(err) return callback(err);
+              callback(null,pkg);
+            });
+          } else {
+            err = new Error('the id cannot be recognized');
+            err.code = '404';
+            callback(err);
+          }
+        });
+      }
     });
+
   } else {
     // we assume it's a PMID
     var uri = "http://www.pubmedcentral.nih.gov/utils/idconv/v1.0/?ids=" + id;

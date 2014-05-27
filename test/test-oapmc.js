@@ -36,22 +36,6 @@ describe('pubmed', function(){
     });
   });
 
-  it('should error when providing a non open access pmcid', function(done){
-    
-    var ldpm = new Ldpm(conf,path.join(root,'__tests'));
-    fs.mkdir('__tests', function(err){
-      if(err) console.log(err);
-      ldpm.convert('PMC3884567', function(err,pkg){
-        assert.equal(err.code, 404);
-        rimraf('__tests',function(err){
-          if(err) console.log(err);
-          done();
-        });
-      });
-    });
-
-  });
-
   it('should replace contentPaths with contentUrls when article comes from plos', function(done){
     var ldpm = new Ldpm(conf,path.join(root,'__tests'));
     fs.mkdir('__tests', function(err){

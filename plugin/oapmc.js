@@ -1034,14 +1034,20 @@ function _recConv(ldpm,jsonNode,pkg,hlevel,callback){
     ); 
 
   } else if( jsonNode.tag === 'p' ){  
-    txt += '<p>\n';
+    txt += '\n<p>\n';
     var index = 10000;
     async.eachSeries(jsonNode.children,
       function(x,cb){
         index += 1;
         _recConv(ldpm,x,pkg,hlevel,function(err,newTxt){
           if(err) return cb(err);
-          txt += newTxt;
+          if( (x.tag === 'table') || (x.tag === 'figure') ){
+            txt += '\n</p>';
+            txt += newTxt;
+            txt += '\n<p>\n';
+          } else {
+            txt += newTxt;
+          }
           return cb(null);
         });
       },
@@ -1049,6 +1055,7 @@ function _recConv(ldpm,jsonNode,pkg,hlevel,callback){
         if(err) return callback(err);
         txt += '\n';
         txt += '</p>\n';
+        txt = txt.replace(/<p>\n\n<\/p>/g,'');
         return callback(null,txt);
       }
     ); 
@@ -1256,7 +1263,7 @@ function _recConv(ldpm,jsonNode,pkg,hlevel,callback){
                   s.on('data', function(d) { size += d.length; sha1.update(d); });
                   s.on('end', function() { 
                     var sha = sha1.digest('hex');
-                    txt += '<a href="' + BASE + '/r/'+sha+'">';
+                    txt += '<a href="' + BASE + 'r/'+sha+'">';
                     
                     async.eachSeries(jsonNode.children,
                       function(x,cb){
@@ -1330,7 +1337,7 @@ function _recConv(ldpm,jsonNode,pkg,hlevel,callback){
               s.on('data', function(d) { size += d.length; sha1.update(d); });
               s.on('end', function() { 
                 var sha = sha1.digest('hex');
-                txt += '<img src="' + BASE + '/r/'+sha+'">';
+                txt += '<img src="' + BASE + 'r/'+sha+'">';
                 if(jsonNode.caption){
                   txt += '<figcaption typeof="http://purl.org/spar/deo/Caption">\n'; 
                   async.eachSeries(jsonNode.caption,
@@ -1360,26 +1367,28 @@ function _recConv(ldpm,jsonNode,pkg,hlevel,callback){
 
   } else if( jsonNode.tag === 'table' ){
 
-    txt += '<table>\n'; 
-    txt += jsonNode.table;
+    // txt += '<table>\n'; 
+    var tabletxt = jsonNode.table;
     if(jsonNode.caption){
-      txt += '<caption typeof="http://purl.org/spar/deo/Caption">\n'; 
+      var caption = '\n<caption typeof="http://purl.org/spar/deo/Caption">\n'; 
       async.eachSeries(jsonNode.caption,
         function(x,cb){
           _recConv(ldpm,x,pkg,hlevel,function(err,newTxt){
-            txt += newTxt;
+            caption += newTxt;
             cb();
           });
         },
         function(err){
           if(err) return callback(err);
-          txt += '\n</caption>\n'; 
-          txt += '</table>\n'; 
+          caption += '</caption>\n'; 
+          tabletxt = tabletxt.slice(0,tabletxt.indexOf('>')+1) + caption + tabletxt.slice(tabletxt.indexOf('>')+1,tabletxt.length);
+          txt += '\n' + tabletxt + '\n'; 
           return callback(null,txt);
         }
       ); 
     } else {
-      txt += '</table>\n'; 
+      // txt += '</table>\n'; 
+      txt += jsonNode.table;
       return callback(null,txt);
     }
 
@@ -1532,7 +1541,8 @@ function _identifiedTitle(node){
     'discussion': 'http://salt.semanticauthoring.org/ontologies/sro#Discussion',
     'materials': 'http://purl.org/spar/deo/Materials',
     'methods': 'http://purl.org/spar/deo/Methods',
-    'results': 'http://purl.org/spar/deo/Results'
+    'results': 'http://purl.org/spar/deo/Results',
+    'conclusion': 'http://salt.semanticauthoring.org/documentation.html#Conclusion'
   }
   var iri = ''
   node.children.forEach(function(ch){

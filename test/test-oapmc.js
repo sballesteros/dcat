@@ -22,11 +22,25 @@ describe('pubmed', function(){
     password: "user_a"
   };
 
-  it('should return a pkg with name plosone-haseleu-2014 when asked for finger-wrinkles paper through doi', function(done){
+  it('should return a pkg with name plosone-haseleu-2014 when asked for finger-wrinkles paper through pmcid', function(done){
     var ldpm = new Ldpm(conf,path.join(root,'__tests'));
     fs.mkdir('__tests', function(err){
       if(err) console.log(err);
       ldpm.convert('PMC3885627', function(err,pkg){
+        assert.equal(pkg.name,'plos-one-haseleu-2013');
+        rimraf('__tests',function(err){
+          if(err) console.log(err);
+          done();
+        });
+      });
+    });
+  });
+
+  it('should return a pkg with name plosone-haseleu-2014 when asked for finger-wrinkles paper through doi', function(done){
+    var ldpm = new Ldpm(conf,path.join(root,'__tests'));
+    fs.mkdir('__tests', function(err){
+      if(err) console.log(err);
+      ldpm.convert('10.1371/journal.pone.0084949', function(err,pkg){
         assert.equal(pkg.name,'plos-one-haseleu-2013');
         rimraf('__tests',function(err){
           if(err) console.log(err);

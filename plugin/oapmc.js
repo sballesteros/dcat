@@ -2053,8 +2053,14 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,opts,callback){
           meta.copyrightYear = traverse($articleMeta).get(relPaths['copyright-year'])[0];
         }
         if(relPaths['copyright-holder']){
-          meta.copyrightHolder = {
-            description: traverse($articleMeta).get(relPaths['copyright-holder'])[0]
+          if(traverse($articleMeta).get(relPaths['copyright-holder'])[0]["$"]){
+            meta.copyrightHolder = {
+              description: traverse($articleMeta).get(relPaths['copyright-holder'])[0]['_']
+            }
+          } else {
+            meta.copyrightHolder = {
+              description: traverse($articleMeta).get(relPaths['copyright-holder'])[0]
+            }
           }
         }
 
@@ -2609,9 +2615,6 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,opts,callback){
                 uri = 'http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id='+meta.pmid+'&rettype=abstract&retmode=xml';
                 pubmed.call(ldpm, uri, { writeHTML: false }, function(err,pubmed_pkg){
                   if(pubmed_pkg){
-                    if(newpkg.annotation == undefined){
-                      newpkg.annotation = [];
-                    }
                     var hasBody = {
                       "@type": ["Tag", "Mesh"],
                       "@context": BASE + "/mesh.jsonld"
@@ -2619,6 +2622,10 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,opts,callback){
                     var graph = [];
 
                     if(pubmed_pkg.annotation){
+
+                      if(newpkg.annotation == undefined){
+                        newpkg.annotation = [];
+                      }
 
                       var found = false;
                       var pmfile = pubmed_pkg.article[0].encoding[0].contentPath;

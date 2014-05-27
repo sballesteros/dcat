@@ -832,13 +832,13 @@ function _parseNode(node,xml){
 function _json2html(ldpm,jsonBody,pkg,artInd,abstract, callback){
   var html  = "<!doctype html>\n";
   html += "<html>\n";
-  html += "<head>\n<title>\n" + pkg.article[artInd].headline + "</title>\n<meta charset='UTF-8'>\n";
-  html += "\n</head>\n";
-  html += "<body>\n";
+  html += "\n<head>\n<title>\n" + pkg.article[artInd].headline + "\n</title>\n<meta charset='UTF-8'>\n";
+  html += "</head>\n";
+  html += "\n<body>\n";
   html += "<article>\n";
-  html += "<h1>\n" + pkg.article[artInd].headline + "</h1>\n";
+  html += "\n<h1>\n" + pkg.article[artInd].headline + "\n</h1>\n";
   if(pkg.keyword){
-    html += '<section class="keywords">\n';
+    html += '\n<section class="keywords">\n';
     html += '<ul>\n';
     pkg.keyword.forEach(function(k){
       html += '<li>\n';
@@ -849,7 +849,7 @@ function _json2html(ldpm,jsonBody,pkg,artInd,abstract, callback){
     html += '</section>\n';
   }
   if(pkg.author){
-    html += '<section class="authors" >\n';
+    html += '\n<section class="authors" >\n';
     html += '<section class="author" >\n';
     html += '<span>\n';
     html += pkg.author.name + '\n';
@@ -897,15 +897,15 @@ function _json2html(ldpm,jsonBody,pkg,artInd,abstract, callback){
       html += '</section>\n';    
     })
   }
-  html += '</section>\n';
+  html += '</section>\n\n';
   if(pkg.provider){
-    html += '<section class="provider">\n';
+    html += '\n<section class="provider">\n';
     html += '<h3>Provider</h3>\n';
     html += pkg.provider.description + '\n';
     html += '</section>\n';
   }
   if(pkg.editor){
-    html += '<section class="editors">\n';
+    html += '\n<section class="editors">\n';
     html += '<h3>Editor</h3>\n';
     pkg.editor.forEach(function(ed){
       html += '<section>\n';
@@ -930,7 +930,7 @@ function _json2html(ldpm,jsonBody,pkg,artInd,abstract, callback){
     html += '</section>\n'
   }
   if(pkg.journal){
-    html += '<section class="journal">\n';
+    html += '\n<section class="journal">\n';
     html += '<h3>Journal</h3>';
     if(pkg.journal.name){
       html += '<span>\n';
@@ -947,14 +947,14 @@ function _json2html(ldpm,jsonBody,pkg,artInd,abstract, callback){
 
   if(abstract!=undefined){
     var id = uuid.v4();
-    html += '<section id="' + id + '" typeof="http://salt.semanticauthoring.org/ontologies/sro#Abstract">\n'; //+ '" resource="' + pkg.name + '/' + id + '">\n';
-    html += "<h2>Abstract</h2>\n";
+    html += '\n<section id="' + id + '" typeof="http://salt.semanticauthoring.org/ontologies/sro#Abstract">\n'; //+ '" resource="' + pkg.name + '/' + id + '">\n';
+    html += "<h2>Abstract</h2>";
     var doc = new DOMParser().parseFromString("<sec>" + abstract + "</sec>",'text/xml');
     var abs = doc.getElementsByTagName('sec')[0];
     _recConv(ldpm,_parseNode(abs,abstract),pkg,3, function(err,newTxt){
       if(err) return callback(err);
       html += newTxt;
-      html += "</section>\n";
+      html += "</section>\n\n";
       _recConv(ldpm,jsonBody,pkg,2, function(err,newTxt){
         if(err) return callback(err);
         html += newTxt;
@@ -1011,7 +1011,7 @@ function _recConv(ldpm,jsonNode,pkg,hlevel,callback){
 
   } else if( jsonNode.tag === 'sec' ){
     var id = uuid.v4();
-    txt += '<section id="' + id + '"'; //+ '" resource="' + pkg.name + '/' + id + '">\n';
+    txt += '\n\n<section id="' + id + '"'; //+ '" resource="' + pkg.name + '/' + id + '">\n';
     var iri = _identifiedTitle(jsonNode); 
     if ( iri != ''){
       txt += ' typeof="' + iri + '" ';
@@ -1028,7 +1028,7 @@ function _recConv(ldpm,jsonNode,pkg,hlevel,callback){
       },
       function(err){
         if(err) return callback(err);
-        txt += '</section>\n\n';
+        txt += '</section>\n';
         return callback(null,txt);
       }
     ); 
@@ -1290,7 +1290,7 @@ function _recConv(ldpm,jsonNode,pkg,hlevel,callback){
 
   } else if( jsonNode.tag === 'figure' ){
     var id = uuid.v4();
-    txt += '<figure ';
+    txt += '\n\n<figure ';
     txt += 'id="' + id + '" resource="' + pkg.name + '/' + id + '"';
     txt += '>\n'; 
     pkg.figure.forEach(function(fig){
@@ -1330,7 +1330,7 @@ function _recConv(ldpm,jsonNode,pkg,hlevel,callback){
               s.on('data', function(d) { size += d.length; sha1.update(d); });
               s.on('end', function() { 
                 var sha = sha1.digest('hex');
-                txt += '<img src="' + BASE + '/r/'+sha+'">';
+                txt += '<img src="' + BASE.replace('https','http') + '/r/'+sha+'">';
                 if(jsonNode.caption){
                   txt += '<figcaption typeof="http://purl.org/spar/deo/Caption">\n'; 
                   async.eachSeries(jsonNode.caption,
@@ -1363,7 +1363,7 @@ function _recConv(ldpm,jsonNode,pkg,hlevel,callback){
     txt += '<table>\n'; 
     txt += jsonNode.table;
     if(jsonNode.caption){
-      txt += '<caption typeof="http://purl.org/spar/deo/Caption>\n'; 
+      txt += '<caption typeof="http://purl.org/spar/deo/Caption">\n'; 
       async.eachSeries(jsonNode.caption,
         function(x,cb){
           _recConv(ldpm,x,pkg,hlevel,function(err,newTxt){
@@ -1550,10 +1550,10 @@ function _identifiedTitle(node){
 }
 
 function _addRefsHtml(htmlBody,article){
-  var indbeg = htmlBody.indexOf('</html>');
+  var indbeg = htmlBody.indexOf('</article>');
   htmlBody = htmlBody.slice(0,indbeg);
   if(article.citation){
-    htmlBody += '<section typeof="http://purl.org/spar/deo/BibliographicReference">\n';
+    htmlBody += '\n<section typeof="http://purl.org/spar/deo/BibliographicReference">\n';
     htmlBody += '<h2>Bibliography</h2>\n';
     htmlBody += '<ol>\n';
     article.citation.forEach(function(cit,i){
@@ -1572,8 +1572,10 @@ function _addRefsHtml(htmlBody,article){
       htmlBody += '</li>\n';
     });
     htmlBody += '</ol>\n';
-    htmlBody += '\n</section>\n';
+    htmlBody += '</section>\n';
   }
+  htmlBody += '\n</article>\n';
+  htmlBody += '</body>\n';
   htmlBody += '</html>';
   return htmlBody;
 }

@@ -14,7 +14,7 @@ var request = require('request')
   , events = require('events')
   , gm = require('gm')
   , tar = require('tar')
-  , BASE = require('package-jsonld').BASE
+  , BASE = require('package-jsonld').BASE.replace('https','http')
   , once = require('once')
   , targz = require('tar.gz')
   , pubmed = require('./pubmed').pubmed
@@ -1330,7 +1330,7 @@ function _recConv(ldpm,jsonNode,pkg,hlevel,callback){
               s.on('data', function(d) { size += d.length; sha1.update(d); });
               s.on('end', function() { 
                 var sha = sha1.digest('hex');
-                txt += '<img src="' + BASE.replace('https','http') + '/r/'+sha+'">';
+                txt += '<img src="' + BASE + '/r/'+sha+'">';
                 if(jsonNode.caption){
                   txt += '<figcaption typeof="http://purl.org/spar/deo/Caption">\n'; 
                   async.eachSeries(jsonNode.caption,

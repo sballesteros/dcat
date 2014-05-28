@@ -424,7 +424,10 @@ function json2html(ldpm,pkg,opts,callback){
 
   if(arguments.length === 3){
     callback = opts;
-    opts = { writeHTML: false };
+    opts = {}; 
+  }
+  if(opts.writeHTML == undefined){
+    opts.writeHTML = true;
   }
 
   var html  = "<!doctype html>\n";

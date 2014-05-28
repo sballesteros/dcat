@@ -50,6 +50,37 @@ describe('pubmed', function(){
     });
   });
 
+  it('should support articles with video and zipped supplementary material', function(done){
+    // Note: in this example, a zipped video is tagged as code
+    var ldpm = new Ldpm(conf,path.join(root,'__tests'));
+    fs.mkdir('__tests', function(err){
+      if(err) console.log(err);
+      ldpm.convert('10.1371/journal.pone.0012255', function(err,pkg){
+        assert.equal(pkg.name,'plos-one-teramoto-2010');
+        rimraf('__tests',function(err){
+          if(err) console.log(err);
+          done();
+        });
+      });
+    });
+  });
+
+  it('should be able to inline formulas as base64', function(done){
+    var ldpm = new Ldpm(conf,path.join(root,'__tests'));
+    fs.mkdir('__tests', function(err){
+      if(err) console.log(err);
+      ldpm.convert('10.1371/journal.pcbi.1000960', function(err,pkg){
+        assert.equal(pkg.name,'plos-comput-biol-rapoport-2010');
+        rimraf('__tests',function(err){
+          if(err) console.log(err);
+          done();
+        });
+      });
+    });
+  });
+
+  
+
   it('should replace contentPaths with contentUrls when article comes from plos', function(done){
     var ldpm = new Ldpm(conf,path.join(root,'__tests'));
     fs.mkdir('__tests', function(err){

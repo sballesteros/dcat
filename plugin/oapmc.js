@@ -80,27 +80,27 @@ function oapmc(uri, opts, callback){
 };
 
 
-function _parseOAcontent(uri,doi,that,cb){
+function _parseOAcontent(uri,doi,that,callback){
 
-  callback = once(cb);
+  callback = once(callback);
 
   that.logHttp('GET', uri);
 
   request(uri, function (error, response, body) {
     that.logHttp(response.statusCode,uri);
 
-    if(error) return cb(error);
+    if(error) return callback(error);
     if(body.indexOf('idDoesNotExist')>-1){
       var err = new Error('this identifier does not belong to the Open Access subset of Pubmed Central');
       err.code = 404; 
-      return cb(err);
+      return callback(err);
     }
 
     if(body.indexOf('format="tgz"')>-1){
       _fetchTar(body,that, function(err, files){
-        if(err) return cb(err);
+        if(err) return callback(err);
         _fetchPdfName(body, function(err,mainArticleName){
-          if(err) return cb(err);
+          if(err) return callback(err);
           var codeBundles = [];
           var compressedBundles = [];
           files.forEach(function(file,i){
@@ -133,7 +133,7 @@ function _parseOAcontent(uri,doi,that,cb){
               }
             },
             function(err){
-              if(err) return cb(err);
+              if(err) return callback(err);
               var urls = [];
               var plosJournalsList = ['pone.','pbio.','pmed.','pgen.','pcbi.','ppat.','pntd.'];
               var plosJournalsLinks = {
@@ -180,21 +180,21 @@ function _parseOAcontent(uri,doi,that,cb){
               
               var validatedurls = [];
               async.each(urls,
-                function(uri,cb2){
+                function(uri,cb){
                   // check which urls are valid
                   request(uri, function (error, response, body) {
                     if (!error && response.statusCode == 200) {
                       validatedurls.push(uri);
                     }
-                    cb2(null);
+                    cb(null);
                   });
                 },
                 function(err){
                   files = tmpfiles;
                   that.paths2resources(files,opts, function(err,resources){
-                    if(err) return cb(err);
+                    if(err) return callback(err);
                     that.urls2resources(validatedurls, function(err,resourcesFromUrls){
-                      if(err) return cb(err);
+                      if(err) return callback(err);
                       // rename
                       ['figure','audio','video'].forEach(
                         function(type){
@@ -261,7 +261,7 @@ function _parseOAcontent(uri,doi,that,cb){
                       );
 
                       // find .nxml file and push it into article
-                      if(err) return cb(err);
+                      if(err) return callback(err);
                       for (var type in resources){
                         resources[type] = resources[type].concat(resourcesFromUrls[type]); //merge
                       }
@@ -402,14 +402,14 @@ function _parseOAcontent(uri,doi,that,cb){
                               pkg.dataset.splice(i,1);
                               fs.unlink(path.join(that.root,d.distribution[0].contentPath), function(err){
                                 if(err) return cb(err);
-                                cb(null,pkg,mainArticleName);
+                                callback(null,pkg,mainArticleName);
                               });
                             })
                           }
                         })
                       }
                       if(!found){
-                        cb(null,pkg,mainArticleName);
+                        callback(null,pkg,mainArticleName);
                       }
                     });
                   });

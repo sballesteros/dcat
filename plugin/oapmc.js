@@ -64,12 +64,12 @@ function oapmc(uri, opts, callback){
           uri = 'http://www.pubmedcentral.nih.gov/oai/oai.cgi?verb=GetRecord&identifier=oai:pubmedcentral.nih.gov:'+pmcid+'&metadataPrefix=pmc';
           _addMetadata(pkg,mainArticleName,uri,that,opts,function(err,pkg){
             if(err) return callback(err);
-            callback(null,pkg);            
+            callback(null,pkg);
           });
         });
       } else {
         var err = new Error('this identifier does not belong to the Open Access subset of Pubmed Central');
-        err.code = 404; 
+        err.code = 404;
         callback(err);
       }
     });
@@ -152,12 +152,12 @@ function _parseOAcontent(uri,doi,that,callback){
                 plosJournalsList.forEach(function(p,j){
                   if( (path.basename(f).slice(0,p.length)===p) && (path.extname(f) != '.nxml') && (f.split('.')[f.split('.').length-2][0] != 'e') ) {
                     found = true;
-                    
+
                     if( path.extname(f) === '.pdf' ){
                       var tmp = path.basename(f,path.extname(f));
                       tmp = '.'+tmp.split('.')[tmp.split('.').length-1];
                       var tmpind = plosJournalsLinks[p].indexOf('info:doi');
-                      urls.push(plosJournalsLinks[p].slice(0,tmpind) + 'fetchObject.action?uri=info:doi/' + doi +  tmp.slice(0,tmp.lastIndexOf('.')) + '&representation=PDF');                      
+                      urls.push(plosJournalsLinks[p].slice(0,tmpind) + 'fetchObject.action?uri=info:doi/' + doi +  tmp.slice(0,tmp.lastIndexOf('.')) + '&representation=PDF');
                     } else {
                       var tmp = path.basename(f,path.extname(f));
                       tmp = '.'+tmp.split('.')[tmp.split('.').length-1];
@@ -170,14 +170,14 @@ function _parseOAcontent(uri,doi,that,callback){
                           urls.push(plosJournalsLinks[p] + doi +  tmp  + '/' + 'originalimage');
                         }
                       }
-                    }                    
+                    }
                   }
                 });
                 if(!found){
                   tmpfiles.push(f)
                 }
               });
-              
+
               var validatedurls = [];
               async.each(urls,
                 function(uri,cb){
@@ -201,7 +201,7 @@ function _parseOAcontent(uri,doi,that,callback){
                           resourcesFromUrls[type].forEach(
                             function(x){
                               if(x.name.indexOf('SingleRepresentation')>-1){
-                                x.name = x[type][0].contentUrl.split('/')[x[type][0].contentUrl.split('/').length-1];                                
+                                x.name = x[type][0].contentUrl.split('/')[x[type][0].contentUrl.split('/').length-1];
                               } else if(x[type][0].contentUrl.indexOf('/powerpoint')>-1){
                                 x.name = x[type][0].contentUrl.split('/')[x[type][0].contentUrl.split('/').length-2];
                               } else if(x[type][0].contentUrl.indexOf('/largerimage')>-1){
@@ -218,11 +218,11 @@ function _parseOAcontent(uri,doi,that,callback){
                           )
                         }
                       );
-  
+
                       resourcesFromUrls['code'].forEach(
                         function(x){
                           if(x.name.indexOf('SingleRepresentation')>-1){
-                            x.name = x['targetProduct'][0].contentUrl.split('/')[x[['targetProduct']][0].contentUrl.split('/').length-1];                                
+                            x.name = x['targetProduct'][0].contentUrl.split('/')[x[['targetProduct']][0].contentUrl.split('/').length-1];
                           } else {
                             x.name = x[['targetProduct']][0].contentUrl.split('/')[x[['targetProduct']][0].contentUrl.split('/').length-2];
                           }
@@ -235,7 +235,7 @@ function _parseOAcontent(uri,doi,that,callback){
                       resourcesFromUrls['dataset'].forEach(
                         function(x){
                           if(x.name.indexOf('SingleRepresentation')>-1){
-                            x.name = x['distribution'][0].contentUrl.split('/')[x[['distribution']][0].contentUrl.split('/').length-1];                                
+                            x.name = x['distribution'][0].contentUrl.split('/')[x[['distribution']][0].contentUrl.split('/').length-1];
                           } else {
                             x.name = x[['distribution']][0].contentUrl.split('/')[x[['distribution']][0].contentUrl.split('/').length-2];
                           }
@@ -248,7 +248,7 @@ function _parseOAcontent(uri,doi,that,callback){
                       resourcesFromUrls['article'].forEach(
                         function(x){
                           if(x.name.indexOf('fetchObject')>-1){
-                            x.name = x['encoding'][0].contentUrl.slice(0,x['encoding'][0].contentUrl.indexOf('&representation=PDF')).split('/')[x[['encoding']][0].contentUrl.split('/').length-1];                                
+                            x.name = x['encoding'][0].contentUrl.slice(0,x['encoding'][0].contentUrl.indexOf('&representation=PDF')).split('/')[x[['encoding']][0].contentUrl.split('/').length-1];
                           } else if(x['encoding'].indexOf("representation=PDF")>-1){
                             x.name = x['encoding'][0].contentUrl.slice(0,x['encoding'][0].contentUrl.indexOf('&representation=PDF')).split('/')[x[['encoding']][0].contentUrl.split('/').length-2];
                           } else {
@@ -289,7 +289,7 @@ function _parseOAcontent(uri,doi,that,callback){
                           }
                         });
                       }
-                      
+
                       ['figure','audio','video'].forEach(
                         function(type){
                           var ind=0;
@@ -345,7 +345,7 @@ function _parseOAcontent(uri,doi,that,callback){
                                   function(x,i){
                                     if(x.contentUrl != undefined){
                                       if( (x.contentUrl.indexOf('fetchSingleRepresentation')>-1) && (r[type].length>1) ){
-                                        r[type].splice(i,1); 
+                                        r[type].splice(i,1);
                                       }
                                     }
                                   }
@@ -362,14 +362,14 @@ function _parseOAcontent(uri,doi,that,callback){
                               function(x,i){
                                 if(x.contentUrl != undefined){
                                   if( (x.contentUrl.indexOf('fetchSingleRepresentation')>-1) && (r['targetProduct'].length>1) ){
-                                    r['targetProduct'].splice(i,1); 
+                                    r['targetProduct'].splice(i,1);
                                   }
                                 }
                               }
                             )
                           }
                         )
-                      } 
+                      }
                       if(resources['dataset']){
                         resources['dataset'].forEach(
                           function(r,i){
@@ -377,7 +377,7 @@ function _parseOAcontent(uri,doi,that,callback){
                               function(x,i){
                                 if(x.contentUrl != undefined){
                                   if( (x.contentUrl.indexOf('fetchSingleRepresentation')>-1) && (r['distribution'].length>1) ){
-                                    r['distribution'].splice(i,1); 
+                                    r['distribution'].splice(i,1);
                                   }
                                 }
                               }
@@ -457,7 +457,7 @@ function _fetchTar(body,ldpm,callback){
                 wr.on("close", function(ex) {
                   done();
                 });
-                rd.pipe(wr);                                                                                                                                                    
+                rd.pipe(wr);
 
                 function done(err) {
                   if(err) return cb(err);
@@ -467,7 +467,7 @@ function _fetchTar(body,ldpm,callback){
               },
               function(err){
                 if(err) return callback(err);
-                c.end(); 
+                c.end();
                 return callback(null,newFiles);
               }
             )
@@ -478,8 +478,8 @@ function _fetchTar(body,ldpm,callback){
         });
         stream
           .pipe(zlib.Unzip())
-          .pipe(tar.Extract({ path: dirPath, strip: 1 }));        
-      })      
+          .pipe(tar.Extract({ path: dirPath, strip: 1 }));
+      })
     });
   });
   c.connect({ host: 'ftp.ncbi.nlm.nih.gov' });
@@ -639,7 +639,7 @@ function _parseNode(node,xml){
       }
       if(node.attributes[att].localName==='rid'){
         if(node.attributes[att].value!=undefined){
-          tmp.id = node.attributes[att].value; 
+          tmp.id = node.attributes[att].value;
         }
       }
       if(node.attributes[att].nodeName==='id'){
@@ -648,9 +648,9 @@ function _parseNode(node,xml){
     });
     if(tag!=''){
       tmp.tag = tag;
-    } 
+    }
     if(node.attributes.nodeName==='id'){
-      tmp.id = node.attributes.value;      
+      tmp.id = node.attributes.value;
     }
   }
   if(node.childNodes != null){
@@ -659,7 +659,7 @@ function _parseNode(node,xml){
         if(x.textContent!='\n'){
           if( x.tagName == 'table-wrap' ){
             var tab = {
-              tag: 'table' 
+              tag: 'table'
             };
             Object.keys(x.attributes).forEach(function(att){
               if(x.attributes[att].localName==='id'){
@@ -686,7 +686,7 @@ function _parseNode(node,xml){
                   }
                 })
               }
-            }); 
+            });
 
 
             var txt = _extractBetween(xml,'<table-wrap id="'+x.attributes['0'].value+'"','</table-wrap>');
@@ -869,11 +869,11 @@ function _json2html(ldpm,jsonBody,pkg,artInd,abstract, callback){
         html += '<span>\n';
         html += aff.description + '\n';
         html += '</span>\n';
-        html += '</li>\n';        
+        html += '</li>\n';
       })
       html += '</ul>\n';
     }
-    html += '</section>\n';    
+    html += '</section>\n';
   }
   if(pkg.contributor){
     pkg.contributor.forEach(function(contr){
@@ -893,11 +893,11 @@ function _json2html(ldpm,jsonBody,pkg,artInd,abstract, callback){
           html += '<span>\n';
           html += aff.description + '\n';
           html += '</span>\n';
-          html += '</li>\n';        
+          html += '</li>\n';
         })
         html += '</ul>\n';
       }
-      html += '</section>\n';    
+      html += '</section>\n';
     })
   }
   html += '</section>\n\n';
@@ -924,7 +924,7 @@ function _json2html(ldpm,jsonBody,pkg,artInd,abstract, callback){
           html += '<span>\n';
           html += aff.description + '\n';
           html += '</span>\n';
-          html += '</li>\n';        
+          html += '</li>\n';
         })
         html += '</ul>\n';
       }
@@ -987,12 +987,12 @@ function _json2html(ldpm,jsonBody,pkg,artInd,abstract, callback){
 function _recConv(ldpm,jsonNode,pkg,hlevel,callback){
   callback = once(callback);
 
-  var knownTags = { 
-    'disp-quote':'blockquote', 
-    'sup': 'sup', 
-    'sub': 'sub', 
-    'bold': ['span class="bold"','span'], 
-    'italic': ['span class="italic"','span'], 
+  var knownTags = {
+    'disp-quote':'blockquote',
+    'sup': 'sup',
+    'sub': 'sub',
+    'bold': ['span class="bold"','span'],
+    'italic': ['span class="italic"','span'],
     'underline': ['span class="underline"','span'],
     'inline-formula': 'span'
   };
@@ -1009,12 +1009,12 @@ function _recConv(ldpm,jsonNode,pkg,hlevel,callback){
         if(err) return callback(err);
         return callback(null,txt);
       }
-    );    
+    );
 
   } else if( jsonNode.tag === 'sec' ){
     var id = uuid.v4();
     txt += '\n\n<section id="' + id + '"'; //+ '" resource="' + pkg.name + '/' + id + '">\n';
-    var iri = _identifiedTitle(jsonNode); 
+    var iri = _identifiedTitle(jsonNode);
     if ( iri != ''){
       txt += ' typeof="' + iri + '" ';
     }
@@ -1031,9 +1031,9 @@ function _recConv(ldpm,jsonNode,pkg,hlevel,callback){
         txt += '</section>\n';
         return callback(null,txt);
       }
-    ); 
+    );
 
-  } else if( jsonNode.tag === 'p' ){ 
+  } else if( jsonNode.tag === 'p' ){
 
     txt += '\n<p>\n';
     async.eachSeries(jsonNode.children,
@@ -1057,7 +1057,7 @@ function _recConv(ldpm,jsonNode,pkg,hlevel,callback){
         txt = txt.replace(/<p>\n\n<\/p>/g,'');
         return callback(null,txt);
       }
-    ); 
+    );
 
   } else if( jsonNode.tag === 'title' ){
     txt += ' <h' + hlevel + '>\n';
@@ -1073,13 +1073,13 @@ function _recConv(ldpm,jsonNode,pkg,hlevel,callback){
         txt += '\n </h' + hlevel + '>\n';
         return callback(null,txt);
       }
-    );   
+    );
 
   } else if(Object.keys(knownTags).indexOf(jsonNode.tag)>-1){
     if(typeof knownTags[jsonNode.tag] === 'string'){
       txt += '\n<'+knownTags[jsonNode.tag]+'>\n';
     } else {
-      txt += '\n<'+knownTags[jsonNode.tag][0]+'>\n';          
+      txt += '\n<'+knownTags[jsonNode.tag][0]+'>\n';
     }
     async.eachSeries(jsonNode.children,
       function(x,cb){
@@ -1094,11 +1094,11 @@ function _recConv(ldpm,jsonNode,pkg,hlevel,callback){
         if(typeof knownTags[jsonNode.tag] === 'string'){
           txt += '</'+knownTags[jsonNode.tag]+'>\n';
         } else {
-          txt += '</'+knownTags[jsonNode.tag][1]+'>\n';          
+          txt += '</'+knownTags[jsonNode.tag][1]+'>\n';
         }
         return callback(null,txt);
       }
-    );   
+    );
 
   } else if( jsonNode.tag === 'text' ){
     if(jsonNode.content.trim() != ''){
@@ -1106,7 +1106,7 @@ function _recConv(ldpm,jsonNode,pkg,hlevel,callback){
         txt += jsonNode.content;
       } else {
         txt += ' '+jsonNode.content;
-      }   
+      }
     }
     return callback(null,txt);
 
@@ -1143,7 +1143,7 @@ function _recConv(ldpm,jsonNode,pkg,hlevel,callback){
         txt += '</li>\n';
         return callback(null,txt);
       }
-    ); 
+    );
 
   } else if( jsonNode.tag === 'bib-ref' ){
     found = false;
@@ -1170,7 +1170,7 @@ function _recConv(ldpm,jsonNode,pkg,hlevel,callback){
                   txt += '</span>';
                   return callback(null,txt);
                 }
-              ); 
+              );
             } else {
               var ind = parseInt(jsonNode.children[0]['content'].slice(1,jsonNode.children[0]['content'].length-1),10);
               txt += ' <a href="#ref_' + ind + '">';
@@ -1187,14 +1187,14 @@ function _recConv(ldpm,jsonNode,pkg,hlevel,callback){
                   txt += '</span>';
                   return callback(null,txt);
                 }
-              ); 
+              );
             }
           }
         })
-      }  
+      }
     })
 
-    
+
 
 
     if(!found){
@@ -1209,7 +1209,7 @@ function _recConv(ldpm,jsonNode,pkg,hlevel,callback){
           if(err) return callback(err);
           return callback(null,txt);
         }
-      ); 
+      );
     }
 
   } else if( jsonNode.tag === 'sec-ref' ){
@@ -1224,7 +1224,7 @@ function _recConv(ldpm,jsonNode,pkg,hlevel,callback){
         if(err) return callback(err);
         return callback(null,txt);
       }
-    ); 
+    );
 
   } else if( (jsonNode.tag === 'sup-ref') || (jsonNode.tag === 'fig-ref') || (jsonNode.tag === 'table-ref') ){
     found = false;
@@ -1253,7 +1253,7 @@ function _recConv(ldpm,jsonNode,pkg,hlevel,callback){
                       txt += '</a>';
                       return callback(null,txt);
                     }
-                  ); 
+                  );
 
                 } else {
 
@@ -1274,7 +1274,7 @@ function _recConv(ldpm,jsonNode,pkg,hlevel,callback){
 
                   s.on('error',  function(err){ return callback(err)});
                   s.on('data', function(d) { size += d.length; sha1.update(d); });
-                  s.on('end', function() { 
+                  s.on('end', function() {
                     var sha = sha1.digest('hex');
                     txt += '<a href="' + BASE + 'r/'+sha+'">';
                     async.eachSeries(jsonNode.children,
@@ -1290,10 +1290,10 @@ function _recConv(ldpm,jsonNode,pkg,hlevel,callback){
                         return callback(null,txt);
                       }
                     );
-                  });  
+                  });
                 }
               }
-            } 
+            }
           })
           if(!found){
             async.eachSeries(jsonNode.children,
@@ -1307,7 +1307,7 @@ function _recConv(ldpm,jsonNode,pkg,hlevel,callback){
                 if(err) return callback(err);
                 return callback(null,txt);
               }
-            ); 
+            );
           }
         }
       }
@@ -1317,7 +1317,7 @@ function _recConv(ldpm,jsonNode,pkg,hlevel,callback){
     var id = uuid.v4();
     txt += '\n\n<figure ';
     txt += 'id="' + id + '" resource="' + pkg.name + '/' + id + '"';
-    txt += '>\n'; 
+    txt += '>\n';
     pkg.figure.forEach(function(fig){
       if( (fig.name == jsonNode.id.replace(/\./g,'-')) || (fig.alternateName == jsonNode.id.replace(/\./g,'-')) ){
         var found = false;
@@ -1327,7 +1327,7 @@ function _recConv(ldpm,jsonNode,pkg,hlevel,callback){
             if(enc.contentUrl){
               txt += '<img src="' + enc.contentUrl +'">';
               if(jsonNode.caption){
-                txt += '<figcaption typeof="http://purl.org/spar/deo/Caption">\n'; 
+                txt += '<figcaption typeof="http://purl.org/spar/deo/Caption">\n';
                 async.eachSeries(jsonNode.caption,
                   function(x,cb){
                     _recConv(ldpm,x,pkg,hlevel,function(err,newTxt){
@@ -1337,15 +1337,15 @@ function _recConv(ldpm,jsonNode,pkg,hlevel,callback){
                   },
                   function(err){
                     if(err) return callback(err);
-                    txt += '</figcaption>\n'; 
-                    txt += '</figure>\n'; 
+                    txt += '</figcaption>\n';
+                    txt += '</figure>\n';
                     return callback(null,txt);
                   }
-                ); 
+                );
               } else {
-                txt += '</figure>\n'; 
+                txt += '</figure>\n';
                 return callback(null,txt);
-              }    
+              }
             } else {
               var sha1 = crypto.createHash('sha1');
               var size = 0
@@ -1353,11 +1353,11 @@ function _recConv(ldpm,jsonNode,pkg,hlevel,callback){
               var s = fs.createReadStream(p);
               s.on('error',  function(err){return callback(err)});
               s.on('data', function(d) { size += d.length; sha1.update(d); });
-              s.on('end', function() { 
+              s.on('end', function() {
                 var sha = sha1.digest('hex');
                 txt += '<img src="' + BASE + 'r/'+sha+'">';
                 if(jsonNode.caption){
-                  txt += '<figcaption typeof="http://purl.org/spar/deo/Caption">\n'; 
+                  txt += '<figcaption typeof="http://purl.org/spar/deo/Caption">\n';
                   async.eachSeries(jsonNode.caption,
                     function(x,cb){
                       _recConv(ldpm,x,pkg,hlevel,function(err,newTxt){
@@ -1367,15 +1367,15 @@ function _recConv(ldpm,jsonNode,pkg,hlevel,callback){
                     },
                     function(err){
                       if(err) return callback(err);
-                      txt += '</figcaption>\n'; 
-                      txt += '</figure>\n'; 
+                      txt += '</figcaption>\n';
+                      txt += '</figure>\n';
                       return callback(null,txt);
                     }
-                  ); 
+                  );
                 } else {
-                  txt += '</figure>\n'; 
+                  txt += '</figure>\n';
                   return callback(null,txt);
-                }         
+                }
               });
             }
           }
@@ -1385,10 +1385,10 @@ function _recConv(ldpm,jsonNode,pkg,hlevel,callback){
 
   } else if( jsonNode.tag === 'table' ){
 
-    // txt += '<table>\n'; 
+    // txt += '<table>\n';
     var tabletxt = jsonNode.table;
     if(jsonNode.caption){
-      var caption = '\n<caption typeof="http://purl.org/spar/deo/Caption">\n'; 
+      var caption = '\n<caption typeof="http://purl.org/spar/deo/Caption">\n';
       async.eachSeries(jsonNode.caption,
         function(x,cb){
           _recConv(ldpm,x,pkg,hlevel,function(err,newTxt){
@@ -1399,12 +1399,12 @@ function _recConv(ldpm,jsonNode,pkg,hlevel,callback){
         },
         function(err){
           if(err) return callback(err);
-          caption += '</caption>\n'; 
+          caption += '</caption>\n';
           tabletxt = tabletxt.slice(0,tabletxt.indexOf('>')+1) + caption + tabletxt.slice(tabletxt.indexOf('>')+1,tabletxt.length);
-          txt += '\n' + tabletxt + '\n'; 
+          txt += '\n' + tabletxt + '\n';
           return callback(null,txt);
         }
-      ); 
+      );
     } else {
       txt += jsonNode.table;
       return callback(null,txt);
@@ -1427,7 +1427,7 @@ function _recConv(ldpm,jsonNode,pkg,hlevel,callback){
                   txt += jsonNode.id;
                   txt += '</a>';
                   if(jsonNode.caption){
-                    txt += '<caption>'; 
+                    txt += '<caption>';
                     async.eachSeries(jsonNode.caption,
                       function(x,cb){
                         _recConv(ldpm,x,pkg,hlevel,function(err,newTxt){
@@ -1437,13 +1437,13 @@ function _recConv(ldpm,jsonNode,pkg,hlevel,callback){
                       },
                       function(err){
                         if(err) return callback(err);
-                        txt += '</caption>'; 
-                        txt += '</div>'; 
+                        txt += '</caption>';
+                        txt += '</div>';
                         return callback(null,txt);
                       }
                     );
                   } else {
-                    txt += '</div>'; 
+                    txt += '</div>';
                     return callback(null,txt);
                   }
                 } else if(r[typeMap[type]][0].bundlePath){
@@ -1453,13 +1453,13 @@ function _recConv(ldpm,jsonNode,pkg,hlevel,callback){
                   var s = fs.createReadStream(p);
                   s.on('error',  function(err){return callback(err)});
                   s.on('data', function(d) { size += d.length; sha1.update(d); });
-                  s.on('end', function() { 
+                  s.on('end', function() {
                     var sha = sha1.digest('hex');
                     txt += '<a href="' + BASE + 'r/'+sha+'">';
                     txt += jsonNode.id;
                     txt += '</a>';
                     if(jsonNode.caption){
-                      txt += '<caption>'; 
+                      txt += '<caption>';
                       async.eachSeries(jsonNode.caption,
                         function(x,cb){
                           _recConv(ldpm,x,pkg,hlevel,function(err,newTxt){
@@ -1469,13 +1469,13 @@ function _recConv(ldpm,jsonNode,pkg,hlevel,callback){
                         },
                         function(err){
                           if(err) return callback(err);
-                          txt += '</caption>'; 
-                          txt += '</div>'; 
+                          txt += '</caption>';
+                          txt += '</div>';
                           return callback(null,txt);
                         }
                       );
                     } else {
-                      txt += '</div>'; 
+                      txt += '</div>';
                       return callback(null,txt);
                     }
                   });
@@ -1492,13 +1492,13 @@ function _recConv(ldpm,jsonNode,pkg,hlevel,callback){
                       }
                       s.on('error',  function(err){return callback(err)});
                       s.on('data', function(d) { size += d.length; sha1.update(d); });
-                      s.on('end', function() { 
+                      s.on('end', function() {
                         var sha = sha1.digest('hex');
                         txt += '<a href="' + BASE + 'r/'+sha+'">';
                         txt += jsonNode.id;
                         txt += '</a>';
                         if(jsonNode.caption){
-                          txt += '<caption>'; 
+                          txt += '<caption>';
                           async.eachSeries(jsonNode.caption,
                             function(x,cb){
                               _recConv(ldpm,x,pkg,hlevel,function(err,newTxt){
@@ -1508,13 +1508,13 @@ function _recConv(ldpm,jsonNode,pkg,hlevel,callback){
                             },
                             function(err){
                               if(err) return callback(err);
-                              txt += '</caption>'; 
-                              txt += '</div>'; 
+                              txt += '</caption>';
+                              txt += '</div>';
                               return callback(null,txt);
                             }
                           );
                         } else {
-                          txt += '</div>'; 
+                          txt += '</div>';
                           return callback(null,txt);
                         }
                       });
@@ -1531,7 +1531,7 @@ function _recConv(ldpm,jsonNode,pkg,hlevel,callback){
 
     if(!found){
       txt += jsonNode.id;
-      return callback(null,txt); 
+      return callback(null,txt);
     }
 
   } else if( jsonNode.tag === 'inline-graphic' ){
@@ -1555,24 +1555,24 @@ function _recConv(ldpm,jsonNode,pkg,hlevel,callback){
 
                 fs.readFile(r[typeMap[type]][indjpg].contentPath,function (err, buffer) {
                   if (err) return callback(err);
-                  var dataUrl =  "data:" + 'image/jpg' + ";base64,"  + buffer.toString('base64');
+                  var dataUrl =  "data:" + 'image/jpg' + ";base64," + buffer.toString('base64');
                   txt += '<img src="' + dataUrl +'">';
                   return callback(null,txt);
-                });
+                });
 
               }
-            } 
+            }
           })
         }
       }
     );
-          
+
   } else if ( jsonNode.tag === 'disp-formula'){
 
     txt += '\n<div class="formula" ';
     if(jsonNode.label){
       txt += 'id="' + jsonNode.label + '"';
-    } 
+    }
     txt += '>\n';
     found = false;
     var typeMap = { 'figure': 'figure' };
@@ -1593,7 +1593,7 @@ function _recConv(ldpm,jsonNode,pkg,hlevel,callback){
 
                 fs.readFile(r[typeMap[type]][indjpg].contentPath,function (err, buffer) {
                   if (err) return callback(err);
-                  var dataUrl =  "data:" + 'image/jpg' + ";base64,"  + buffer.toString('base64');
+                  var dataUrl = "data:" + 'image/jpg' + ";base64," + buffer.toString('base64');
                   txt += '<img src="' + dataUrl +'">';
                   if(jsonNode.label){
                     txt += '\n<span class="eq-label">\n';
@@ -1601,14 +1601,14 @@ function _recConv(ldpm,jsonNode,pkg,hlevel,callback){
                     txt += '\n</span>\n';
                   }
                   return callback(null,txt);
-                });
+                });
 
               }
-            } 
+            }
           })
         }
       }
-    ); 
+    );
     if(!found){
       console.log('disp-formula not found')
       return callback(null,txt);
@@ -1896,12 +1896,12 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,opts,callback){
                     }
                   })
                 } else if (typeof x === 'object'){
-                  affiliations[key].push({ 
+                  affiliations[key].push({
                     '@type': 'Organization',
-                    description: x['_'] 
+                    description: x['_']
                   });
                 } else {
-                  affiliations[key].push({ 
+                  affiliations[key].push({
                     '@type': 'Organization',
                     description: x
                   });
@@ -1977,7 +1977,7 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,opts,callback){
                                     } else {
                                       if(w.sup==z['sup'][0]){
                                         affiliation.push({ description : w.description });
-                                      }  
+                                      }
                                     }
                                   })
                                 } else {
@@ -2090,7 +2090,7 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,opts,callback){
                     }
                   }
 
-                  
+
                 });
               } else if (x['contrib'][0]['$']['contrib-type']=='editor'){
                 x['contrib'].forEach(function(y,i){
@@ -2176,7 +2176,7 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,opts,callback){
 
         if(relPaths['license']){
           if(traverse($articleMeta).get(relPaths['license'])[0]['$']){
-            meta.license = traverse($articleMeta).get(relPaths['license'])[0]['$']['xlink:href']; 
+            meta.license = traverse($articleMeta).get(relPaths['license'])[0]['$']['xlink:href'];
           }
         } else {
           if(relPaths['copyright-statement']){
@@ -2459,7 +2459,7 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,opts,callback){
             newpkg.license = 'CC0-1.0';
           }
         }
-          
+
 
 
         if(meta.url){
@@ -2519,13 +2519,13 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,opts,callback){
           newpkg.journal = meta.journal;
           newpkg.journal['@type'] = 'Journal';
         }
-        
+
         newpkg.accountablePerson = {
           '@type': 'Organization',
           name: 'Standard Analytics IO',
           email: 'contact@standardanalytics.io'
         };
-        
+
         if( meta.copyrightHolder ){
           newpkg.copyrightHolder = meta.copyrightHolder;
         } else if (meta.publisher) {
@@ -2547,7 +2547,7 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,opts,callback){
                 x.name = type+'-'+i;
               }
               x.name = x.name.replace(/\./g,'-');
-              
+
               if(typeMap[type]){
                 x['@type'] = typeMap[type];
               }
@@ -2586,7 +2586,7 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,opts,callback){
           }
           newpkg[type] = pkg[type];
         });
-        
+
 
         var plosJournalsList = ['pone-','pbio-','pmed-','pgen-','pcbi-','ppat-','pntd-'];
         if(newpkg.figure){
@@ -2637,7 +2637,7 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,opts,callback){
             }
 
           });
-          
+
         } else {
           // in case there is no pdf
           var article = {};
@@ -2672,7 +2672,7 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,opts,callback){
             article.pageEnd = meta.pageEnd;
           }
           pkg.article.push(article);
-        }        
+        }
         newpkg.article = pkg.article;
 
 
@@ -2697,7 +2697,7 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,opts,callback){
           if(newpkg[type]){
             if(newpkg[type].length===0){
               delete newpkg[type];
-            }            
+            }
           }
         });
 
@@ -2714,7 +2714,7 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,opts,callback){
                 }
               })
               if(!found){
-                newpkg.article[artInd].encoding.push(resources.article[0].encoding[0]);                
+                newpkg.article[artInd].encoding.push(resources.article[0].encoding[0]);
               }
               pushed = true;
 
@@ -2733,7 +2733,7 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,opts,callback){
 
                       if(newpkg.annotation == undefined){
                         newpkg.annotation = [];
-                      }              
+                      }
 
                       var sha1 = crypto.createHash('sha1');
                       var size = 0
@@ -2742,7 +2742,7 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,opts,callback){
 
                       s.on('error',  function(err){return callback(err)});
                       s.on('data', function(d) { size += d.length; sha1.update(d); });
-                      s.on('end', function() { 
+                      s.on('end', function() {
                         var sha = sha1.digest('hex');
                         pubmed_pkg.annotation[0].hasTarget = [
                           {
@@ -2773,7 +2773,7 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,opts,callback){
             });
           });
         });
-        
+
 
       })
     }

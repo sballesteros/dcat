@@ -5,6 +5,7 @@ var path = require('path')
   , temp = require('temp')
   , Ldpm = require('..');
 
+temp.track();
 
 var root = path.dirname(__filename);
 
@@ -24,7 +25,6 @@ describe('pubmed', function(){
   };
 
   it('should return a pkg with name plosone-haseleu-2014 when asked for finger-wrinkles paper through pmcid', function(done){
-    temp.track();
     temp.mkdir('__tests',function(err, dirPath) {
       var ldpm = new Ldpm(conf,dirPath);
       if(err) console.log(err);
@@ -36,7 +36,6 @@ describe('pubmed', function(){
   });
 
   it('should return a pkg with name plosone-haseleu-2014 when asked for finger-wrinkles paper through doi', function(done){
-    temp.track();
     temp.mkdir('__tests',function(err, dirPath) {
       var ldpm = new Ldpm(conf,dirPath);
       if(err) console.log(err);
@@ -49,7 +48,6 @@ describe('pubmed', function(){
 
   it('should support articles with video and zipped supplementary material', function(done){
     // Note: in this example, a zipped video is tagged as code
-    temp.track();
     temp.mkdir('__tests',function(err, dirPath) {
       var ldpm = new Ldpm(conf,dirPath);
       if(err) console.log(err);
@@ -61,9 +59,8 @@ describe('pubmed', function(){
   });
 
   it('should be able to inline formulas as base64', function(done){
-    temp.track();
     temp.mkdir('__tests',function(err, dirPath) {
-      var ldpm = new Ldpm(conf,dirPath);    
+      var ldpm = new Ldpm(conf,dirPath);
       if(err) console.log(err);
       ldpm.convert('10.1371/journal.pcbi.1000960', function(err,pkg){
         assert.equal(pkg.name,'plos-comput-biol-rapoport-2010');
@@ -73,9 +70,8 @@ describe('pubmed', function(){
   });
 
   it('should replace contentPaths with contentUrls when article comes from plos', function(done){
-    temp.track();
     temp.mkdir('__tests',function(err, dirPath) {
-      var ldpm = new Ldpm(conf,dirPath);    
+      var ldpm = new Ldpm(conf,dirPath);
       if(err) console.log(err);
       ldpm.convert('PMC3897745', function(err,pkg){
         if(err) console.log(err);

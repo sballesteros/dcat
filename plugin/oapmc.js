@@ -993,8 +993,8 @@ function _recConv(ldpm,jsonNode,pkg,hlevel,callback){
     'disp-quote':'blockquote',
     'sup': 'sup',
     'sub': 'sub',
-    'bold': ['span class="bold"','span'],
-    'italic': ['span class="italic"','span'],
+    'bold': 'strong',
+    'italic': 'em',
     'underline': ['span class="underline"','span'],
     'inline-formula': 'span'
   };

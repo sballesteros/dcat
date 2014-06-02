@@ -1429,7 +1429,6 @@ function _recConv(ldpm,jsonNode,pkg,hlevel,callback){
                   txt += jsonNode.id;
                   txt += '</a>';
                   if(jsonNode.caption){
-                    txt += '<caption>';
                     async.eachSeries(jsonNode.caption,
                       function(x,cb){
                         _recConv(ldpm,x,pkg,hlevel,function(err,newTxt){
@@ -1439,7 +1438,6 @@ function _recConv(ldpm,jsonNode,pkg,hlevel,callback){
                       },
                       function(err){
                         if(err) return callback(err);
-                        txt += '</caption>';
                         txt += '</div>';
                         return callback(null,txt);
                       }
@@ -1461,7 +1459,6 @@ function _recConv(ldpm,jsonNode,pkg,hlevel,callback){
                     txt += jsonNode.id;
                     txt += '</a>';
                     if(jsonNode.caption){
-                      txt += '<caption>';
                       async.eachSeries(jsonNode.caption,
                         function(x,cb){
                           _recConv(ldpm,x,pkg,hlevel,function(err,newTxt){
@@ -1471,7 +1468,6 @@ function _recConv(ldpm,jsonNode,pkg,hlevel,callback){
                         },
                         function(err){
                           if(err) return callback(err);
-                          txt += '</caption>';
                           txt += '</div>';
                           return callback(null,txt);
                         }
@@ -1500,7 +1496,6 @@ function _recConv(ldpm,jsonNode,pkg,hlevel,callback){
                         txt += jsonNode.id;
                         txt += '</a>';
                         if(jsonNode.caption){
-                          txt += '<caption>';
                           async.eachSeries(jsonNode.caption,
                             function(x,cb){
                               _recConv(ldpm,x,pkg,hlevel,function(err,newTxt){
@@ -1510,7 +1505,6 @@ function _recConv(ldpm,jsonNode,pkg,hlevel,callback){
                             },
                             function(err){
                               if(err) return callback(err);
-                              txt += '</caption>';
                               txt += '</div>';
                               return callback(null,txt);
                             }

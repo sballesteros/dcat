@@ -1604,9 +1604,32 @@ function _recConv(ldpm,jsonNode,pkg,hlevel,callback){
 
 
   } else {
-    // console.log('unknown')
-    // console.log(jsonNode);
-    return callback(null,txt);
+    txt += '<div class="unknown">';
+    txt += '<' + jsonNode.tag;
+    if(jsonNode.id){
+      txt += ' id =' + jsonNode.id;
+    }
+    txt += '>';
+    if(jsonNode.children != undefined){
+      async.eachSeries(jsonNode.children,
+        function(x,cb){
+          _recConv(ldpm,x,pkg,hlevel,function(err,newTxt){
+            txt += newTxt;
+            cb(null);
+          });
+        },
+        function(err){
+          if(err) return callback(err);
+          txt += '</' + jsonNode.tag + '>';
+          txt += '</div>';
+          return callback(null,txt);
+        }
+      );      
+    } else {
+      txt += '</' + jsonNode.tag + '>';
+      txt += '</div>';
+      return callback(null,txt);
+    }
   }
 }
 

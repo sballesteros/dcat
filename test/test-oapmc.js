@@ -7,6 +7,7 @@ var path = require('path')
 
 
 var root = path.dirname(__filename);
+temp.track();
 
 describe('pubmed', function(){
 
@@ -24,7 +25,6 @@ describe('pubmed', function(){
   };
 
   it('should return a pkg with name plosone-haseleu-2014 when asked for finger-wrinkles paper through pmcid', function(done){
-    temp.track();
     temp.mkdir('__tests',function(err, dirPath) {
       var ldpm = new Ldpm(conf,dirPath);
       if(err) console.log(err);
@@ -36,7 +36,6 @@ describe('pubmed', function(){
   });
 
   it('should return a pkg with name plosone-haseleu-2014 when asked for finger-wrinkles paper through doi', function(done){
-    temp.track();
     temp.mkdir('__tests',function(err, dirPath) {
       var ldpm = new Ldpm(conf,dirPath);
       if(err) console.log(err);
@@ -49,7 +48,6 @@ describe('pubmed', function(){
 
   it('should support articles with video and zipped supplementary material', function(done){
     // Note: in this example, a zipped video is tagged as code
-    temp.track();
     temp.mkdir('__tests',function(err, dirPath) {
       var ldpm = new Ldpm(conf,dirPath);
       if(err) console.log(err);
@@ -61,7 +59,6 @@ describe('pubmed', function(){
   });
 
   it('should be able to inline formulas as base64', function(done){
-    temp.track();
     temp.mkdir('__tests',function(err, dirPath) {
       var ldpm = new Ldpm(conf,dirPath);    
       if(err) console.log(err);
@@ -73,7 +70,6 @@ describe('pubmed', function(){
   });
 
   it('should replace contentPaths with contentUrls when article comes from plos', function(done){
-    temp.track();
     temp.mkdir('__tests',function(err, dirPath) {
       var ldpm = new Ldpm(conf,dirPath);    
       if(err) console.log(err);

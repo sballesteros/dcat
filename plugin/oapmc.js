@@ -32,6 +32,8 @@ process.maxTickDepth = 10000;
 // to avoid warnings when using nextTick
 // https://groups.google.com/forum/#!topic/nodejs/9_uM04IDNWg
 
+temp.track();
+
 module.exports = oapmc;
 
 /**
@@ -432,11 +434,13 @@ function _fetchTar(body,ldpm,callback){
 
   ldpm.logHttp('GET', href.slice(27));
   c.on('ready', function() {
-    temp.track();
     temp.mkdir('__ldpmTmp',function(err, dirPath) {
       c.get(href.slice(27), function(err, stream) {
         if (err) return callback(err);
         var fname = '/' + dirPath.split('/')[dirPath.split('/').length-1];
+        stream = stream
+          .pipe(zlib.Unzip())
+          .pipe(tar.Extract({ path: dirPath, strip: 1 }));
         stream.once('close', function() {
           ldpm.logHttp(200, href.slice(27));
           recursiveReaddir(path.resolve(dirPath), function (err, files) {
@@ -476,9 +480,6 @@ function _fetchTar(body,ldpm,callback){
         stream.on('error',function(err){
           return callback(err);
         });
-        stream
-          .pipe(zlib.Unzip())
-          .pipe(tar.Extract({ path: dirPath, strip: 1 }));
       })
     });
   });
@@ -2678,6 +2679,7 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,opts,callback){
         var nxmlName = '';
         var artInd = 0;
         newpkg.article.forEach(function(art,i){
+
           art.encoding.forEach(function(enc){
             if(enc.encodingFormat === 'application/octet-stream'){
               if(enc.contentPath){

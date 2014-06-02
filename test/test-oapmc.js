@@ -5,6 +5,7 @@ var path = require('path')
   , temp = require('temp')
   , Ldpm = require('..');
 
+temp.track();
 
 var root = path.dirname(__filename);
 temp.track();
@@ -60,7 +61,7 @@ describe('pubmed', function(){
 
   it('should be able to inline formulas as base64', function(done){
     temp.mkdir('__tests',function(err, dirPath) {
-      var ldpm = new Ldpm(conf,dirPath);    
+      var ldpm = new Ldpm(conf,dirPath);
       if(err) console.log(err);
       ldpm.convert('10.1371/journal.pcbi.1000960', function(err,pkg){
         assert.equal(pkg.name,'plos-comput-biol-rapoport-2010');
@@ -71,7 +72,7 @@ describe('pubmed', function(){
 
   it('should replace contentPaths with contentUrls when article comes from plos', function(done){
     temp.mkdir('__tests',function(err, dirPath) {
-      var ldpm = new Ldpm(conf,dirPath);    
+      var ldpm = new Ldpm(conf,dirPath);
       if(err) console.log(err);
       ldpm.convert('PMC3897745', function(err,pkg){
         if(err) console.log(err);

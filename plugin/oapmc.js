@@ -2446,7 +2446,7 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,opts,callback){
                 descr += '-'+ref.pageEnd;
               }
               descr += '.';
-              if(!ref.description){
+              if( (ref.description == undefined) || (ref.description.length<descr.length) ){
                 ref.description = descr;
               }
               references.push(ref);

@@ -1149,15 +1149,13 @@ function _recConv(ldpm,jsonNode,pkg,hlevel,callback){
 
   } else if( jsonNode.tag === 'bib-ref' ){
     found = false;
-
-    txt += '<span property="http://schema.org/citation">'
     pkg.article.forEach(function(art){
       if(art.citation){
         art.citation.forEach(function(cit){
           if(cit.name == jsonNode.id){
             found = true;
             if(cit.url){
-              txt += ' <a href="'+cit.url+'">';
+              txt += ' <a href="'+cit.url+'" property="http://schema.org/citation" >';
 
               async.eachSeries(jsonNode.children,
                 function(x,cb){
@@ -1169,13 +1167,12 @@ function _recConv(ldpm,jsonNode,pkg,hlevel,callback){
                 function(err){
                   if(err) return callback(err);
                   txt += '</a>';
-                  txt += '</span>';
                   return callback(null,txt);
                 }
               );
             } else {
               var ind = parseInt(jsonNode.children[0]['content'].slice(1,jsonNode.children[0]['content'].length-1),10);
-              txt += ' <a href="#ref_' + ind + '">';
+              txt += ' <a href="#ref_' + ind + '" property="http://schema.org/citation">';
               async.eachSeries(jsonNode.children,
                 function(x,cb){
                   _recConv(ldpm,x,pkg,hlevel,function(err,newTxt){
@@ -1186,7 +1183,6 @@ function _recConv(ldpm,jsonNode,pkg,hlevel,callback){
                 function(err){
                   if(err) return callback(err);
                   txt += '</a>';
-                  txt += '</span>';
                   return callback(null,txt);
                 }
               );

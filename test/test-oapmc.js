@@ -63,6 +63,7 @@ describe('pubmed', function(){
       var ldpm = new Ldpm(conf,dirPath);
       if(err) console.log(err);
       ldpm.convert('10.1371/journal.pcbi.1000960', function(err,pkg){
+        if(err) console.log(err);
         assert.equal(pkg.name,'plos-comput-biol-rapoport-2010');
         done();
       });

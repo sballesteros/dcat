@@ -8,7 +8,6 @@ var path = require('path')
 temp.track();
 
 var root = path.dirname(__filename);
-temp.track();
 
 describe('pubmed', function(){
 

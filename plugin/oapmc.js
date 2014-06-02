@@ -15,7 +15,6 @@ var request = require('request')
   , tar = require('tar')
   , BASE = require('package-jsonld').BASE.replace('https','http')
   , once = require('once')
-  , targz = require('tar.gz')
   , pubmed = require('./pubmed').pubmed
   , Client = require('ftp')
   , xml2js = require('xml2js')
@@ -117,9 +116,14 @@ function _parseOAcontent(uri,doi,that,callback){
           async.each(compressedBundles,
             function(f,cb){
               if(path.extname(f)=='.tgz'){
-                gzip = new targz();
-                gzip.extract(path.join(that.root,f),path.join(that.root,path.basename(f,path.extname(f))), function(err) {
-                  return cb(err);
+                cb = once(cb);
+
+                var s = fs.createReadStream(path.join(that.root,f));
+                s = s.pipe(zlib.Unzip())
+                     .pipe(tar.Extract({ path: path.join(that.root,path.basename(f,path.extname(f))) }));
+                s.on('error',  function(err){ return cb(err)});
+                s.on('end', function() {
+                  cb(null);
                 });
               } else if(path.extname(f)=='.zip') {
                  unzipper = new DecompressZip(f);

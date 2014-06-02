@@ -57,9 +57,10 @@ function oapmc(uri, opts, callback){
     var convurl = 'http://www.pubmedcentral.nih.gov/utils/idconv/v1.0/?ids='+'PMC'+pmcid+'&format=json';
     that.logHttp('GET', convurl);
     request(convurl, function(error, response, body) {
+      if(error) return callback(error);
       that.logHttp(response.statusCode,convurl);
       var res = JSON.parse(response.body);
-      if(res.status ==='ok'){
+      if(res.status === 'ok'){
         var doi = res['records'][0]['doi'];
         _parseOAcontent(uri,doi,that,function(err,pkg,mainArticleName){
           if(err) return callback(err);
@@ -90,7 +91,6 @@ function _parseOAcontent(uri,doi,that,callback){
 
   request(uri, function (error, response, body) {
     that.logHttp(response.statusCode,uri);
-
     if(error) return callback(error);
     if(body.indexOf('idDoesNotExist')>-1){
       var err = new Error('this identifier does not belong to the Open Access subset of Pubmed Central');
@@ -185,6 +185,7 @@ function _parseOAcontent(uri,doi,that,callback){
                 function(uri,cb){
                   // check which urls are valid
                   request(uri, function (error, response, body) {
+                    if(error) return cb(error);
                     if (!error && response.statusCode == 200) {
                       validatedurls.push(uri);
                     }
@@ -1648,6 +1649,45 @@ function _identifiedTitle(node){
   return iri;
 }
 
+function _removeInlineFigures(pkg,callback){
+  // We assume that figures corresponding to inline formulas have an identifier
+  // starting with 'e'
+  var plosJournalsList = ['pone','pbio','pmed','pgen','pcbi','ppat','pntd'];
+  var tmpFigure = []; 
+  var toUnlink = [];
+  pkg.figure.forEach(function(fig){
+    var keep = true;
+    plosJournalsList.forEach(function(p,j){
+      if(fig.name.slice(0,p.length)===p){
+        if(fig.name.split('-')[fig.name.split('-').length-1].slice(0,1)==='e'){
+          keep = false;
+        }
+      }
+    })
+    if(keep){
+      tmpFigure.push(fig);
+    } else {    
+      fig.figure.forEach(function(enc){
+        toUnlink.push(enc.contentPath);   
+      })
+    }
+  })
+
+  async.each(toUnlink,
+    function(file,cb){
+      fs.unlink(file,function(err){
+        if(err) return cb(err);
+        cb(null);
+      })
+    },
+    function(err){
+      if(err) return cb(err);
+      pkg.figure = tmpFigure;
+      callback(null,pkg);
+    }
+  )
+}
+
 function _addRefsHtml(htmlBody,article){
   var indbeg = htmlBody.indexOf('</article>');
   htmlBody = htmlBody.slice(0,indbeg);
@@ -2702,80 +2742,81 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,opts,callback){
         });
 
         _json2html(ldpm,jsonBody,newpkg,artInd,meta.abstractHtml, function(err, htmlBody){
-          htmlBody = _addRefsHtml(htmlBody,newpkg.article[artInd]);
-          fs.writeFile(path.join(ldpm.root,nxmlName+'.html'),htmlBody,function(err){
-            if(err) return callback(err);
-            ldpm.paths2resources([path.join(ldpm.root,nxmlName+'.html')],{}, function(err,resources){
+          _removeInlineFigures(newpkg,function(err,newpkg){
+            htmlBody = _addRefsHtml(htmlBody,newpkg.article[artInd]);
+            fs.writeFile(path.join(ldpm.root,nxmlName+'.html'),htmlBody,function(err){
               if(err) return callback(err);
-              var found = false;
-              newpkg.article[artInd].encoding.forEach(function(enc){
-                if(enc.encodingFormat == "text/html"){
-                  found = true;
+              ldpm.paths2resources([path.join(ldpm.root,nxmlName+'.html')],{}, function(err,resources){
+                if(err) return callback(err);
+                var found = false;
+                newpkg.article[artInd].encoding.forEach(function(enc){
+                  if(enc.encodingFormat == "text/html"){
+                    found = true;
+                  }
+                })
+                if(!found){
+                  newpkg.article[artInd].encoding.push(resources.article[0].encoding[0]);
                 }
-              })
-              if(!found){
-                newpkg.article[artInd].encoding.push(resources.article[0].encoding[0]);
-              }
-              pushed = true;
+                pushed = true;
 
-              if ( (!opts.noPubmed) && (meta.pmid!=undefined) ){
-                // call pubmed to check if there isn't additional info there
-                uri = 'http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id='+meta.pmid+'&rettype=abstract&retmode=xml';
-                pubmed.call(ldpm, uri, { writeHTML: false }, function(err,pubmed_pkg){
-                  if(pubmed_pkg){
-                    var hasBody = {
-                      "@type": ["Tag", "Mesh"],
-                      "@context": BASE + "/mesh.jsonld"
-                    };
-                    var graph = [];
+                if ( (!opts.noPubmed) && (meta.pmid!=undefined) ){
+                  // call pubmed to check if there isn't additional info there
+                  uri = 'http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id='+meta.pmid+'&rettype=abstract&retmode=xml';
+                  pubmed.call(ldpm, uri, { writeHTML: false }, function(err,pubmed_pkg){
+                    if(pubmed_pkg){
+                      var hasBody = {
+                        "@type": ["Tag", "Mesh"],
+                        "@context": BASE + "/mesh.jsonld"
+                      };
+                      var graph = [];
 
-                    if(pubmed_pkg.annotation){
+                      if(pubmed_pkg.annotation){
 
-                      if(newpkg.annotation == undefined){
-                        newpkg.annotation = [];
-                      }
+                        if(newpkg.annotation == undefined){
+                          newpkg.annotation = [];
+                        }
 
-                      var sha1 = crypto.createHash('sha1');
-                      var size = 0
+                        var sha1 = crypto.createHash('sha1');
+                        var size = 0
 
-                      var p = path.resolve(ldpm.root, resources.article[artInd].encoding[0].contentPath);
-                      var s = fs.createReadStream(p);
+                        var p = path.resolve(ldpm.root, resources.article[artInd].encoding[0].contentPath);
+                        var s = fs.createReadStream(p);
 
-                      s.on('error',  function(err){return callback(err)});
-                      s.on('data', function(d) { size += d.length; sha1.update(d); });
-                      s.on('end', function() {
-                        var sha = sha1.digest('hex');
-                        pubmed_pkg.annotation[0].hasTarget = [
-                          {
-                            "@type": "SpecificResource",
-                            hasSource: "r/"+sha,
-                            hasScope: newpkg.name + '/' + newpkg.version + '/article/' + newpkg.article[artInd].name,
-                            hasState: {
-                              "@type": "HttpRequestState",
-                              value: "Accept: text/html"
+                        s.on('error',  function(err){return callback(err)});
+                        s.on('data', function(d) { size += d.length; sha1.update(d); });
+                        s.on('end', function() {
+                          var sha = sha1.digest('hex');
+                          pubmed_pkg.annotation[0].hasTarget = [
+                            {
+                              "@type": "SpecificResource",
+                              hasSource: "r/"+sha,
+                              hasScope: newpkg.name + '/' + newpkg.version + '/article/' + newpkg.article[artInd].name,
+                              hasState: {
+                                "@type": "HttpRequestState",
+                                value: "Accept: text/html"
+                              }
                             }
-                          }
-                        ]
-                        newpkg.annotation = newpkg.annotation.concat(pubmed_pkg.annotation)
+                          ]
+                          newpkg.annotation = newpkg.annotation.concat(pubmed_pkg.annotation)
+                          callback(null,newpkg);
+                        });
+                      } else {
                         callback(null,newpkg);
-                      });
+                      }
                     } else {
                       callback(null,newpkg);
                     }
-                  } else {
-                    callback(null,newpkg);
-                  }
-                });
-              } else {
-                callback(null,newpkg);
-              }
+                  });
+                } else {
+                  callback(null,newpkg);
+                }
 
 
+              });
             });
-          });
+
+          })
         });
-
-
       })
     }
   );

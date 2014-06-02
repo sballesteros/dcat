@@ -99,6 +99,7 @@ function pmxml2jsonld(pkg,body,callback){
   var meta = {};
   var relPaths;
 
+
   parser.parseString(body,function(err,body){
 
 
@@ -110,7 +111,11 @@ function pmxml2jsonld(pkg,body,callback){
     // }
 
     if(pathArt['PubmedArticle']){
-      var data = traverse(body).get(pathArt['PubmedArticle'])[0];
+      if(typeof(traverse(body).get(pathArt['PubmedArticle'])) == 'object'){
+        var data = traverse(body).get(pathArt['PubmedArticle']);
+      } else {
+        var data = traverse(body).get(pathArt['PubmedArticle'])[0];
+      }
     } else {
       var data = body;//traverse(body).get(pathArt['Article'])[0];
     }
@@ -123,7 +128,6 @@ function pmxml2jsonld(pkg,body,callback){
     } else {
       pkg.article[0].pmid = traverse(body).get(pathArt['PMID'])[0];
     }
-
     var $journal = traverse(data).get(_findNodePaths(data,['Journal'])['Journal'])[0];
     relPaths = _findNodePaths($journal,
       [
@@ -306,10 +310,14 @@ function pmxml2jsonld(pkg,body,callback){
       if(pkg.author.familyName){
         pkg.name += '-' + removeDiacritics(pkg.author.familyName.toLowerCase()).replace(/\W/g, '');
       } else {
-        callback(new Error('did not find the author family name'));
+        console.log('did not find the author family name');
       }
     } else {
-      pkg.name += '-' + removeDiacritics(pkg.headline.split(' ')[0].toLowerCase()).replace(/\W/g, '');
+      if(pkg.headline){
+        pkg.name += '-' + removeDiacritics(pkg.headline.split(' ')[0].toLowerCase()).replace(/\W/g, '');
+      } else if(pkg.article.headline) {
+        pkg.name += '-' + removeDiacritics(pkg.article.headline.split(' ')[0].toLowerCase()).replace(/\W/g, '');
+      }
     }
     if(meta.year){
       pkg.name += '-' + meta.year;

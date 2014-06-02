@@ -2426,9 +2426,7 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,opts,callback){
         if(meta.author){
           if(meta.author.familyName){
             newpkg.name += '-' + removeDiacritics(meta.author.familyName.toLowerCase()).replace(/\W/g, '');
-          } else {
-            callback(new Error('did not find the author family name'));
-          }
+          } 
         } else {
           newpkg.name += '-' + removeDiacritics(meta.title.split(' ')[0].toLowerCase()).replace(/\W/g, '');
         }
@@ -2737,7 +2735,8 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,opts,callback){
 
                       var sha1 = crypto.createHash('sha1');
                       var size = 0
-                      var p = path.resolve(ldpm.root, resources.article[0].encoding[0].contentPath);
+
+                      var p = path.resolve(ldpm.root, resources.article[artInd].encoding[0].contentPath);
                       var s = fs.createReadStream(p);
 
                       s.on('error',  function(err){return callback(err)});

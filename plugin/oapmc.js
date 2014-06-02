@@ -267,7 +267,7 @@ function _parseOAcontent(uri,doi,that,callback){
                         }
                       );
 
-                      // find .nxml file and push it into article
+                      // remove the .nxml from pkg.dataset
                       if(err) return callback(err);
                       for (var type in resources){
                         resources[type] = resources[type].concat(resourcesFromUrls[type]); //merge
@@ -277,21 +277,13 @@ function _parseOAcontent(uri,doi,that,callback){
                         resources.dataset.forEach(function(x,i){
                           if(x.name===path.basename(mainArticleName,'.pdf').slice(0,path.basename(mainArticleName,'.pdf').lastIndexOf('.'))){
                             resources.dataset.splice(i,1);
-                            resources.article.forEach(function(y,i){
-                              if( (x.name==y.name) && (!pushed) ){
-                                var tmp = y.encoding ;
-                                tmp.push(x.distribution[0]);
-                                resources.article[i].encoding = tmp;
-                                pushed = true;
-                              }
-                            });
                           }
                         });
                       } else {
                         resources.dataset.forEach(function(x,i){
                           if(path.ext(x.distribution.contentPath) == 'nxml'){
                             resources.dataset.splice(i,1);
-                            resources.article.push(x);
+                            // resources.article.push(x);
                             mainArticleName = x.name;
                           }
                         });
@@ -2710,21 +2702,22 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,opts,callback){
 
 
         var found = false;
-        var nxmlName = '';
+        var pdfName = '';
         var artInd = 0;
         newpkg.article.forEach(function(art,i){
-
-          art.encoding.forEach(function(enc){
-            if(enc.encodingFormat === 'application/octet-stream'){
-              if(enc.contentPath){
-                nxmlName = path.basename(enc.contentPath,path.extname(enc.contentPath));
-              } else if(enc.contentUrl){
-                nxmlName = path.basename(enc.contentUrl,path.extname(enc.contentUrl));
+          if(art.pmid){
+            art.encoding.forEach(function(enc){
+              if(enc.encodingFormat === "application/pdf"){
+                if(enc.contentPath){
+                  pdfName = path.basename(enc.contentPath,path.extname(enc.contentPath));
+                } else if(enc.contentUrl){
+                  pdfName = path.basename(enc.contentUrl,path.extname(enc.contentUrl));
+                }
+                found = true;
+                artInd = i;
               }
-              found = true;
-              artInd = i;
-            }
-          });
+            });
+          }
         });
 
         ['dataset','code','figure','audio','video','article'].forEach(function(type){
@@ -2738,9 +2731,9 @@ function _addMetadata(pkg,mainArticleName,uri,ldpm,opts,callback){
         _json2html(ldpm,jsonBody,newpkg,artInd,meta.abstractHtml, function(err, htmlBody){
           _removeInlineFigures(newpkg,function(err,newpkg){
             htmlBody = _addRefsHtml(htmlBody,newpkg.article[artInd]);
-            fs.writeFile(path.join(ldpm.root,nxmlName+'.html'),htmlBody,function(err){
+            fs.writeFile(path.join(ldpm.root,pdfName+'.html'),htmlBody,function(err){
               if(err) return callback(err);
-              ldpm.paths2resources([path.join(ldpm.root,nxmlName+'.html')],{}, function(err,resources){
+              ldpm.paths2resources([path.join(ldpm.root,pdfName+'.html')],{}, function(err,resources){
                 if(err) return callback(err);
                 var found = false;
                 newpkg.article[artInd].encoding.forEach(function(enc){

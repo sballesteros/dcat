@@ -2,6 +2,7 @@ var path = require('path')
   , assert = require('assert')
   , rimraf = require('rimraf')
   , fs = require('fs')
+  , temp = require('temp')
   , Ldpm = require('..');
 
 
@@ -23,7 +24,7 @@ describe('pubmed', function(){
   };
 
   it('should return a pkg with name plosone-haseleu-2014 when asked for finger-wrinkles paper through doi', function(done){
-    var ldpm = new Ldpm(conf,path.join(root+'__tests'));
+    var ldpm = new Ldpm(conf,root);
     ldpm.convert('17642720', function(err,pkg){
       assert.equal(pkg.name,'indian-j-med-microbiol-padhi');
       done();

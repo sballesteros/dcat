@@ -26,8 +26,9 @@ var crypto = require('crypto')
   , clone = require('clone')
   , publish = require('./lib/publish')
   , pubmed = require('./plugin/pubmed').pubmed
-  , pmxml2jsonld = require('./plugin/pubmed').pmxml2jsonld
+  , parseXml = require('./plugin/pubmed').parseXml
   , json2html = require('./plugin/pubmed').json2html
+  , addPubmedAnnotations = require('./plugin/pubmed').addPubmedAnnotations
   , oapmc = require('./plugin/oapmc')
   , annotator = require('./plugin/annotator')
   , binaryCSV = require('binary-csv')
@@ -299,11 +300,11 @@ Ldpm.prototype.convert = function(id,opts,callback){
 
 };
 
-Ldpm.prototype.pmxml2jsonld = function(pkg, body, callback){
+Ldpm.prototype.parseXml = function(pkg, body, callback){
 
   var that = this;
 
-  pmxml2jsonld.call(that, pkg, body, function(err,pkg){
+  parseXml.call(that, pkg, body, function(err,pkg){
     if(err) return callback(err);
     callback(null,pkg);
   });
@@ -311,9 +312,17 @@ Ldpm.prototype.pmxml2jsonld = function(pkg, body, callback){
 }
 
 Ldpm.prototype.json2html = function(pkg, callback){
-
   var that = this;
-  json2html.call(that, that, pkg, function(err,pkg){
+  json2html.call(that, that, {}, pkg, function(err,pkg){
+    if(err) return callback(err);
+    callback(null,pkg);
+  });
+
+}
+
+Ldpm.prototype.addPubmedAnnotations = function(pkg, pubmedPkg, callback){
+  var that = this;
+  addPubmedAnnotations.call(that, pkg, pubmedPkg, that, function(err,pkg){
     if(err) return callback(err);
     callback(null,pkg);
   });
@@ -891,8 +900,6 @@ Ldpm.prototype.paths2resources = function(globs, opts, callback){
         cb(null, {type: 'video', value: video});
 
       } else {
-        console.log(this.root)
-        console.log(p)
         cb(new Error('non suported file type: ' + path.relative(this.root, p) + " If it is part of a code project, use --codebundle and the directory to be bundled"));
       }
 

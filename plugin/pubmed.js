@@ -28,8 +28,9 @@ var request = require('request')
 
 module.exports = {
   pubmed: pubmed,
-  parseXML: parseXml,
-  json2html: tools.json2html
+  parseXml: parseXml,
+  json2html: tools.json2html,
+  addPubmedAnnotations: tools.addPubmedAnnotations
 }
 
 

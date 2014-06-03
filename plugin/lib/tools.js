@@ -311,7 +311,7 @@ function parseXmlNodesRec(node,xml){
             });
 
 
-            var txt = tools.extractBetween(xml,'<table-wrap id="'+x.attributes['0'].value+'"','</table-wrap>');
+            var txt = extractBetween(xml,'<table-wrap id="'+x.attributes['0'].value+'"','</table-wrap>');
             txt = txt.slice(txt.indexOf('>')+1,txt.length);
             txt = txt.slice(txt.indexOf('<table'),txt.length);
             txt = txt.slice(0,txt.lastIndexOf('</table>')+8);
@@ -445,11 +445,18 @@ function parseXmlNodesRec(node,xml){
     });
     return img;
   } else {
-    var txt = node.textContent.toString().replace(/(\r\n|\n|\r)/gm,"");
-    return {
-      tag: 'text',
-      content: txt
-    };
+  	if(node.textContent){
+  		var txt = node.textContent.toString().replace(/(\r\n|\n|\r)/gm,"");
+	    return {
+	      tag: 'text',
+	      content: txt
+	    };
+  	} else {
+  		return {
+  			tag: 'text',
+	      content: ''
+  		}
+  	}
   }
 }
 
@@ -1075,8 +1082,8 @@ function parseJsonNodesRec(ldpm,jsonNode,pkg,hlevel,callback){
       return callback(null,txt);
     }
 
-
   } else {
+
     txt += '<div class="unknown">';
     txt += '<' + jsonNode.tag;
     if(jsonNode.id){

@@ -214,6 +214,7 @@ function fetchTar(uri,ldpm,callback){
 }
 
 function fetchXml(uri,callback){
+  console.log(uri);
   request(uri, function(error,response,body){
     if(error) return callback(error);
     callback(null,body);
@@ -1589,7 +1590,7 @@ function xml2json(xml){
   if(doc.getElementsByTagName('body').length){
     var body = doc.getElementsByTagName('body')[0];
   } else {
-    var body = doc.getElementsByTagName('article')[0];
+    var body = '<body>Emptybody</body>';//doc.getElementsByTagName('article')[0];
   }
   return tools.parseXmlNodesRec(body,xml);
 }
@@ -1603,23 +1604,25 @@ function removeInlineFormulas(pkg,ldpm,callback){
   var tmpFigure = []; 
   var toUnlink = [];
 
-  pkg.figure.forEach(function(fig){
-    var keep = true;
-    plosJournalsList.forEach(function(p,j){
-      if(fig.name.slice(0,p.length)===p){
-        if(fig.name.split('-')[fig.name.split('-').length-1].slice(0,1)==='e'){
-          keep = false;
+  if(pkg.figure){
+    pkg.figure.forEach(function(fig){
+      var keep = true;
+      plosJournalsList.forEach(function(p,j){
+        if(fig.name.slice(0,p.length)===p){
+          if(fig.name.split('-')[fig.name.split('-').length-1].slice(0,1)==='e'){
+            keep = false;
+          }
         }
+      })
+      if(keep){
+        tmpFigure.push(fig);
+      } else {    
+        fig.figure.forEach(function(enc){
+          toUnlink.push(path.resolve(ldpm.root,enc.contentPath));   
+        })
       }
     })
-    if(keep){
-      tmpFigure.push(fig);
-    } else {    
-      fig.figure.forEach(function(enc){
-        toUnlink.push(path.resolve(ldpm.root,enc.contentPath));   
-      })
-    }
-  })
+  }
 
   async.each(toUnlink,
     function(file,cb){

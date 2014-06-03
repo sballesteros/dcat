@@ -345,7 +345,7 @@ function parseResources(pkg,files,doi,mainArticleName,that,callback){
       async.each(urls,
         function(uri,cb){
           // check which urls are valid
-          request(uri, function (error, response, body) {
+          request.head(uri, function (error, response, body) {
             if(error) return cb(error);
             if (response.statusCode == 200) {
               validatedurls.push(uri);

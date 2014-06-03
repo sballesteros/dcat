@@ -146,7 +146,7 @@ Ldpm.prototype.lsOwner = function(pkgName, callback){
     if(res.statusCode >= 400){
       var err = new Error(body);
       err.code = res.statusCode;
-      callback(err);
+      return callback(err);
     }
 
     callback(null, JSON.parse(body));

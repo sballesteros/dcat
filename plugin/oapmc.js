@@ -1,19 +1,10 @@
 var request = require('request')
   , fs = require('fs')
   , url = require('url')
-  , http = require('http')
-  , exec = require('child_process').exec
-  , spawn = require('child_process').spawn
-  , jsdom = require('jsdom').jsdom
   , async = require('async')
   , path = require('path')
   , temp = require('temp')
-  , _ = require('underscore')
-  , crypto = require('crypto')
-  , emitter = require('events').EventEmitter
-  , events = require('events')
   , tar = require('tar')
-  , BASE = require('package-jsonld').BASE.replace('https','http')
   , once = require('once')
   , pubmed = require('./pubmed').pubmed
   , Client = require('ftp')
@@ -22,12 +13,9 @@ var request = require('request')
   , zlib = require('zlib')
   , traverse = require('traverse')
   , recursiveReaddir = require('recursive-readdir')
-  , Ldpm = require('../index')
-  , uuid = require('node-uuid')
   , DOMParser = require('xmldom').DOMParser
   , tools = require('./lib/tools');
 
-BASE = 'http://54.235.152.212/';
 process.maxTickDepth = 10000;
 // to avoid warnings when using nextTick
 // https://groups.google.com/forum/#!topic/nodejs/9_uM04IDNWg
@@ -49,7 +37,7 @@ function oapmc(uri, opts, callback){
   }
 
   var that = this;
-  var pmcid = tools.extractBetween(uri,'PMC');
+  var pmcid = tools.extractBetween(uri, 'PMC');
   var uri;
 
   // check url
@@ -60,88 +48,103 @@ function oapmc(uri, opts, callback){
     // Fetch the url of the tar.gz of the article
     request(uri, function(error, response, oaContentBody){
       if(error) return callback(error);
-      mainArticleName = extractPdfName(oaContentBody);
+
       that.logHttp(response.statusCode,uri);
+
+      if(response.statusCode >= 400){
+        var err = new Error(oaContentBody);
+        err.code = response.statusCode;
+        return callback(err);
+      }
+
+      mainArticleName = extractPdfName(oaContentBody);
 
       var conversionUrl = 'http://www.pubmedcentral.nih.gov/utils/idconv/v1.0/?ids='+'PMC'+pmcid+'&format=json';
       that.logHttp('GET', conversionUrl);
       // For PMC article, the idconv api returns {pmid,pmcid,doi} when given any of the three.
       request(conversionUrl, function(error, response, idConversionBody) {
         if(error) return callback(error);
+
         that.logHttp(response.statusCode,conversionUrl);
 
-        if(response.statusCode === 200){
-          var res = JSON.parse(idConversionBody);
-          var doi = res['records'][0]['doi'];
-          var pmid = res['records'][0]['pmid'];
+        if(response.statusCode >= 400){
+          var err = new Error(idConversionBody);
+          err.code = response.statusCode;
+          return callback(err);
+        }
 
-          // 1. Fetch : resources, xml, and pubmed metadata
-          uri = tools.extractBetween(oaContentBody,'href="','"').slice(27);
-          // a. resources
-          fetchTar(uri,that, function(err, files){
+        var res = JSON.parse(idConversionBody);
+        var doi = res['records'][0]['doi'];
+        var pmid = res['records'][0]['pmid'];
+
+        // 1. Fetch : resources, xml, and pubmed metadata
+        uri = tools.extractBetween(oaContentBody,'href="','"').slice(27);
+        // a. resources
+        fetchTar(uri,that, function(err, files){
+          if(err) return callback(err);
+          uri = 'http://www.pubmedcentral.nih.gov/oai/oai.cgi?verb=GetRecord&identifier=oai:pubmedcentral.nih.gov:'+pmcid+'&metadataPrefix=pmc';
+          // b. xml
+          fetchXml(uri, function(err, xml){
             if(err) return callback(err);
-            uri = 'http://www.pubmedcentral.nih.gov/oai/oai.cgi?verb=GetRecord&identifier=oai:pubmedcentral.nih.gov:'+pmcid+'&metadataPrefix=pmc';
-            // b. xml
-            fetchXml(uri, function(err,xml){
+            uri = 'http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id='+pmid+'&rettype=abstract&retmode=xml';
+            // c. pubmed metadata
+            fetchPubmedMetadata(uri, that, opts, function(err,pubmedPkg){
               if(err) return callback(err);
-              uri = 'http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id='+pmid+'&rettype=abstract&retmode=xml';
-              // c. pubmed metadata
-              fetchPubmedMetadata(uri, that, opts, function(err,pubmedPkg){
+
+              var pkg = { version: '0.0.0' };
+
+              // 2. Parse and complete pkg
+              // a. resources: identify different encodings, substitute plos urls to contentPaths
+              parseResources(pkg,files,doi,mainArticleName,that,function(err,pkg){
                 if(err) return callback(err);
-
-                var pkg = { version: '0.0.0' };
-
-                // 2. Parse and complete pkg
-                // a. resources: identify different encodings, substitute plos urls to contentPaths
-                parseResources(pkg,files,doi,mainArticleName,that,function(err,pkg){
+                // b. xml: get captions, citations, authors, publishers etc from the xml
+                parseXml(xml,pkg,pmcid,mainArticleName,that,opts,function(err,pkg){
                   if(err) return callback(err);
-                  // b. xml: get captions, citations, authors, publishers etc from the xml
-                  parseXml(xml,pkg,pmcid,mainArticleName,that,opts,function(err,pkg){
-                    if(err) return callback(err);
-                    var artInd = tools.getArtInd(pkg); // index of the main article in pkg.article
+                  var artInd = tools.getArtInd(pkg); // index of the main article in pkg.article
 
-                    // 3. Convert xml + pkg to html
-                    // a. two steps conversion of the xml articleBody: xml -> json -> html
-                    var jsonBody = xml2json(xml);
-                    tools.json2html(that,jsonBody,pkg,function(err,htmlBody){
+                  // 3. Convert xml + pkg to html
+                  // a. two steps conversion of the xml articleBody: xml -> json -> html
+                  var jsonBody = xml2json(xml);
+                  tools.json2html(that,jsonBody,pkg,function(err,htmlBody){
+                    if(err) return callback(err);
+
+                    // b. if formulas have been inlined as base 64 in the text,
+                    // they're removed from the pkg resources
+                    removeInlineFormulas(pkg,that,function(err,pkg){
                       if(err) return callback(err);
 
-                      // b. if formulas have been inlined as base 64 in the text, 
-                      // they're removed from the pkg resources
-                       removeInlineFormulas(pkg,that,function(err,pkg){
+                      // c. integrate the html article as a resource of the pkg
+                      fs.writeFile(path.join(that.root,pkg.article[artInd].name.replace(/-/g,'.')+'.html'),htmlBody,function(err){
                         if(err) return callback(err);
-
-                        // c. integrate the html article as a resource of the pkg
-                        fs.writeFile(path.join(that.root,pkg.article[artInd].name.replace(/-/g,'.')+'.html'),htmlBody,function(err){
+                        that.paths2resources([path.join(that.root,pkg.article[artInd].name.replace(/-/g,'.')+'.html')],{}, function(err,resources){
                           if(err) return callback(err);
-                          that.paths2resources([path.join(that.root,pkg.article[artInd].name.replace(/-/g,'.')+'.html')],{}, function(err,resources){
+                          pkg.article[artInd].encoding.push(resources.article[0].encoding[0]);
+
+                          // d. extract pubmed annotations, adapt the target, and add to the pkg
+                          tools.addPubmedAnnotations(pkg,pubmedPkg,that,function(err,pkg){
                             if(err) return callback(err);
-                            pkg.article[artInd].encoding.push(resources.article[0].encoding[0]);
+                            callback(null,pkg);
+                          })
 
-                            // d. extract pubmed annotations, adapt the target, and add to the pkg 
-                            tools.addPubmedAnnotations(pkg,pubmedPkg,that,function(err,pkg){
-                              if(err) return callback(err);
-                              callback(null,pkg);
-                            })
-
-                          });
                         });
                       });
                     });
                   });
                 });
-
               });
+
             });
           });
-        }
+        });
+
+
       });
     });
   } else {
     callback(new Error('unrecognized uri'));
   }
 
-}; 
+};
 
 
 function extractPdfName(body){
@@ -152,7 +155,7 @@ function extractPdfName(body){
 
 
 function fetchTar(uri,ldpm,callback){
-  // return the list of files contained in the tar.gz of the article, 
+  // return the list of files contained in the tar.gz of the article,
   // and move them to the current directory
 
   var root = ldpm.root;
@@ -163,12 +166,13 @@ function fetchTar(uri,ldpm,callback){
     temp.mkdir('__ldpmTmp',function(err, dirPath) {
       c.get(uri, function(err, stream) {
         if (err) return callback(err);
+        ldpm.logHttp(200, uri);
+
         var fname = '/' + dirPath.split('/')[dirPath.split('/').length-1];
         stream = stream
           .pipe(zlib.Unzip())
           .pipe(tar.Extract({ path: dirPath, strip: 1 }));
         stream.once('close', function() {
-          ldpm.logHttp(200, uri);
           recursiveReaddir(path.resolve(dirPath), function (err, files) {
             if (err) return callback(err);
             var newFiles = [];
@@ -210,20 +214,26 @@ function fetchTar(uri,ldpm,callback){
     });
   });
   c.connect({ host: 'ftp.ncbi.nlm.nih.gov' });
-
-}
+};
 
 function fetchXml(uri,callback){
   console.log(uri);
   request(uri, function(error,response,body){
     if(error) return callback(error);
-    callback(null,body);
+
+    if(response.statusCode >= 400){
+      var err = new Error(body);
+      err.code = response.statusCode;
+      return callback(err);
+    }
+
+    callback(null, body);
   });
-}
+};
 
 function fetchPubmedMetadata(uri, ldpm, opts, callback){
   if(opts.noPubmed){
-    callback(null,{});
+    callback(null, {});
   } else {
     // call to the pubmed plugin.
     // writeHTML: false prevents the pubmed plugin from writing to write
@@ -234,7 +244,7 @@ function fetchPubmedMetadata(uri, ldpm, opts, callback){
       callback(null,pubmedPkg);
     });
   }
-}
+};
 
 
 function parseResources(pkg,files,doi,mainArticleName,that,callback){
@@ -300,9 +310,9 @@ function parseResources(pkg,files,doi,mainArticleName,that,callback){
       // generate potential valid urls if resources identified as plos resources
       files.forEach(function(f,i){
         var found = false;
-        plosJournalsList.forEach(function(p,j){          
+        plosJournalsList.forEach(function(p,j){
           if( (path.basename(f).slice(0,p.length)===p) && (path.extname(f) != '.nxml') && (f.split('.')[f.split('.').length-2][0] != 'e') ) {
-            // note: figures which index starts with e (eg: pcbi.1000960.e001.jpg) are inline formulas. We don't bother 
+            // note: figures which index starts with e (eg: pcbi.1000960.e001.jpg) are inline formulas. We don't bother
             // to test urls for them as they will be inlined.
             found = true;
 
@@ -337,7 +347,7 @@ function parseResources(pkg,files,doi,mainArticleName,that,callback){
           // check which urls are valid
           request(uri, function (error, response, body) {
             if(error) return cb(error);
-            if (!error && response.statusCode == 200) {
+            if (response.statusCode == 200) {
               validatedurls.push(uri);
             }
             cb(null);
@@ -568,7 +578,7 @@ function parseResources(pkg,files,doi,mainArticleName,that,callback){
       );
     }
   )
-}
+};
 
 
 function parseXml(xml,pkg,pmcid,mainArticleName,ldpm,opts,callback){
@@ -592,7 +602,7 @@ function parseXml(xml,pkg,pmcid,mainArticleName,ldpm,opts,callback){
 
     // General strategy is to find paths for given tags using findNodePaths,
     // and then work on subtrees from these paths, extracted with traverse.
-    // We work in two steps: we first parse and feed a _meta_ object containing 
+    // We work in two steps: we first parse and feed a _meta_ object containing
     // relevant information, and then complete the pkg from _meta_.
 
     var pathArt = tools.findNodePaths(xmlBody,['article','datestamp']);
@@ -1309,7 +1319,7 @@ function parseXml(xml,pkg,pmcid,mainArticleName,ldpm,opts,callback){
 
     // Phase 2: complete pkg.
     // note: to control the order of keys in objects, we reconstruct a new pkg from scratch
-    // (object keys are theoretically unordered, but it's nicer when things show up with 
+    // (object keys are theoretically unordered, but it's nicer when things show up with
     // consistent order)
     var newpkg = {};
     newpkg.name = '';
@@ -1319,7 +1329,7 @@ function parseXml(xml,pkg,pmcid,mainArticleName,ldpm,opts,callback){
     if(meta.author){
       if(meta.author.familyName){
         newpkg.name += '-' + tools.removeDiacritics(meta.author.familyName.toLowerCase()).replace(/\W/g, '');
-      } 
+      }
     } else {
       newpkg.name += '-' + tools.removeDiacritics(meta.title.split(' ')[0].toLowerCase()).replace(/\W/g, '');
     }
@@ -1580,7 +1590,7 @@ function parseXml(xml,pkg,pmcid,mainArticleName,ldpm,opts,callback){
     callback(err,newpkg);
 
   })
-}
+};
 
 
 
@@ -1593,7 +1603,7 @@ function xml2json(xml){
     var body = '<body>Emptybody</body>';//doc.getElementsByTagName('article')[0];
   }
   return tools.parseXmlNodesRec(body,xml);
-}
+};
 
 
 
@@ -1601,7 +1611,7 @@ function removeInlineFormulas(pkg,ldpm,callback){
   // We assume that figures corresponding to inline formulas have an identifier
   // starting with 'e' (plos convention)
   var plosJournalsList = ['pone','pbio','pmed','pgen','pcbi','ppat','pntd'];
-  var tmpFigure = []; 
+  var tmpFigure = [];
   var toUnlink = [];
 
   if(pkg.figure){
@@ -1616,9 +1626,9 @@ function removeInlineFormulas(pkg,ldpm,callback){
       })
       if(keep){
         tmpFigure.push(fig);
-      } else {    
+      } else {
         fig.figure.forEach(function(enc){
-          toUnlink.push(path.resolve(ldpm.root,enc.contentPath));   
+          toUnlink.push(path.resolve(ldpm.root,enc.contentPath));
         })
       }
     })
@@ -1637,14 +1647,14 @@ function removeInlineFormulas(pkg,ldpm,callback){
       callback(null,pkg);
     }
   )
-}
+};
 
 
 
 
 
 function findFiguresTablesAndSM(xmlBody){
-  // find figure, tables, supplementary materials and their captions 
+  // find figure, tables, supplementary materials and their captions
   var doc = new DOMParser().parseFromString(xmlBody,'text/xml');
   var figures = [];
   Array.prototype.forEach.call(doc.getElementsByTagName('fig'),function(x){
@@ -1718,11 +1728,4 @@ function findFiguresTablesAndSM(xmlBody){
     figures.push(fig);
   });
   return figures;
-}
-
-
-
-
-
-
-
+};

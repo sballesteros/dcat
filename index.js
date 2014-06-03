@@ -19,18 +19,13 @@ var crypto = require('crypto')
   , fs = require('fs')
   , zlib = require('zlib')
   , tar = require('tar')
-  , xml2js = require('xml2js')
   , once = require('once')
   , concat = require('concat-stream')
   , jsonld = require('jsonld')
   , clone = require('clone')
   , publish = require('./lib/publish')
   , pubmed = require('./plugin/pubmed').pubmed
-  , parseXml = require('./plugin/pubmed').parseXml
-  , json2html = require('./plugin/pubmed').json2html
-  , addPubmedAnnotations = require('./plugin/pubmed').addPubmedAnnotations
   , oapmc = require('./plugin/oapmc')
-  , annotator = require('./plugin/annotator')
   , binaryCSV = require('binary-csv')
   , split = require('split')
   , temp = require('temp')
@@ -218,10 +213,23 @@ Ldpm.prototype.convert = function(id,opts,callback){
     opts = {};
   }
 
+  var uri, pmid, pmcid;
+
   if(id.indexOf('.')>-1){
+
     // we assume it's a doi.
-    var uri = "http://www.pubmedcentral.nih.gov/utils/idconv/v1.0/?ids=" + id;
+    uri = "http://www.pubmedcentral.nih.gov/utils/idconv/v1.0/?ids=" + id;
+    that.logHttp('GET', uri);
     request(uri,function(error,response,body){
+      if(error) return callback(error);
+      that.logHttp(response.statusCode, uri);
+
+      if(response.statusCode >= 400){
+        var err = new Error(body);
+        err.code = response.statusCode;
+        return callback(err);
+      }
+
       if(body.indexOf('pmcid=')>-1){
         pmcid = body.slice(body.indexOf('pmcid=')+7,body.indexOf('pmcid=')+17);
         uri = 'http://www.pubmedcentral.nih.gov/utils/oa/oa.fcgi?id=' + pmcid;
@@ -237,25 +245,44 @@ Ldpm.prototype.convert = function(id,opts,callback){
           callback(null,pkg);
         });
       } else {
-        err = new Error('the id cannot be recognized');
-        err.code = '404';
-        callback(err);
+        callback(new Error('the id cannot be recognized'));
       }
     });
+
   } else if(id.slice(0,3)==='PMC'){
 
-    var uri = 'http://www.pubmedcentral.nih.gov/utils/oa/oa.fcgi?id=' + id;
+    uri = 'http://www.pubmedcentral.nih.gov/utils/oa/oa.fcgi?id=' + id;
+    that.logHttp('GET', uri);
     request(uri, function(error, response, body) {
+      if(error) return callback(error);
+      that.logHttp(response.statusCode, uri);
+
+      if(response.statusCode >= 400){
+        var err = new Error(body);
+        err.code = response.statusCode;
+        return callback(err);
+      }
+
       if(body.toString().indexOf('idDoesNotExist')==-1){
-        var uri = 'http://www.pubmedcentral.nih.gov/utils/oa/oa.fcgi?id=' + id;
+        uri = 'http://www.pubmedcentral.nih.gov/utils/oa/oa.fcgi?id=' + id;
         oapmc.call(that, uri, opts, function(err,pkg){
           if(err) return callback(err);
           callback(null,pkg);
         });
       } else {
         console.log('This pmc article does not belong to the OA subset of PMC')
-        var uri = "http://www.pubmedcentral.nih.gov/utils/idconv/v1.0/?ids=" + id;
+        uri = "http://www.pubmedcentral.nih.gov/utils/idconv/v1.0/?ids=" + id;
+        that.logHttp('GET', uri);
         request(uri,function(error,response,body){
+          if(error) return callback(error);
+          that.logHttp(response.statusCode, uri);
+
+          if(response.statusCode >= 400){
+            var err = new Error(body);
+            err.code = response.statusCode;
+            return callback(err);
+          }
+
           if(body.indexOf('pmid')>-1){
             pmid = body.slice(body.indexOf('pmid')+6,body.indexOf('pmid')+14);
             uri = 'http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id='+id+'&rettype=abstract&retmode=xml';
@@ -264,18 +291,27 @@ Ldpm.prototype.convert = function(id,opts,callback){
               callback(null,pkg);
             });
           } else {
-            err = new Error('the id cannot be recognized');
-            err.code = '404';
-            callback(err);
+            callback(new Error('the id cannot be recognized'));
           }
         });
       }
     });
 
   } else {
+
     // we assume it's a PMID
-    var uri = "http://www.pubmedcentral.nih.gov/utils/idconv/v1.0/?ids=" + id;
+    uri = "http://www.pubmedcentral.nih.gov/utils/idconv/v1.0/?ids=" + id;
+    that.logHttp('GET', uri);
     request(uri,function(error,response,body){
+      if(error) return callback(error);
+      that.logHttp(response.statusCode, uri);
+
+      if(response.statusCode >= 400){
+        var err = new Error(body);
+        err.code = response.statusCode;
+        return callback(err);
+      }
+
       if(body.indexOf('pmcid=')>-1){
         pmcid = body.slice(body.indexOf('pmcid=')+7,body.indexOf('pmcid=')+17);
         uri = 'http://www.pubmedcentral.nih.gov/utils/oa/oa.fcgi?id=' + pmcid;
@@ -296,38 +332,10 @@ Ldpm.prototype.convert = function(id,opts,callback){
         callback(err);
       }
     });
+
   }
 
 };
-
-Ldpm.prototype.parseXml = function(pkg, body, callback){
-
-  var that = this;
-
-  parseXml.call(that, pkg, body, function(err,pkg){
-    if(err) return callback(err);
-    callback(null,pkg);
-  });
-
-}
-
-Ldpm.prototype.json2html = function(pkg, callback){
-  var that = this;
-  json2html.call(that, that, {}, pkg, function(err,pkg){
-    if(err) return callback(err);
-    callback(null,pkg);
-  });
-
-}
-
-Ldpm.prototype.addPubmedAnnotations = function(pkg, pubmedPkg, callback){
-  var that = this;
-  addPubmedAnnotations.call(that, pkg, pubmedPkg, that, function(err,pkg){
-    if(err) return callback(err);
-    callback(null,pkg);
-  });
-
-}
 
 Ldpm.prototype.cat = function(pkgId, opts, callback){
 

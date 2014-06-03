@@ -19,7 +19,6 @@ var path = require('path')
   , readdirpSync = require('fs-readdir-recursive')
   , githubUrl = require('github-url')
   , pubmed = require('../plugin/pubmed').pubmed
-  , pmxml2jsonld = require('../plugin/pubmed').pmxml2jsonld
   , oapmc = require('../plugin/oapmc')
   , annotator = require('../plugin/annotator')
   , os = require('os')
@@ -98,7 +97,7 @@ if (argv._[0] === 'init') {
     if (gconf) {
       gconf = gconf.split(/\r?\n/)
       var i = gconf.indexOf('[remote "origin"]')
-      if (i !== -1) {
+      if (i !== -1) {o
         var codeRepository = gconf[i + 1]
         if (!codeRepository.match(/^\s*url =/)) codeRepository = gconf[i + 2]
         if (!codeRepository.match(/^\s*url =/)) codeRepository = null

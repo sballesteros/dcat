@@ -1,38 +1,15 @@
 var request = require('request')
   , fs = require('fs')
   , url = require('url')
-  , http = require('http')
-  , exec = require('child_process').exec
-  , spawn = require('child_process').spawn
-  , jsdom = require('jsdom').jsdom
   , async = require('async')
   , path = require('path')
-  , temp = require('temp')
-  , _ = require('underscore')
-  , emitter = require('events').EventEmitter
-  , events = require('events')
   , BASE = require('package-jsonld').BASE
-  , tar = require('tar')
-  , uuid = require('node-uuid')
-  , Client = require('ftp')
   , xml2js = require('xml2js')
-  , DecompressZip = require('decompress-zip')
-  , zlib = require('zlib')
   , traverse = require('traverse')
-  , recursiveReaddir = require('recursive-readdir')
-  , Ldpm = require('../index')
-  , DOMParser = require('xmldom').DOMParser
   , tools = require('./lib/tools');
 
-
-
-module.exports = {
-  pubmed: pubmed,
-  parseXml: parseXml,
-  json2html: tools.json2html,
-  addPubmedAnnotations: tools.addPubmedAnnotations
-}
-
+exports.pubmed = pubmed;
+exports.parseXml = parseXml;
 
 /**
  * 'this' is an Ldpm instance
@@ -52,16 +29,23 @@ function pubmed(uri, opts, callback){
 
     var pkg = { version: '0.0.0' };
     var pmcid = tools.extractBetween(uri,'PMC');
-    
+
     // 1. fetch xml
     that.logHttp('GET', uri);
     request(uri, function(error,response,body){
       if(error) return callback(error);
+
       that.logHttp(response.statusCode, uri)
+
+      if(response.statusCode >= 400){
+        var err = new Error(body);
+        err.code = response.statusCode;
+        return callback(err);
+      }
 
       // 2. parse xml
       parseXml(pkg,body,function(err,pkg){
-        
+
         // 3. convert to html
         tools.json2html(that,{},pkg, opts, function(err,htmlBody){
           if(err) return callback(err);
@@ -75,13 +59,13 @@ function pubmed(uri, opts, callback){
 
                 pkg.article[0].encoding = [resources.article[0].encoding[0]];
 
-                // b. extract pubmed annotations, adapt the target computing html hash, and add to the pkg 
+                // b. extract pubmed annotations, adapt the target computing html hash, and add to the pkg
                 var tmppkg = pkg;
                 delete tmppkg.annotation;
                 tools.addPubmedAnnotations(tmppkg,pkg,that,function(err,pkg){
                   if(err) return callback(err);
                   callback(null,pkg);
-                })
+                });
               });
             });
           } else {
@@ -104,9 +88,7 @@ function parseXml(pkg,body,callback){
   var meta = {};
   var relPaths;
 
-
   parser.parseString(body,function(err,body){
-
 
     if(err) return callback(err);
 
@@ -122,7 +104,7 @@ function parseXml(pkg,body,callback){
       var data = body;
     }
 
-    pkg.article = [{}]; 
+    pkg.article = [{}];
     pkg.article[0]['@type'] = [ 'ScholarlyArticle' ];
 
     if(traverse(body).get(pathArt['PMID'])[0]['$']){
@@ -147,9 +129,9 @@ function parseXml(pkg,body,callback){
     }
 
     if(relPaths['Title']){
-      pkg.article[0].journal = { 
+      pkg.article[0].journal = {
         '@type': 'bibo:Journal',
-        name: traverse($journal).get(relPaths['Title'])[0] 
+        name: traverse($journal).get(relPaths['Title'])[0]
       };
     }
 
@@ -241,7 +223,7 @@ function parseXml(pkg,body,callback){
         if(x['$']['EIdType']==='doi'){
           pkg.article[0].doi = x['_'];
         }
-      })  
+      })
     }
     if(pkg.article[0].doi){
       pkg.article[0].url = 'http://dx.doi.org/'+pkg.article[0].doi ;
@@ -275,9 +257,9 @@ function parseXml(pkg,body,callback){
           x.Affiliation[0].split(';').forEach(function(y){
             author.affiliation.push({ description: y.trim() });
             if(allAffilsNames.indexOf(y.trim())==-1){
-              allAffils.push({ 
+              allAffils.push({
                 '@type': 'Organization',
-                description: y.trim() 
+                description: y.trim()
               });
               allAffilsNames.push(y.trim());
             }
@@ -287,7 +269,7 @@ function parseXml(pkg,body,callback){
         if(pkg.author){
           if(pkg.contributor==undefined){
             pkg.contributor = [];
-          } 
+          }
           pkg.contributor.push(author);
         } else {
           pkg.author = author;
@@ -314,7 +296,6 @@ function parseXml(pkg,body,callback){
       '@id': 'http://www.ncbi.nlm.nih.gov/pubmed/',
       description: 'From MEDLINE®/PubMed®, a database of the U.S. National Library of Medicine.'
     }
-
 
     pkg.name = '';
     if(meta.journalShortName){
@@ -406,8 +387,8 @@ function parseXml(pkg,body,callback){
             }
           ]
         })
-      }  
-    }         
+      }
+    }
 
 
     var citations = [];
@@ -419,7 +400,7 @@ function parseXml(pkg,body,callback){
           var citation = {};
           if(x['RefSource']){
             citation.description = x['RefSource'][0];
-          } 
+          }
           if(x['PMID']){
             if(x['PMID'][0]['_']){
               citation.pmid = x['PMID'][0]['_'];
@@ -429,7 +410,7 @@ function parseXml(pkg,body,callback){
           }
           citations.push(citation);
         })
-      }  
+      }
     }
     if(citations.length){
       pkg.article.citation = citations;
@@ -439,7 +420,4 @@ function parseXml(pkg,body,callback){
 
   })
 
-}
-
-
-
+};

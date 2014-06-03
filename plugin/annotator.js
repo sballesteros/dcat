@@ -4,7 +4,6 @@ var request = require('request')
   , http = require('http')
   , exec = require('child_process').exec
   , spawn = require('child_process').spawn
-  , jsdom = require('jsdom').jsdom
   , async = require('async')
   , path = require('path')
   , temp = require('temp')
@@ -21,8 +20,6 @@ var request = require('request')
   , recursiveReaddir = require('recursive-readdir')
   , Ldpm = require('../index')
   , DOMParser = require('xmldom').DOMParser;
-
-
 
 module.exports = annotator;
 

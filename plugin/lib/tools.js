@@ -224,7 +224,7 @@ function json2html(ldpm,jsonBody,pkg,opts,callback){
       callback(null,html);
     });
   }
-}
+};
 
 function parseXmlNodesRec(node,xml){
   // recursive function that converts xml nodes into json nodes
@@ -238,7 +238,7 @@ function parseXmlNodesRec(node,xml){
   if(node.attributes != undefined){
     var tag = '';
     Object.keys(node.attributes).forEach(function(att){
-      // in some cases, the type information is not in 
+      // in some cases, the type information is not in
       // tagName but in nodeValue
       if(node.attributes[att].nodeValue==='image'){
         tag = 'img';
@@ -445,20 +445,20 @@ function parseXmlNodesRec(node,xml){
     });
     return img;
   } else {
-  	if(node.textContent){
-  		var txt = node.textContent.toString().replace(/(\r\n|\n|\r)/gm,"");
-	    return {
-	      tag: 'text',
-	      content: txt
-	    };
-  	} else {
-  		return {
-  			tag: 'text',
-	      content: ''
-  		}
-  	}
+        if(node.textContent){
+                var txt = node.textContent.toString().replace(/(\r\n|\n|\r)/gm,"");
+            return {
+              tag: 'text',
+              content: txt
+            };
+        } else {
+                return {
+                        tag: 'text',
+              content: ''
+                }
+        }
   }
-}
+};
 
 function parseJsonNodesRec(ldpm,jsonNode,pkg,hlevel,callback){
   callback = once(callback);
@@ -491,7 +491,7 @@ function parseJsonNodesRec(ldpm,jsonNode,pkg,hlevel,callback){
 
   } else if( jsonNode.tag === 'sec' ){
     var id = uuid.v4();
-    txt += '\n\n<section id="' + id + '"'; 
+    txt += '\n\n<section id="' + id + '"';
     var iri = matchDOCO(jsonNode);
     if ( iri != ''){
       txt += ' typeof="' + iri + '" ';
@@ -666,7 +666,7 @@ function parseJsonNodesRec(ldpm,jsonNode,pkg,hlevel,callback){
           }
         })
       }
-    })
+    });
 
 
 
@@ -1104,7 +1104,7 @@ function parseJsonNodesRec(ldpm,jsonNode,pkg,hlevel,callback){
           txt += '</div>';
           return callback(null,txt);
         }
-      );      
+      );
     } else {
       txt += '</' + jsonNode.tag + '>';
       txt += '</div>';
@@ -1228,11 +1228,11 @@ function findNodePaths(obj,names){
 function getArtInd(pkg){
   var ind = 0;
   if(pkg.article){
-  	pkg.article.forEach(function(art,i){
-	    if(art['@type']==='ScholarlyArticle'){
-	      ind=i;
-	    }
-	  })
+        pkg.article.forEach(function(art,i){
+            if(art['@type']==='ScholarlyArticle'){
+              ind=i;
+            }
+          })
   }
   return ind;
 }
@@ -1324,13 +1324,10 @@ var defaultDiacriticsRemovalMap = [
     {'base':'z','letters':/[\u007A\u24E9\uFF5A\u017A\u1E91\u017C\u017E\u1E93\u1E95\u01B6\u0225\u0240\u2C6C\uA763]/g}
 ];
 
-var changes;
+
 function removeDiacritics (str) {
-    if(!changes) {
-        changes = defaultDiacriticsRemovalMap;
-    }
-    for(var i=0; i<changes.length; i++) {
-        str = str.replace(changes[i].letters, changes[i].base);
-    }
-    return str;
-}
+  for(var i=0; i<defaultDiacriticsRemovalMap.length; i++) {
+    str = str.replace(defaultDiacriticsRemovalMap[i].letters, defaultDiacriticsRemovalMap[i].base);
+  }
+  return str;
+};

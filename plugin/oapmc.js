@@ -230,6 +230,7 @@ function fetchTar(uri, ldpm, callback){
 
 
 function fetchXml(uri, ldpm, callback){
+  console.log(uri)
   ldpm.logHttp('GET', uri);
   request(uri, function(error, response, body){
     if(error) return callback(error);

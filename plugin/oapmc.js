@@ -135,7 +135,7 @@ function oapmc(uri, opts, callback){
                           tools.addPubmedAnnotations(pkg, pubmedPkg, that, function(err,pkg){
                             if(err) return callback(err);
                             callback(null, pkg);
-                          })
+                          });
 
                         });
                       });
@@ -444,12 +444,12 @@ function parseResources(pkg, files, doi, ldpm, callback){
             if(!(path.extname(x.distribution[0].contentPath) === '.nxml')){ // remove the .nxml from pkg.dataset
               tmpAr.push(x);
             } else {
-              toUnlink.push(path.join(ldpm.root,x.distribution[0].contentPath));              
+              toUnlink.push(path.join(ldpm.root,x.distribution[0].contentPath));
             }
           });
           resources.dataset = tmpAr;
-          
-          //TODO CHECK triple check splice because it affects length.. 
+
+          //TODO CHECK triple check splice because it affects length..
           // -> Jo: that's ok, ind2 incremented only when no splice.
           // merge resources that are different encodings of the same content
           ['figure','audio','video','code','article'].forEach(function(type){
@@ -1487,7 +1487,7 @@ function parseXml(xml, pkg, pmcid, mainArticleName, ldpm, opts, callback){
       if(meta.pageEnd){
         pkg.article[artInd].pageEnd = meta.pageEnd;
       }
-    } 
+    }
 
     // delete resource types that have no entries.
     ['dataset','code','figure','audio','video','article'].forEach(function(type){

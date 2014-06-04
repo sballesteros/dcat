@@ -472,7 +472,9 @@ function parseJsonNodesRec(ldpm, jsonNode, pkg, hlevel, callback){
     'bold': 'strong',
     'italic': 'em',
     'underline': ['span class="underline"','span'],
-    'inline-formula': 'span'
+    'inline-formula': 'span',
+    'label':'span',
+    'named-content':'span'
   };
   var txt = '';
   if( jsonNode.tag === 'body' ){
@@ -1046,12 +1048,41 @@ function parseJsonNodesRec(ldpm, jsonNode, pkg, hlevel, callback){
     });
 
     if(!found){
-      console.log('disp-formula not found')
-      return callback(null,txt);
+      txt += '<span>';
+      if(jsonNode.children!=undefined){
+        async.eachSeries(jsonNode.children, function(x, cb){
+          parseJsonNodesRec(ldpm,x,pkg,hlevel,function(err, newTxt){
+            if(err) return cb(err);
+            txt += newTxt;
+            cb(null);
+          });
+        }, function(err){
+          if(err) return callback(err);
+          txt += '</span>';
+          return callback(null,txt);
+        });
+      } else if (jsonNode.label!=undefined){
+        txt += jsonNode.label;
+        return callback(null,txt);
+      } else {
+        return callback(null,txt);
+      }
     }
-
+  } else if( (jsonNode.tag!=undefined) && (jsonNode.tag.slice(0,4)==='mml:') ){
+    txt+= '<' + jsonNode.tag.slice(0,4) + '>';
+    async.eachSeries(jsonNode.children, function(x, cb){
+      parseJsonNodesRec(ldpm,x,pkg,hlevel,function(err, newTxt){
+        if(err) return cb(err);
+        txt += newTxt;
+        cb(null);
+      });
+    }, function(err){
+      if(err) return callback(err);
+      txt += '</' + jsonNode.tag.slice(0,4) + '>';
+      return callback(null,txt);
+    });
   } else {
-
+    console.log(jsonNode.tag);
     txt += '<div class="unknown">';
     txt += '<' + jsonNode.tag;
     if(jsonNode.id){

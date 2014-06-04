@@ -107,6 +107,7 @@ function oapmc(uri, opts, callback){
               // a. resources: identify different encodings, substitute plos urls to contentPaths
               parseResources(pkg, files, doi, that, function(err,pkg){
                 if(err) return callback(err);
+
                 // b. xml: get captions, citations, authors, publishers etc from the xml
                 parseXml(xml,pkg,pmcid,mainArticleName,that,opts,function(err,pkg){
                   if(err) return callback(err);
@@ -126,6 +127,7 @@ function oapmc(uri, opts, callback){
                       // c. integrate the html article as a resource of the pkg
                       fs.writeFile(path.join(that.root, pkg.article[artInd].name.replace(/-/g,'.') + '.html'), htmlBody, function(err){
                         if(err) return callback(err);
+
                         that.paths2resources([path.join(that.root,pkg.article[artInd].name.replace(/-/g,'.')+'.html')], function(err,resources){
                           if(err) return callback(err);
                           pkg.article[artInd].encoding.push(resources.article[0].encoding[0]);
@@ -233,6 +235,7 @@ function fetchTar(uri, ldpm, callback){
 
 
 function fetchXml(uri, ldpm, callback){
+  console.log(uri)
   ldpm.logHttp('GET', uri);
   request(uri, function(error, response, body){
     if(error) return callback(error);
@@ -532,7 +535,6 @@ function parseResources(pkg, files, doi, ldpm, callback){
 
 
 function parseXml(xml, pkg, pmcid, mainArticleName, ldpm, opts, callback){
-
   var parser = new xml2js.Parser();
   var meta = {};
   var relPaths;
@@ -1498,7 +1500,6 @@ function parseXml(xml, pkg, pmcid, mainArticleName, ldpm, opts, callback){
         }
       }
     });
-
     callback(err,newpkg);
 
   })
@@ -1548,7 +1549,10 @@ function removeInlineFormulas(pkg, ldpm, callback){
 
   tools.unlinkList(toUnlink,function(err){
     if(err) return callback(err);
-    pkg.figure = tmpFigure;
+    pkg.figure = tmpFigure;    
+    if(pkg.figure.length==0){
+      delete pkg.figure;
+    }
     callback(null,pkg);
   })
 };

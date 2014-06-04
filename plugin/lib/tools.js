@@ -1084,7 +1084,6 @@ function parseJsonNodesRec(ldpm, jsonNode, pkg, hlevel, callback){
       return callback(null,txt);
     });
   } else {
-    console.log(jsonNode.tag);
     txt += '<div class="unknown">';
     txt += '<' + jsonNode.tag;
     if(jsonNode.id){

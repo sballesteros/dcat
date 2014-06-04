@@ -1070,6 +1070,19 @@ function parseJsonNodesRec(ldpm, jsonNode, pkg, hlevel, callback){
         return callback(null,txt);
       }
     }
+  } else if( (jsonNode.tag!=undefined) && (jsonNode.tag.slice(0,4)==='mml:math') ){
+    txt+= '<math xmlns="http://www.w3.org/1998/Math/MathML">';
+    async.eachSeries(jsonNode.children, function(x, cb){
+      parseJsonNodesRec(ldpm,x,pkg,hlevel,function(err, newTxt){
+        if(err) return cb(err);
+        txt += newTxt;
+        cb(null);
+      });
+    }, function(err){
+      if(err) return callback(err);
+      txt += '</math>';
+      return callback(null,txt);
+    });
   } else if( (jsonNode.tag!=undefined) && (jsonNode.tag.slice(0,4)==='mml:') ){
     txt+= '<' + jsonNode.tag.slice(0,4) + '>';
     async.eachSeries(jsonNode.children, function(x, cb){

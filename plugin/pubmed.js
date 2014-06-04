@@ -88,11 +88,11 @@ function parseXml(pkg,body,callback){
   var meta = {};
   var relPaths;
 
-  parser.parseString(body,function(err,body){
+  parser.parseString(body, function(err, body){
 
     if(err) return callback(err);
 
-    var pathArt = tools.findNodePaths(body,['PubmedArticle','PMID','Article']);
+    var pathArt = tools.findNodePaths(body, ['PubmedArticle','PMID','Article']);
 
     if(pathArt['PubmedArticle']){
       if(typeof(traverse(body).get(pathArt['PubmedArticle'])) == 'object'){
@@ -418,6 +418,6 @@ function parseXml(pkg,body,callback){
 
     return callback(null,pkg);
 
-  })
+  });
 
 };

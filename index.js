@@ -69,6 +69,10 @@ Ldpm.prototype.publish = function(pkg, attachments, callback){
   if(arguments.length === 1){
     callback = pkg;
     pkg = undefined;
+    attachments = undefined;
+  } else if(arguments.length === 2) {
+    callback = attachments;
+    attachments = undefined;
   }
 
   if(pkg){

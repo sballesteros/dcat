@@ -1219,7 +1219,6 @@ function getArtInd(pkg,mainArticleName){
 function unlinkList(toUnlink,callback){
   async.each(toUnlink,
     function(file,cb){
-      console.log(file);
       fs.unlink(file,function(err){
         if(err) return cb(err);
         cb(null);

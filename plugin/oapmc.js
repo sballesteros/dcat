@@ -77,6 +77,10 @@ function oapmc(uri, opts, callback){
         var res = JSON.parse(idConversionBody);
         var doi = res['records'][0]['doi'];
         var pmid = res['records'][0]['pmid'];
+        if(pmid==undefined){
+          // OAPMC entries do not all have a PMID (eg PMC3875093)
+          opts.noPubmed = true;
+        }
 
         // 1. Fetch : resources, xml, and pubmed metadata
         // a. resources

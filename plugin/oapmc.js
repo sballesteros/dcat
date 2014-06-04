@@ -58,7 +58,7 @@ function oapmc(uri, opts, callback){
 
       // First way to get the name of the main article: from the pdf name in oaContentBody
       // that contains pdf and tar.gz
-      mainArticleName = extractPdfName(oaContentBody).replace(/\./g, '-');       
+      mainArticleName = extractPdfName(oaContentBody).replace(/\./g, '-');
 
       var conversionUrl = 'http://www.pubmedcentral.nih.gov/utils/idconv/v1.0/?ids=' + 'PMC' + pmcid + '&format=json';
       that.logHttp('GET', conversionUrl);
@@ -90,7 +90,7 @@ function oapmc(uri, opts, callback){
           // Second way to get the name of the main article: from the name of the nxml file
           // in the tar.gz. OAPMC entries always have at least a pdf or an nxml.
           if(mainArticleName===undefined){
-            mainArticleName = extractNXMLName(files).replace(/\./g, '-'); 
+            mainArticleName = extractNXMLName(files).replace(/\./g, '-');
           }
 
           // b. xml
@@ -208,8 +208,8 @@ function fetchTar(uri, ldpm, callback){
               var extname = path.extname(path.basename(file));
               var basename = path.basename(file,extname);
               basename = basename.replace(/ /g, '-').replace(/\./g, '-');
-              fs.rename(file,path.join(ldpm.root,basename+extname),cb);
-              newFiles.push(path.join(ldpm.root,basename+extname));
+              fs.rename(file, path.join(ldpm.root, basename + extname), cb);
+              newFiles.push(path.join(ldpm.root, basename + extname ));
 
             }, function(err){
               if(err) return callback(err);
@@ -1547,7 +1547,7 @@ function removeInlineFormulas(pkg, ldpm, callback){
 
   tools.unlinkList(toUnlink,function(err){
     if(err) return callback(err);
-    pkg.figure = tmpFigure;    
+    pkg.figure = tmpFigure;
     if(pkg.figure.length==0){
       delete pkg.figure;
     }

@@ -38,10 +38,9 @@ function oapmc(uri, opts, callback){
 
   var that = this;
   var pmcid = tools.extractBetween(uri, 'PMC');
-  var uri;
 
   // check url
-  if (uri.slice(0,53)=='http://www.pubmedcentral.nih.gov/utils/oa/oa.fcgi?id=' ){
+  if (uri.slice(0, 53) === 'http://www.pubmedcentral.nih.gov/utils/oa/oa.fcgi?id=' ){
 
     // 0. Preliminary fetches
     that.logHttp('GET', uri);
@@ -49,7 +48,7 @@ function oapmc(uri, opts, callback){
     request(uri, function(error, response, oaContentBody){
       if(error) return callback(error);
 
-      that.logHttp(response.statusCode,uri);
+      that.logHttp(response.statusCode, uri);
 
       if(response.statusCode >= 400){
         var err = new Error(oaContentBody);
@@ -59,7 +58,7 @@ function oapmc(uri, opts, callback){
 
       mainArticleName = extractPdfName(oaContentBody);
 
-      var conversionUrl = 'http://www.pubmedcentral.nih.gov/utils/idconv/v1.0/?ids='+'PMC'+pmcid+'&format=json';
+      var conversionUrl = 'http://www.pubmedcentral.nih.gov/utils/idconv/v1.0/?ids=' + 'PMC' + pmcid + '&format=json';
       that.logHttp('GET', conversionUrl);
       // For PMC article, the idconv api returns {pmid,pmcid,doi} when given any of the three.
       request(conversionUrl, function(error, response, idConversionBody) {
@@ -78,24 +77,23 @@ function oapmc(uri, opts, callback){
         var pmid = res['records'][0]['pmid'];
 
         // 1. Fetch : resources, xml, and pubmed metadata
-        uri = tools.extractBetween(oaContentBody,'href="','"').slice(27);
         // a. resources
-        fetchTar(uri,that, function(err, files){
+        fetchTar(tools.extractBetween(oaContentBody, 'href="', '"').slice(27), that, function(err, files){
           if(err) return callback(err);
-          uri = 'http://www.pubmedcentral.nih.gov/oai/oai.cgi?verb=GetRecord&identifier=oai:pubmedcentral.nih.gov:'+pmcid+'&metadataPrefix=pmc';
+
           // b. xml
-          fetchXml(uri, function(err, xml){
+          fetchXml('http://www.pubmedcentral.nih.gov/oai/oai.cgi?verb=GetRecord&identifier=oai:pubmedcentral.nih.gov:' + pmcid + '&metadataPrefix=pmc', that, function(err, xml){
             if(err) return callback(err);
-            uri = 'http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id='+pmid+'&rettype=abstract&retmode=xml';
+
             // c. pubmed metadata
-            fetchPubmedMetadata(uri, that, opts, function(err,pubmedPkg){
+            fetchPubmedMetadata('http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id='+pmid+'&rettype=abstract&retmode=xml', that, opts, function(err,pubmedPkg){
               if(err) return callback(err);
 
               var pkg = { version: '0.0.0' };
 
               // 2. Parse and complete pkg
               // a. resources: identify different encodings, substitute plos urls to contentPaths
-              parseResources(pkg,files,doi,mainArticleName,that,function(err,pkg){
+              parseResources(pkg, files, doi, mainArticleName, that, function(err,pkg){
                 if(err) return callback(err);
                 // b. xml: get captions, citations, authors, publishers etc from the xml
                 parseXml(xml,pkg,pmcid,mainArticleName,that,opts,function(err,pkg){
@@ -105,25 +103,25 @@ function oapmc(uri, opts, callback){
                   // 3. Convert xml + pkg to html
                   // a. two steps conversion of the xml articleBody: xml -> json -> html
                   var jsonBody = xml2json(xml);
-                  tools.json2html(that,jsonBody,pkg,function(err,htmlBody){
+                  tools.json2html(that, jsonBody, pkg, function(err, htmlBody){
                     if(err) return callback(err);
 
                     // b. if formulas have been inlined as base 64 in the text,
                     // they're removed from the pkg resources
-                    removeInlineFormulas(pkg,that,function(err,pkg){
+                    removeInlineFormulas(pkg, that, function(err,pkg){
                       if(err) return callback(err);
 
                       // c. integrate the html article as a resource of the pkg
-                      fs.writeFile(path.join(that.root,pkg.article[artInd].name.replace(/-/g,'.')+'.html'),htmlBody,function(err){
+                      fs.writeFile(path.join(that.root, pkg.article[artInd].name.replace(/-/g,'.') + '.html'), htmlBody, function(err){
                         if(err) return callback(err);
-                        that.paths2resources([path.join(that.root,pkg.article[artInd].name.replace(/-/g,'.')+'.html')],{}, function(err,resources){
+                        that.paths2resources([path.join(that.root,pkg.article[artInd].name.replace(/-/g,'.')+'.html')], function(err,resources){
                           if(err) return callback(err);
                           pkg.article[artInd].encoding.push(resources.article[0].encoding[0]);
 
                           // d. extract pubmed annotations, adapt the target, and add to the pkg
-                          tools.addPubmedAnnotations(pkg,pubmedPkg,that,function(err,pkg){
+                          tools.addPubmedAnnotations(pkg, pubmedPkg, that, function(err,pkg){
                             if(err) return callback(err);
-                            callback(null,pkg);
+                            callback(null, pkg);
                           })
 
                         });
@@ -146,15 +144,14 @@ function oapmc(uri, opts, callback){
 
 };
 
-
 function extractPdfName(body){
-  var tmp = tools.extractBetween(body,'format="pdf"');
-  var href = tools.extractBetween(tmp,'href="','"');
+  var tmp = tools.extractBetween(body, 'format="pdf"');
+  var href = tools.extractBetween(tmp, 'href="','"');
   return path.basename(href.slice(6));
 }
 
 
-function fetchTar(uri,ldpm,callback){
+function fetchTar(uri, ldpm, callback){
   // return the list of files contained in the tar.gz of the article,
   // and move them to the current directory
 
@@ -163,48 +160,40 @@ function fetchTar(uri,ldpm,callback){
 
   ldpm.logHttp('GET', uri);
   c.on('ready', function() {
-    temp.mkdir('__ldpmTmp',function(err, dirPath) {
+    temp.mkdir('__ldpmTmp', function(err, dirPath) {
       c.get(uri, function(err, stream) {
         if (err) return callback(err);
         ldpm.logHttp(200, uri);
 
         var fname = '/' + dirPath.split('/')[dirPath.split('/').length-1];
+
         stream = stream
           .pipe(zlib.Unzip())
           .pipe(tar.Extract({ path: dirPath, strip: 1 }));
-        stream.once('close', function() {
+
+        stream.on('end', function() {
           recursiveReaddir(path.resolve(dirPath), function (err, files) {
             if (err) return callback(err);
+
             var newFiles = [];
-            async.each(files,
-              function(file,cb){
-                newFiles.push(path.join(ldpm.root,path.basename(file)));
+            async.each(files, function(file,cb){
+              newFiles.push(path.join(ldpm.root, path.basename(file)));
 
-                var rd = fs.createReadStream(file);
-                rd.on("error", function(err) {
-                  done(err);
-                });
-                var wr = fs.createWriteStream(path.join(ldpm.root,path.basename(file)));
-                wr.on("error", function(err) {
-                  done(err);
-                });
-                wr.on("close", function(ex) {
-                  done();
-                });
-                rd.pipe(wr);
+              var rd = fs.createReadStream(file);
+              var wr = fs.createWriteStream(path.join(ldpm.root,path.basename(file)));
 
-                function done(err) {
-                  if(err) return cb(err);
-                  return cb(null);
-                }
+              wr.on("error", cb);
+              wr.on("finish", function() {
+                cb(null);
+              });
+              rd.pipe(wr);
 
-              },
-              function(err){
-                if(err) return callback(err);
-                c.end();
-                return callback(null,newFiles);
-              }
-            )
+            }, function(err){
+              if(err) return callback(err);
+              c.end();
+              return callback(null,newFiles);
+            });
+
           });
         });
         stream.on('error',function(err){
@@ -216,10 +205,13 @@ function fetchTar(uri,ldpm,callback){
   c.connect({ host: 'ftp.ncbi.nlm.nih.gov' });
 };
 
-function fetchXml(uri,callback){
-  console.log(uri);
-  request(uri, function(error,response,body){
+
+function fetchXml(uri, ldpm, callback){
+  ldpm.logHttp('GET', uri);
+  request(uri, function(error, response, body){
     if(error) return callback(error);
+
+    ldpm.logHttp(response.statusCode, uri);
 
     if(response.statusCode >= 400){
       var err = new Error(body);
@@ -230,6 +222,7 @@ function fetchXml(uri,callback){
     callback(null, body);
   });
 };
+
 
 function fetchPubmedMetadata(uri, ldpm, opts, callback){
   if(opts.noPubmed){
@@ -247,7 +240,7 @@ function fetchPubmedMetadata(uri, ldpm, opts, callback){
 };
 
 
-function parseResources(pkg,files,doi,mainArticleName,that,callback){
+function parseResources(pkg, files, doi, mainArticleName, ldpm, callback){
 
   callback = once(callback);
 
@@ -271,9 +264,9 @@ function parseResources(pkg,files,doi,mainArticleName,that,callback){
       // uncompress bundles
       if(path.extname(f)=='.tgz'){
         cb = once(cb);
-        var s = fs.createReadStream(path.join(that.root,f));
+        var s = fs.createReadStream(path.join(ldpm.root,f));
         s = s.pipe(zlib.Unzip())
-             .pipe(tar.Extract({ path: path.join(that.root,path.basename(f,path.extname(f))) }));
+             .pipe(tar.Extract({ path: path.join(ldpm.root,path.basename(f,path.extname(f))) }));
         s.on('error',  function(err){ return cb(err)});
         s.on('end', function() {
           cb(null);
@@ -286,7 +279,7 @@ function parseResources(pkg,files,doi,mainArticleName,that,callback){
          unzipper.on('extract', function (lob) {
            return cb(null);
          });
-         unzipper.extract({ path: path.join(that.root,path.basename(f,path.extname(f))) });
+         unzipper.extract({ path: path.join(ldpm.root,path.basename(f,path.extname(f))) });
       } else {
         zlib.unzip(f, cb);
       }
@@ -355,9 +348,9 @@ function parseResources(pkg,files,doi,mainArticleName,that,callback){
         },
         function(err){
           files = tmpfiles;
-          that.paths2resources(files,opts, function(err,resources){
+          ldpm.paths2resources(files,opts, function(err,resources){
             if(err) return callback(err);
-            that.urls2resources(validatedurls, function(err,resourcesFromUrls){
+            ldpm.urls2resources(validatedurls, function(err,resourcesFromUrls){
               if(err) return callback(err);
 
               // plos resources need to be renamed: ldpm tools use the url basename while plos uses
@@ -547,7 +540,7 @@ function parseResources(pkg,files,doi,mainArticleName,that,callback){
               // create pkg
               var pkg = { version: '0.0.0' };
               if(resources!=undefined){
-                pkg = that.addResources(pkg,resources);
+                pkg = ldpm.addResources(pkg,resources);
               }
 
               // inline license and remove file
@@ -556,11 +549,11 @@ function parseResources(pkg,files,doi,mainArticleName,that,callback){
                 pkg.dataset.forEach(function(d,i){
                   if(d.name==='license'){
                     found = true;
-                    fs.readFile(path.join(that.root,d.distribution[0].contentPath),function(err,txt){
+                    fs.readFile(path.join(ldpm.root,d.distribution[0].contentPath),function(err,txt){
                       if(err) return cb(err);
                       pkg.license = txt.toString();
                       pkg.dataset.splice(i,1);
-                      fs.unlink(path.join(that.root,d.distribution[0].contentPath), function(err){
+                      fs.unlink(path.join(ldpm.root,d.distribution[0].contentPath), function(err){
                         if(err) return cb(err);
                         callback(null,pkg);
                       });
@@ -1607,7 +1600,7 @@ function xml2json(xml){
 
 
 
-function removeInlineFormulas(pkg,ldpm,callback){
+function removeInlineFormulas(pkg, ldpm, callback){
   // We assume that figures corresponding to inline formulas have an identifier
   // starting with 'e' (plos convention)
   var plosJournalsList = ['pone','pbio','pmed','pgen','pcbi','ppat','pntd'];

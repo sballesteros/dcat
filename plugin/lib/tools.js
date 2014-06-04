@@ -1024,7 +1024,7 @@ function parseJsonNodesRec(ldpm, jsonNode, pkg, hlevel, callback){
             if( (!found) && ( (r.name === jsonNode.id.replace(/\./g,'-')) || (r.name === path.basename(jsonNode.id,path.extname(jsonNode.id)).replace(/\./g,'-')))){
               found = true;
 
-              var indjpg;
+              var indjpg=0;
               r[typeMap[type]].forEach(function(enc,i){
                 if(enc.encodingFormat === 'image/jpeg'){
                   indjpg = i;

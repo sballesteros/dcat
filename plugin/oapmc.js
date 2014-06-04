@@ -56,7 +56,9 @@ function oapmc(uri, opts, callback){
         return callback(err);
       }
 
-      mainArticleName = extractPdfName(oaContentBody);
+      // First way to get the name of the main article: from the pdf name in oaContentBody
+      // that contains pdf and tar.gz
+      mainArticleName = extractPdfName(oaContentBody);       
 
       var conversionUrl = 'http://www.pubmedcentral.nih.gov/utils/idconv/v1.0/?ids=' + 'PMC' + pmcid + '&format=json';
       that.logHttp('GET', conversionUrl);
@@ -81,6 +83,12 @@ function oapmc(uri, opts, callback){
         fetchTar(tools.extractBetween(oaContentBody, 'href="', '"').slice(27), that, function(err, files){
           if(err) return callback(err);
 
+          // Second way to get the name of the main article: from the name of the nxml file
+          // in the tar.gz. OAPMC entries always have at least a pdf or an nxml.
+          if(mainArticleName===undefined){
+            mainArticleName = extractNXMLName(files); 
+          }
+
           // b. xml
           fetchXml('http://www.pubmedcentral.nih.gov/oai/oai.cgi?verb=GetRecord&identifier=oai:pubmedcentral.nih.gov:' + pmcid + '&metadataPrefix=pmc', that, function(err, xml){
             if(err) return callback(err);
@@ -93,7 +101,7 @@ function oapmc(uri, opts, callback){
 
               // 2. Parse and complete pkg
               // a. resources: identify different encodings, substitute plos urls to contentPaths
-              parseResources(pkg, files, doi, mainArticleName, that, function(err,pkg){
+              parseResources(pkg, files, doi, that, function(err,pkg){
                 if(err) return callback(err);
                 // b. xml: get captions, citations, authors, publishers etc from the xml
                 parseXml(xml,pkg,pmcid,mainArticleName,that,opts,function(err,pkg){
@@ -145,11 +153,25 @@ function oapmc(uri, opts, callback){
 };
 
 function extractPdfName(body){
-  var tmp = tools.extractBetween(body, 'format="pdf"');
-  var href = tools.extractBetween(tmp, 'href="','"');
-  return path.basename(href.slice(6));
+  if(body.indexOf('format="pdf"')>-1){
+    var tmp = tools.extractBetween(body, 'format="pdf"');
+    var href = tools.extractBetween(tmp, 'href="','"');
+    var tmp = path.basename(href.slice(6),path.extname(href.slice(6)));
+    return tmp.slice(0,tmp.lastIndexOf('.'));
+  } else {
+    return null;
+  }
 };
 
+function extractNXMLName(files){
+  var name;
+  files.forEach(function(f){
+    if(path.extname(path.basename(f))==='.nxml'){
+      name = path.basename(path.basename(f),path.extname(path.basename(f)));
+    }
+  })
+  return name;
+}
 
 function fetchTar(uri, ldpm, callback){
   // return the list of files contained in the tar.gz of the article,
@@ -240,21 +262,26 @@ function fetchPubmedMetadata(uri, ldpm, opts, callback){
 };
 
 
-function parseResources(pkg, files, doi, mainArticleName, ldpm, callback){
+function parseResources(pkg, files, doi, ldpm, callback){
 
   callback = once(callback);
 
   var codeBundles = [];
   var compressedBundles = [];
+  var typeMap = { 'figure': 'figure', 'audio': 'audio', 'video': 'video', 'code': 'targetProduct', 'dataset': 'distribution', 'article': 'encoding'};
+  var toUnlink = [];
 
   // identify bundles
+  var tmpAr = [];
   files.forEach(function(file,i){
     if(['.gz', '.gzip', '.tgz','.zip'].indexOf(path.extname(file))>-1){
       codeBundles.push(path.basename(file, path.extname(file)));
       compressedBundles.push(file);
-      files.splice(i,1);
+    } else {
+      tmpAr.push(file);
     }
   });
+  files = tmpAr;
 
   var opts = { codeBundles: codeBundles };
   var ind = 0;
@@ -408,32 +435,27 @@ function parseResources(pkg, files, doi, mainArticleName, ldpm, callback){
             resources[type] = resources[type].concat(resourcesFromUrls[type]);
           }
 
-
-          if(mainArticleName !== undefined){ //TODO comment WHY ???
-            resources.dataset.forEach(function(x,i){
-              if(x.name === path.basename(mainArticleName,'.pdf').slice(0,path.basename(mainArticleName,'.pdf').lastIndexOf('.'))){
-                resources.dataset.splice(i,1);
-              }
-            });
-          } else {
-            resources.dataset.forEach(function(x,i){
-              if(path.ext(x.distribution.contentPath) == 'nxml'){ // remove the .nxml from pkg.dataset
-                resources.dataset.splice(i,1);
-                mainArticleName = x.name;
-              }
-            });
-          }
-
-          //TODO CHECK triple check splice because it affects length..
+          tmpAr = [];
+          resources.dataset.forEach(function(x,i){
+            if(!(path.extname(x.distribution[0].contentPath) === '.nxml')){ // remove the .nxml from pkg.dataset
+              tmpAr.push(x);
+            } else {
+              toUnlink.push(x.distribution[0].contentPath);              
+            }
+          });
+          resources.dataset = tmpAr;
+          
+          //TODO CHECK triple check splice because it affects length.. 
+          // -> Jo: that's ok, ind2 incremented only when no splice.
           // merge resources that are different encodings of the same content
-          ['figure','audio','video'].forEach(function(type){
+          ['figure','audio','video','code','article'].forEach(function(type){
             var ind=0;
             while(ind < resources[type].length){
               var ind2=ind+1;
               while(ind2 < resources[type].length){
                 r2 = resources[type][ind2];
                 if(resources[type][ind].name === r2.name){
-                  resources[type][ind][type].push(r2[type][0]);
+                  resources[type][ind][typeMap[type]].push(r2[type][0]);
                   resources[type].splice(ind2, 1);
                 } else {
                   ind2 +=1;
@@ -443,63 +465,25 @@ function parseResources(pkg, files, doi, mainArticleName, ldpm, callback){
             }
           });
 
-          resources['code'].forEach(function(r,i){
-            resources['code'].slice(i+1,resources['code'].length).forEach(function(r2,j){
-              if(r.name===r2.name){
-                r['targetProduct'].push(r2['targetProduct'][0]);
-                resources['code'].splice(i+j+1,1);
-              }
-            });
-          });
-
-          resources['article'].forEach(function(r,i){
-            resources['article'].slice(i+1, resources['article'].length).forEach(function(r2,j){
-              if(r.name===r2.name){
-                r['encoding'].push(r2['encoding'][0]);
-                resources['article'].splice(i+j+1,1);
-              }
-            });
-          });
-
-
           // rm SingleRepresentation (PLOS) when there are alternatives
-          ['figure','audio','video'].forEach(function(type){
+          ['figure','audio','video','code','article'].forEach(function(type){
             if(resources[type]){
               resources[type].forEach(function(r,i){
-                r[type].forEach(function(x,i){
+                tmpAr = [];
+                r[typeMap[type]].forEach(function(x,i){
                   if(x.contentUrl != undefined){
-                    if( (x.contentUrl.indexOf('fetchSingleRepresentation')>-1) && (r[type].length>1) ){
-                      r[type].splice(i,1);
+                    if( !((x.contentUrl.indexOf('fetchSingleRepresentation')>-1) && (r[typeMap[type]].length>1)) ){
+                      tmpAr.push(x);
                     }
+                  } else {
+                    tmpAr.push(x);
                   }
                 });
+                r[typeMap[type]] = tmpAr;
               });
             }
           });
 
-          if(resources['code']){
-            resources['code'].forEach(function(r,i){
-              r['targetProduct'].forEach(function(x,i){
-                if(x.contentUrl != undefined){
-                  if( (x.contentUrl.indexOf('fetchSingleRepresentation')>-1) && (r['targetProduct'].length>1) ){
-                    r['targetProduct'].splice(i,1);
-                  }
-                }
-              });
-            });
-          }
-
-          if(resources['dataset']){
-            resources['dataset'].forEach(function(r,i){
-              r['distribution'].forEach(function(x,i){
-                if(x.contentUrl != undefined){
-                  if( (x.contentUrl.indexOf('fetchSingleRepresentation')>-1) && (r['distribution'].length>1) ){
-                    r['distribution'].splice(i,1);
-                  }
-                }
-              });
-            });
-          }
 
           // create pkg
           var pkg = { version: '0.0.0' };
@@ -510,24 +494,31 @@ function parseResources(pkg, files, doi, mainArticleName, ldpm, callback){
           // inline license and remove file
           var found = false;
           if(pkg.dataset){
+            tmpAr = [];
             pkg.dataset.forEach(function(d,i){
               if(d.name === 'license'){
                 found = true;
                 fs.readFile(path.join(ldpm.root,d.distribution[0].contentPath), {encoding: 'utf8'}, function(err,txt){
-                  if(err) return cb(err);
+                  if(err) return callback(err);
                   pkg.license = txt;
-                  pkg.dataset.splice(i,1);
-                  fs.unlink(path.join(ldpm.root,d.distribution[0].contentPath), function(err){
-                    if(err) return cb(err);
+                  toUnlink.push(d.distribution[0].contentPath);
+                  tools.unlinkList(toUnlink,function(err){
+                    if(err) return callback(err);
                     callback(null,pkg);
-                  });
+                  })
                 });
+              } else {
+                tmpAr.push(d);
               }
             });
+            pkg.dataset = tmpAr;
           }
 
           if(!found){
-            callback(null,pkg);
+            tools.unlinkList(toUnlink,function(err){
+              if(err) return callback(err);
+              callback(null,pkg);
+            })
           }
         });
       });
@@ -567,13 +558,18 @@ function parseXml(xml, pkg, pmcid, mainArticleName, ldpm, opts, callback){
     }
 
     if(pathArt['article']){
-      if(pkg.article==undefined){
-        pkg.article = [{}];
+      var artInd = tools.getArtInd(pkg,mainArticleName);
+      if(artInd==-1){
+        if(pkg.article == undefined){
+          pkg.article = [];
+        }
+        pkg.article.push({});
+        artInd = pkg.article.length-1;
       }
       var data = traverse(xmlBody).get(pathArt['article'])[0];
-      pkg.article[0]['@type'] = 'ScholarlyArticle';
+      pkg.article[artInd]['@type'] = 'ScholarlyArticle';
       if(data['$']['article-type'] != undefined){
-        pkg.article[0].publicationType = data['$']['article-type'].replace(/-/g,' ');
+        pkg.article[artInd].publicationType = data['$']['article-type'].replace(/-/g,' ');
       }
     }
 
@@ -1456,82 +1452,39 @@ function parseXml(xml, pkg, pmcid, mainArticleName, ldpm, opts, callback){
       });
     }
 
-    if (mainArticleName != undefined){
-      pkg.article.forEach(function(x,i){
-        if(x.name==mainArticleName.slice(0,path.basename(mainArticleName,'.pdf').lastIndexOf('.')).replace(/\./g,'-')){
-          var article = x;
-          if(meta.journal){
-            article.journal = meta.journal;
-          }
-          if(meta.doi){
-            article.doi = meta.doi;
-          }
-          if(meta.pmid){
-            article.pmid = meta.pmid;
-          }
-          if(meta.title){
-            article.headline = meta.title;
-          }
-          if (meta.abstract){
-            article.abstract = meta.abstract;
-          }
-          if(meta.references){
-            article.citation = meta.references;
-          }
-          if(meta.issue){
-            article.issue = meta.issue;
-          }
-          if(meta.volume){
-            article.volume = meta.volume;
-          }
-          if(meta.pageStart){
-            article.pageStart = meta.pageStart;
-          }
-          if(meta.pageEnd){
-            article.pageEnd = meta.pageEnd;
-          }
-          pkg.article[i] = article;
-        }
 
-      });
-
-    } else {
-      // in case there is no pdf
-      var article = {};
+    if ( artInd > -1){
       if(meta.journal){
-        article.journal = meta.journal;
+        pkg.article[artInd].journal = meta.journal;
       }
       if(meta.doi){
-        article.doi = meta.doi;
+        pkg.article[artInd].doi = meta.doi;
       }
       if(meta.pmid){
-        article.pmid = meta.pmid;
+        pkg.article[artInd].pmid = meta.pmid;
       }
       if(meta.title){
-        article.headline = meta.title;
+        pkg.article[artInd].headline = meta.title;
       }
       if (meta.abstract){
-        article.abstract = meta.abstract;
+        pkg.article[artInd].abstract = meta.abstract;
       }
-      if(meta.reference.length){
-        article.citation = meta.references;
+      if(meta.references){
+        pkg.article[artInd].citation = meta.references;
       }
       if(meta.issue){
-        article.issue = meta.issue;
+        pkg.article[artInd].issue = meta.issue;
       }
       if(meta.volume){
-        article.volume = meta.volume;
+        pkg.article[artInd].volume = meta.volume;
       }
       if(meta.pageStart){
-        article.pageStart = meta.pageStart;
+        pkg.article[artInd].pageStart = meta.pageStart;
       }
       if(meta.pageEnd){
-        article.pageEnd = meta.pageEnd;
+        pkg.article[artInd].pageEnd = meta.pageEnd;
       }
-      pkg.article.push(article);
-    }
-    newpkg.article = pkg.article;
-
+    } 
 
     // delete resource types that have no entries.
     ['dataset','code','figure','audio','video','article'].forEach(function(type){
@@ -1589,19 +1542,11 @@ function removeInlineFormulas(pkg, ldpm, callback){
     })
   }
 
-  async.each(toUnlink,
-    function(file,cb){
-      fs.unlink(file,function(err){
-        if(err) return cb(err);
-        cb(null);
-      })
-    },
-    function(err){
-      if(err) return callback(err);
-      pkg.figure = tmpFigure;
-      callback(null,pkg);
-    }
-  )
+  tools.unlinkList(toUnlink,function(err){
+    if(err) return callback(err);
+    pkg.figure = tmpFigure;
+    callback(null,pkg);
+  })
 };
 
 

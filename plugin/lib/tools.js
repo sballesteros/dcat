@@ -16,6 +16,7 @@ exports.matchDOCO = matchDOCO;
 exports.extractBetween = extractBetween;
 exports.extractKeywords = extractKeywords;
 exports.getArtInd = getArtInd;
+exports.unlinkList = unlinkList;
 exports.removeDiacritics = removeDiacritics;
 
 function json2html(ldpm,jsonBody,pkg,opts,callback){
@@ -1188,16 +1189,47 @@ function findNodePaths(obj,names){
   return paths;
 }
 
-function getArtInd(pkg){
-  var ind = 0;
-  if(pkg.article){
+function getArtInd(pkg,mainArticleName){
+  var ind = -1;
+  if(pkg.article != undefined){
     pkg.article.forEach(function(art,i){
-      if(art['@type']==='ScholarlyArticle'){
-        ind=i;
+      if(mainArticleName!=undefined){
+        if(art.name===mainArticleName){
+          ind=i;
+        }
+      }
+      if(art['@type']!=undefined){
+        if(typeof art['@type']==='string'){
+          if(art['@type']==='ScholarlyArticle'){
+            ind = i;
+          }
+        } else {
+          art['@type'].forEach(function(t){
+            if(t==='ScholarlyArticle'){
+              ind = i;
+            }
+          });
+        }
       }
     })
   }
   return ind;
+}
+
+function unlinkList(toUnlink,callback){
+  async.each(toUnlink,
+    function(file,cb){
+      console.log(file);
+      fs.unlink(file,function(err){
+        if(err) return cb(err);
+        cb(null);
+      })
+    },
+    function(err){
+      if(err) return callback(err);
+      callback(null);
+    }
+  )
 }
 
 var defaultDiacriticsRemovalMap = [

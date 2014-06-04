@@ -14,7 +14,6 @@ var request = require('request')
   , traverse = require('traverse')
   , recursiveReaddir = require('recursive-readdir')
   , DOMParser = require('xmldom').DOMParser
-  , clone = require('clone')
   , tools = require('./lib/tools');
 
 process.maxTickDepth = 10000;
@@ -248,50 +247,43 @@ function parseResources(pkg, files, doi, mainArticleName, ldpm, callback){
   var codeBundles = [];
   var compressedBundles = [];
 
-  var filesWithoutGz = clone(files);
-
   // identify bundles
   files.forEach(function(file,i){
     if(['.gz', '.gzip', '.tgz','.zip'].indexOf(path.extname(file))>-1){
       codeBundles.push(path.basename(file, path.extname(file)));
       compressedBundles.push(file);
-      filesWithoutGz.splice(i,1);
+      files.splice(i,1);
     }
   });
 
   var opts = { codeBundles: codeBundles };
   var ind = 0;
-  async.each(compressedBundles, function(f,cb){
+
+  async.each(compressedBundles, function(f, cb){
+    cb = once(cb);
     // uncompress bundles
-    if(path.extname(f)=='.tgz'){
-      cb = once(cb);
+    if(path.extname(f) === '.tgz'){
       var s = fs.createReadStream(path.join(ldpm.root,f));
-      s = s.pipe(zlib.Unzip())
-        .pipe(tar.Extract({ path: path.join(ldpm.root,path.basename(f,path.extname(f))) }));
-      s.on('error',  function(err){ return cb(err)});
-      s.on('end', function() {
-        cb(null);
-      });
+      s = s.pipe(zlib.Unzip()).pipe(tar.Extract({ path: path.join(ldpm.root, path.basename(f, path.extname(f))) }));
+      s.on('error',  cb);
+      s.on('end', function() { cb(null); });
     } else if(path.extname(f)=='.zip') {
-      unzipper = new DecompressZip(f);
-      unzipper.on('error', function (err) {
-        return cb(err);
-      });
-      unzipper.on('extract', function (lob) {
-        return cb(null);
-      });
-      unzipper.extract({ path: path.join(ldpm.root,path.basename(f,path.extname(f))) });
+      var unzipper = new DecompressZip(f);
+      unzipper.on('error', cb);
+      unzipper.on('extract', function (log) { cb(null); });
+      unzipper.extract({ path: path.join(ldpm.root, path.basename(f, path.extname(f))) });
     } else {
       zlib.unzip(f, cb);
     }
   }, function(err){
     if(err) return callback(err);
+
     var urls = [];
     var plosJournalsList = ['pone.','pbio.','pmed.','pgen.','pcbi.','ppat.','pntd.'];
     var plosJournalsLinks = {
       'pone.': 'http://www.plosone.org/article/info:doi/',
       'pbio.': 'http://www.plosbiology.org/article/info:doi/',
-      'pmed.': 'http://www.plosmedicine.org/article/info:doi/',
+      'pmed.': 'http://www.Plasticine.org/article/info:doi/',
       'pgen.': 'http://www.plosgenetics.org/article/info:doi/',
       'pcbi.': 'http://www.ploscompbiol.org/article/info:doi',
       'ppat.': 'http://www.plospathogens.org/article/info:doi',
@@ -300,10 +292,10 @@ function parseResources(pkg, files, doi, mainArticleName, ldpm, callback){
     var tmpfiles = [];
 
     // generate potential valid urls if resources identified as plos resources
-    filesWithoutGz.forEach(function(f,i){
+    files.forEach(function(f, i){
       var found = false;
-      plosJournalsList.forEach(function(p,j){
-        if( (path.basename(f).slice(0,p.length)===p) && (path.extname(f) != '.nxml') && (f.split('.')[f.split('.').length-2][0] != 'e') ) {
+      plosJournalsList.forEach(function(p, j){
+        if( (path.basename(f).slice(0,p.length) === p) && (path.extname(f) !== '.nxml') && (f.split('.')[f.split('.').length-2][0] !== 'e') ) {
           // note: figures which index starts with e (eg: pcbi.1000960.e001.jpg) are inline formulas. We don't bother
           // to test urls for them as they will be inlined.
           found = true;
@@ -315,10 +307,10 @@ function parseResources(pkg, files, doi, mainArticleName, ldpm, callback){
             urls.push(plosJournalsLinks[p].slice(0,tmpind) + 'fetchObject.action?uri=info:doi/' + doi +  tmp.slice(0,tmp.lastIndexOf('.')) + '&representation=PDF');
           } else {
             var tmp = path.basename(f,path.extname(f));
-            tmp = '.'+tmp.split('.')[tmp.split('.').length-1];
+            tmp = '.' + tmp.split('.')[tmp.split('.').length - 1];
             var tmpind = plosJournalsLinks[p].indexOf('info:doi');
             urls.push(plosJournalsLinks[p].slice(0,tmpind) + 'fetchSingleRepresentation.action?uri=info:doi/' + doi +  tmp );
-            if(['.gif','.jpg','.tif'].indexOf(path.extname(f))>-1){
+            if(['.gif', '.jpg', '.tif'].indexOf(path.extname(f)) > -1){
               if(urls.indexOf(plosJournalsLinks[p] + doi +  tmp + '/' + 'powerpoint')==-1){
                 urls.push(plosJournalsLinks[p] + doi +  tmp  + '/' + 'powerpoint');
                 urls.push(plosJournalsLinks[p] + doi +  tmp  + '/' + 'largerimage');
@@ -334,244 +326,217 @@ function parseResources(pkg, files, doi, mainArticleName, ldpm, callback){
     });
 
     var validatedurls = [];
-    async.each(urls,
-               function(uri,cb){
-                 // check which urls are valid
-                 request.head(uri, function (error, response, body) {
-                   if(error) return cb(error);
-                   if (response.statusCode == 200) {
-                     validatedurls.push(uri);
-                   }
-                   cb(null);
-                 });
-               },
-               function(err){
-                 files = tmpfiles;
-                 ldpm.paths2resources(files,opts, function(err,resources){
-                   if(err) return callback(err);
-                   ldpm.urls2resources(validatedurls, function(err,resourcesFromUrls){
-                     if(err) return callback(err);
+    async.each(urls, function(uri, cb){
+      // check which urls are valid
 
-                     // plos resources need to be renamed: ldpm tools use the url basename while plos uses
-                     // that to specify the encoding
-                     ['figure','audio','video'].forEach(
-                       function(type){
-                         resourcesFromUrls[type].forEach(
-                           function(x){
-                             if(x.name.indexOf('SingleRepresentation')>-1){
-                               x.name = x[type][0].contentUrl.split('/')[x[type][0].contentUrl.split('/').length-1];
-                             } else if(x[type][0].contentUrl.indexOf('/powerpoint')>-1){
-                               x.name = x[type][0].contentUrl.split('/')[x[type][0].contentUrl.split('/').length-2];
-                             } else if(x[type][0].contentUrl.indexOf('/largerimage')>-1){
-                               x.name = x[type][0].contentUrl.split('/')[x[type][0].contentUrl.split('/').length-2];
-                             } else if(x[type][0].contentUrl.indexOf('/originalimage')>-1){
-                               x.name = x[type][0].contentUrl.split('/')[x[type][0].contentUrl.split('/').length-2];
-                             } else {
-                               x.name = x[type][0].contentUrl.split('/')[x[type][0].contentUrl.split('/').length-1];
-                             }
-                             if(x.name.slice(0,8)==='journal.'){
-                               x.name = x.name.slice(8);
-                             }
-                           }
-                         )
-                       }
-                     );
+      ldpm.logHttp('HEAD', uri);
+      request.head(uri, function (error, response, body) {
+        if(error) return cb(error);
+        ldpm.logHttp(response.statusCode, uri);
+        if (response.statusCode == 200) {
+          validatedurls.push(uri);
+        }
+        cb(null);
+      });
 
-                     resourcesFromUrls['code'].forEach(
-                       function(x){
-                         if(x.name.indexOf('SingleRepresentation')>-1){
-                           x.name = x['targetProduct'][0].contentUrl.split('/')[x[['targetProduct']][0].contentUrl.split('/').length-1];
-                         } else {
-                           x.name = x[['targetProduct']][0].contentUrl.split('/')[x[['targetProduct']][0].contentUrl.split('/').length-2];
-                         }
-                         if(x.name.slice(0,8)==='journal.'){
-                           x.name = x.name.slice(8);
-                         }
-                       }
-                     );
+    }, function(err){
 
-                     resourcesFromUrls['dataset'].forEach(
-                       function(x){
-                         if(x.name.indexOf('SingleRepresentation')>-1){
-                           x.name = x['distribution'][0].contentUrl.split('/')[x[['distribution']][0].contentUrl.split('/').length-1];
-                         } else {
-                           x.name = x[['distribution']][0].contentUrl.split('/')[x[['distribution']][0].contentUrl.split('/').length-2];
-                         }
-                         if(x.name.slice(0,8)==='journal.'){
-                           x.name = x.name.slice(8);
-                         }
-                       }
-                     );
+      var files = tmpfiles;
+      ldpm.paths2resources(files, opts, function(err, resources){
+        if(err) return callback(err);
+        ldpm.urls2resources(validatedurls, function(err, resourcesFromUrls){
+          if(err) return callback(err);
 
-                     resourcesFromUrls['article'].forEach(
-                       function(x){
-                         if(x.name.indexOf('fetchObject')>-1){
-                           x.name = x['encoding'][0].contentUrl.slice(0,x['encoding'][0].contentUrl.indexOf('&representation=PDF')).split('/')[x[['encoding']][0].contentUrl.split('/').length-1];
-                         } else if(x['encoding'].indexOf("representation=PDF")>-1){
-                           x.name = x['encoding'][0].contentUrl.slice(0,x['encoding'][0].contentUrl.indexOf('&representation=PDF')).split('/')[x[['encoding']][0].contentUrl.split('/').length-2];
-                         } else {
-                           x.name = x['encoding'][0].contentUrl.split('/')[x['encoding'][0].contentUrl.split('/').length-1];
-                         }
-                         if(x.name.slice(0,8)==='journal.'){
-                           x.name = x.name.slice(8);
-                         }
-                       }
-                     );
+          // plos resources need to be renamed: ldpm tools use the url basename while plos uses
+          // that to specify the encoding
+          ['figure','audio','video'].forEach(function(type){
+            resourcesFromUrls[type].forEach(function(x){
+              if(x.name.indexOf('SingleRepresentation')>-1){
+                x.name = x[type][0].contentUrl.split('/')[x[type][0].contentUrl.split('/').length-1];
+              } else if(x[type][0].contentUrl.indexOf('/powerpoint')>-1){
+                x.name = x[type][0].contentUrl.split('/')[x[type][0].contentUrl.split('/').length-2];
+              } else if(x[type][0].contentUrl.indexOf('/largerimage')>-1){
+                x.name = x[type][0].contentUrl.split('/')[x[type][0].contentUrl.split('/').length-2];
+              } else if(x[type][0].contentUrl.indexOf('/originalimage')>-1){
+                x.name = x[type][0].contentUrl.split('/')[x[type][0].contentUrl.split('/').length-2];
+              } else {
+                x.name = x[type][0].contentUrl.split('/')[x[type][0].contentUrl.split('/').length-1];
+              }
+              if(x.name.slice(0,8)==='journal.'){
+                x.name = x.name.slice(8);
+              }
+            })
+          });
 
-                     // remove the .nxml from pkg.dataset
-                     if(err) return callback(err);
-                     for (var type in resources){
-                       resources[type] = resources[type].concat(resourcesFromUrls[type]); //merge
-                     }
-                     var pushed = false;
-                     if(mainArticleName!=undefined){
-                       resources.dataset.forEach(function(x,i){
-                         if(x.name===path.basename(mainArticleName,'.pdf').slice(0,path.basename(mainArticleName,'.pdf').lastIndexOf('.'))){
-                           resources.dataset.splice(i,1);
-                         }
-                       });
-                     } else {
-                       resources.dataset.forEach(function(x,i){
-                         if(path.ext(x.distribution.contentPath) == 'nxml'){
-                           resources.dataset.splice(i,1);
-                           mainArticleName = x.name;
-                         }
-                       });
-                     }
+          resourcesFromUrls['code'].forEach(function(x){
+            if(x.name.indexOf('SingleRepresentation')>-1){
+              x.name = x['targetProduct'][0].contentUrl.split('/')[x[['targetProduct']][0].contentUrl.split('/').length-1];
+            } else {
+              x.name = x[['targetProduct']][0].contentUrl.split('/')[x[['targetProduct']][0].contentUrl.split('/').length-2];
+            }
+            if(x.name.slice(0,8)==='journal.'){
+              x.name = x.name.slice(8);
+            }
+          });
 
-                     // merge resources that are different encodings of the same content
-                     ['figure','audio','video'].forEach(
-                       function(type){
-                         var ind=0;
-                         while(ind<resources[type].length){
-                           var ind2=ind+1;
-                           while(ind2<resources[type].length){
-                             r2 = resources[type][ind2];
-                             if(resources[type][ind].name===r2.name){
-                               resources[type][ind][type].push(r2[type][0]);
-                               resources[type].splice(ind2,1);
-                             } else {
-                               ind2+=1;
-                             }
-                           }
-                           ind += 1;
-                         }
-                       }
-                     );
+          resourcesFromUrls['dataset'].forEach(function(x){
+            if(x.name.indexOf('SingleRepresentation')>-1){
+              x.name = x['distribution'][0].contentUrl.split('/')[x[['distribution']][0].contentUrl.split('/').length-1];
+            } else {
+              x.name = x[['distribution']][0].contentUrl.split('/')[x[['distribution']][0].contentUrl.split('/').length-2];
+            }
+            if(x.name.slice(0,8)==='journal.'){
+              x.name = x.name.slice(8);
+            }
+          });
 
-                     resources['code'].forEach(
-                       function(r,i){
-                         resources['code'].slice(i+1,resources['code'].length).forEach(
-                           function(r2,j){
-                             if(r.name===r2.name){
-                               r['targetProduct'].push(r2['targetProduct'][0]);
-                               resources['code'].splice(i+j+1,1);
-                             }
-                           }
-                         )
-                       }
-                     );
+          resourcesFromUrls['article'].forEach(function(x){
+            if(x.name.indexOf('fetchObject')>-1){
+              x.name = x['encoding'][0].contentUrl.slice(0,x['encoding'][0].contentUrl.indexOf('&representation=PDF')).split('/')[x[['encoding']][0].contentUrl.split('/').length-1];
+            } else if(x['encoding'].indexOf("representation=PDF")>-1){
+              x.name = x['encoding'][0].contentUrl.slice(0,x['encoding'][0].contentUrl.indexOf('&representation=PDF')).split('/')[x[['encoding']][0].contentUrl.split('/').length-2];
+            } else {
+              x.name = x['encoding'][0].contentUrl.split('/')[x['encoding'][0].contentUrl.split('/').length-1];
+            }
+            if(x.name.slice(0,8)==='journal.'){
+              x.name = x.name.slice(8);
+            }
+          });
 
-                     resources['article'].forEach(
-                       function(r,i){
-                         resources['article'].slice(i+1,resources['article'].length).forEach(
-                           function(r2,j){
-                             if(r.name===r2.name){
-                               r['encoding'].push(r2['encoding'][0]);
-                               resources['article'].splice(i+j+1,1);
-                             }
-                           }
-                         )
-                       }
-                     );
+          //merge
+          for (var type in resources){
+            resources[type] = resources[type].concat(resourcesFromUrls[type]);
+          }
 
-                     // rm SingleRepresentation (PLOS) when there are alternatives
-                     ['figure','audio','video'].forEach(
-                       function(type){
-                         if(resources[type]){
-                           resources[type].forEach(
-                             function(r,i){
-                               r[type].forEach(
-                                 function(x,i){
-                                   if(x.contentUrl != undefined){
-                                     if( (x.contentUrl.indexOf('fetchSingleRepresentation')>-1) && (r[type].length>1) ){
-                                       r[type].splice(i,1);
-                                     }
-                                   }
-                                 }
-                               )
-                             }
-                           )
-                         }
-                       }
-                     )
-                     if(resources['code']){
-                       resources['code'].forEach(
-                         function(r,i){
-                           r['targetProduct'].forEach(
-                             function(x,i){
-                               if(x.contentUrl != undefined){
-                                 if( (x.contentUrl.indexOf('fetchSingleRepresentation')>-1) && (r['targetProduct'].length>1) ){
-                                   r['targetProduct'].splice(i,1);
-                                 }
-                               }
-                             }
-                           )
-                         }
-                       )
-                     }
-                     if(resources['dataset']){
-                       resources['dataset'].forEach(
-                         function(r,i){
-                           r['distribution'].forEach(
-                             function(x,i){
-                               if(x.contentUrl != undefined){
-                                 if( (x.contentUrl.indexOf('fetchSingleRepresentation')>-1) && (r['distribution'].length>1) ){
-                                   r['distribution'].splice(i,1);
-                                 }
-                               }
-                             }
-                           )
-                         }
-                       )
-                     }
 
-                     // create pkg
-                     var pkg = { version: '0.0.0' };
-                     if(resources!=undefined){
-                       pkg = ldpm.addResources(pkg,resources);
-                     }
+          if(mainArticleName !== undefined){ //TODO comment WHY ???
+            resources.dataset.forEach(function(x,i){
+              if(x.name === path.basename(mainArticleName,'.pdf').slice(0,path.basename(mainArticleName,'.pdf').lastIndexOf('.'))){
+                resources.dataset.splice(i,1);
+              }
+            });
+          } else {
+            resources.dataset.forEach(function(x,i){
+              if(path.ext(x.distribution.contentPath) == 'nxml'){ // remove the .nxml from pkg.dataset
+                resources.dataset.splice(i,1);
+                mainArticleName = x.name;
+              }
+            });
+          }
 
-                     // inline license and remove file
-                     var found = false;
-                     if(pkg.dataset){
-                       pkg.dataset.forEach(function(d,i){
-                         if(d.name==='license'){
-                           found = true;
-                           fs.readFile(path.join(ldpm.root,d.distribution[0].contentPath),function(err,txt){
-                             if(err) return cb(err);
-                             pkg.license = txt.toString();
-                             pkg.dataset.splice(i,1);
-                             fs.unlink(path.join(ldpm.root,d.distribution[0].contentPath), function(err){
-                               if(err) return cb(err);
-                               callback(null,pkg);
-                             });
-                           })
-                         }
-                       })
-                     }
+          //TODO CHECK triple check splice because it affects length..
+          // merge resources that are different encodings of the same content
+          ['figure','audio','video'].forEach(function(type){
+            var ind=0;
+            while(ind < resources[type].length){
+              var ind2=ind+1;
+              while(ind2 < resources[type].length){
+                r2 = resources[type][ind2];
+                if(resources[type][ind].name === r2.name){
+                  resources[type][ind][type].push(r2[type][0]);
+                  resources[type].splice(ind2, 1);
+                } else {
+                  ind2 +=1;
+                }
+              }
+              ind += 1;
+            }
+          });
 
-                     if(!found){
-                       callback(null,pkg);
-                     }
-                   });
-                 });
-               });
+          resources['code'].forEach(function(r,i){
+            resources['code'].slice(i+1,resources['code'].length).forEach(function(r2,j){
+              if(r.name===r2.name){
+                r['targetProduct'].push(r2['targetProduct'][0]);
+                resources['code'].splice(i+j+1,1);
+              }
+            });
+          });
+
+          resources['article'].forEach(function(r,i){
+            resources['article'].slice(i+1, resources['article'].length).forEach(function(r2,j){
+              if(r.name===r2.name){
+                r['encoding'].push(r2['encoding'][0]);
+                resources['article'].splice(i+j+1,1);
+              }
+            });
+          });
+
+
+          // rm SingleRepresentation (PLOS) when there are alternatives
+          ['figure','audio','video'].forEach(function(type){
+            if(resources[type]){
+              resources[type].forEach(function(r,i){
+                r[type].forEach(function(x,i){
+                  if(x.contentUrl != undefined){
+                    if( (x.contentUrl.indexOf('fetchSingleRepresentation')>-1) && (r[type].length>1) ){
+                      r[type].splice(i,1);
+                    }
+                  }
+                });
+              });
+            }
+          });
+
+          if(resources['code']){
+            resources['code'].forEach(function(r,i){
+              r['targetProduct'].forEach(function(x,i){
+                if(x.contentUrl != undefined){
+                  if( (x.contentUrl.indexOf('fetchSingleRepresentation')>-1) && (r['targetProduct'].length>1) ){
+                    r['targetProduct'].splice(i,1);
+                  }
+                }
+              });
+            });
+          }
+
+          if(resources['dataset']){
+            resources['dataset'].forEach(function(r,i){
+              r['distribution'].forEach(function(x,i){
+                if(x.contentUrl != undefined){
+                  if( (x.contentUrl.indexOf('fetchSingleRepresentation')>-1) && (r['distribution'].length>1) ){
+                    r['distribution'].splice(i,1);
+                  }
+                }
+              });
+            });
+          }
+
+          // create pkg
+          var pkg = { version: '0.0.0' };
+          if(resources!=undefined){
+            pkg = ldpm.addResources(pkg,resources);
+          }
+
+          // inline license and remove file
+          var found = false;
+          if(pkg.dataset){
+            pkg.dataset.forEach(function(d,i){
+              if(d.name === 'license'){
+                found = true;
+                fs.readFile(path.join(ldpm.root,d.distribution[0].contentPath), {encoding: 'utf8'}, function(err,txt){
+                  if(err) return cb(err);
+                  pkg.license = txt;
+                  pkg.dataset.splice(i,1);
+                  fs.unlink(path.join(ldpm.root,d.distribution[0].contentPath), function(err){
+                    if(err) return cb(err);
+                    callback(null,pkg);
+                  });
+                });
+              }
+            });
+          }
+
+          if(!found){
+            callback(null,pkg);
+          }
+        });
+      });
+    });
   });
 };
 
 
-function parseXml(xml,pkg,pmcid,mainArticleName,ldpm,opts,callback){
+function parseXml(xml, pkg, pmcid, mainArticleName, ldpm, opts, callback){
 
   var parser = new xml2js.Parser();
   var meta = {};

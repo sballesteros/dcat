@@ -444,7 +444,7 @@ function parseResources(pkg, files, doi, ldpm, callback){
             if(!(path.extname(x.distribution[0].contentPath) === '.nxml')){ // remove the .nxml from pkg.dataset
               tmpAr.push(x);
             } else {
-              toUnlink.push(x.distribution[0].contentPath);              
+              toUnlink.push(path.join(ldpm.root,x.distribution[0].contentPath));              
             }
           });
           resources.dataset = tmpAr;
@@ -505,7 +505,7 @@ function parseResources(pkg, files, doi, ldpm, callback){
                 fs.readFile(path.join(ldpm.root,d.distribution[0].contentPath), {encoding: 'utf8'}, function(err,txt){
                   if(err) return callback(err);
                   pkg.license = txt;
-                  toUnlink.push(d.distribution[0].contentPath);
+                  toUnlink.push(path.join(ldpm.root,d.distribution[0].contentPath));
                   tools.unlinkList(toUnlink,function(err){
                     if(err) return callback(err);
                     callback(null,pkg);

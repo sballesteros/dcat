@@ -639,7 +639,11 @@ function parseJsonNodesRec(ldpm, jsonNode, pkg, hlevel, callback){
               });
 
             } else {
-              var ind = parseInt(jsonNode.children[0]['content'].slice(1,jsonNode.children[0]['content'].length-1),10);
+              if(jsonNode.children[0]['content']!=undefined){
+                var ind = parseInt(jsonNode.children[0]['content'].slice(1,jsonNode.children[0]['content'].length-1),10);
+              } else {
+                var ind = parseInt(jsonNode.children[0].children[0]['content'].slice(1,jsonNode.children[0].children[0]['content'].length-1),10);                
+              }
               txt += ' <a href="#ref_' + ind + '" property="http://schema.org/citation">';
 
               async.eachSeries(jsonNode.children, function(x, cb){

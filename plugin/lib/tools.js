@@ -3,6 +3,7 @@ var traverse = require('traverse')
   , once = require('once')
   , crypto = require('crypto')
   , fs = require('fs')
+  , zlib = require('zlib')
   , async = require('async')
   , path = require('path')
   , BASE = require('package-jsonld').BASE.replace('https','http')
@@ -20,7 +21,6 @@ exports.unlinkList = unlinkList;
 exports.removeDiacritics = removeDiacritics;
 
 function json2html(ldpm,jsonBody,pkg,opts,callback){
-
   // Build the html article, merging information from the pkg and from the jsonBody
   // generated from the xml articleBody
 
@@ -145,6 +145,7 @@ function json2html(ldpm,jsonBody,pkg,opts,callback){
     }
     html += '</section>\n';
   }
+
 
   if(abstract!=undefined){
     var id = uuid.v4();
@@ -687,7 +688,6 @@ function parseJsonNodesRec(ldpm, jsonNode, pkg, hlevel, callback){
 
   } else if( (jsonNode.tag === 'sup-ref') || (jsonNode.tag === 'fig-ref') || (jsonNode.tag === 'table-ref') ){
     found = false;
-    jsonNode.id
     var typeMap = { 'figure': 'figure', 'audio': 'audio', 'video': 'video', 'code': 'targetProduct', 'dataset': 'distribution', 'article': 'encoding'};
     Object.keys(typeMap).forEach(function(type){
       if(pkg[type]){
@@ -863,7 +863,6 @@ function parseJsonNodesRec(ldpm, jsonNode, pkg, hlevel, callback){
         pkg[type].forEach(
           function(r,i){
             if( r.name === path.basename(jsonNode.id,path.extname(jsonNode.id)).replace(/\./g,'-')){
-
               found = true;
               if(r[typeMap[type]][0].contentUrl){
                 txt += '<a href="'+r[typeMap[type]][0].contentUrl+'">';
@@ -889,7 +888,10 @@ function parseJsonNodesRec(ldpm, jsonNode, pkg, hlevel, callback){
 
                 var sha1 = crypto.createHash('sha1');
                 var size = 0
-                var p = path.resolve(ldpm.root, jsonNode.id);
+                var basename = path.basename(jsonNode.id,path.extname(jsonNode.id));
+                var extname = path.extname(jsonNode.id);
+                basename = basename.replace(/\./g, '-')
+                var p = path.resolve(ldpm.root, basename+extname);
                 var s = fs.createReadStream(p);
                 s.on('error', callback);
                 s.on('data', function(d) { size += d.length; sha1.update(d); });

@@ -58,7 +58,7 @@ function oapmc(uri, opts, callback){
 
       // First way to get the name of the main article: from the pdf name in oaContentBody
       // that contains pdf and tar.gz
-      mainArticleName = extractPdfName(oaContentBody);       
+      mainArticleName = extractPdfName(oaContentBody).replace(/\./g, '-');       
 
       var conversionUrl = 'http://www.pubmedcentral.nih.gov/utils/idconv/v1.0/?ids=' + 'PMC' + pmcid + '&format=json';
       that.logHttp('GET', conversionUrl);
@@ -90,7 +90,7 @@ function oapmc(uri, opts, callback){
           // Second way to get the name of the main article: from the name of the nxml file
           // in the tar.gz. OAPMC entries always have at least a pdf or an nxml.
           if(mainArticleName===undefined){
-            mainArticleName = extractNXMLName(files); 
+            mainArticleName = extractNXMLName(files).replace(/\./g, '-'); 
           }
 
           // b. xml
@@ -107,7 +107,6 @@ function oapmc(uri, opts, callback){
               // a. resources: identify different encodings, substitute plos urls to contentPaths
               parseResources(pkg, files, doi, that, function(err,pkg){
                 if(err) return callback(err);
-
                 // b. xml: get captions, citations, authors, publishers etc from the xml
                 parseXml(xml,pkg,pmcid,mainArticleName,that,opts,function(err,pkg){
                   if(err) return callback(err);
@@ -125,10 +124,10 @@ function oapmc(uri, opts, callback){
                       if(err) return callback(err);
 
                       // c. integrate the html article as a resource of the pkg
-                      fs.writeFile(path.join(that.root, pkg.article[artInd].name.replace(/-/g,'.') + '.html'), htmlBody, function(err){
+                      fs.writeFile(path.join(that.root, pkg.article[artInd].name + '.html'), htmlBody, function(err){
                         if(err) return callback(err);
 
-                        that.paths2resources([path.join(that.root,pkg.article[artInd].name.replace(/-/g,'.')+'.html')], function(err,resources){
+                        that.paths2resources([path.join(that.root,pkg.article[artInd].name + '.html')], function(err,resources){
                           if(err) return callback(err);
                           pkg.article[artInd].encoding.push(resources.article[0].encoding[0]);
 
@@ -205,16 +204,12 @@ function fetchTar(uri, ldpm, callback){
 
             var newFiles = [];
             async.each(files, function(file,cb){
-              newFiles.push(path.join(ldpm.root, path.basename(file)));
 
-              var rd = fs.createReadStream(file);
-              var wr = fs.createWriteStream(path.join(ldpm.root,path.basename(file)));
-
-              wr.on("error", cb);
-              wr.on("finish", function() {
-                cb(null);
-              });
-              rd.pipe(wr);
+              var extname = path.extname(path.basename(file));
+              var basename = path.basename(file,extname);
+              basename = basename.replace(/ /g, '-').replace(/\./g, '-');
+              fs.rename(file,path.join(ldpm.root,basename+extname),cb);
+              newFiles.push(path.join(ldpm.root,basename+extname));
 
             }, function(err){
               if(err) return callback(err);
@@ -235,7 +230,6 @@ function fetchTar(uri, ldpm, callback){
 
 
 function fetchXml(uri, ldpm, callback){
-  console.log(uri)
   ldpm.logHttp('GET', uri);
   request(uri, function(error, response, body){
     if(error) return callback(error);
@@ -270,7 +264,6 @@ function fetchPubmedMetadata(uri, ldpm, opts, callback){
 
 
 function parseResources(pkg, files, doi, ldpm, callback){
-
   callback = once(callback);
 
   var codeBundles = [];
@@ -289,6 +282,7 @@ function parseResources(pkg, files, doi, ldpm, callback){
     }
   });
   files = tmpAr;
+
 
   var opts = { codeBundles: codeBundles };
   var ind = 0;
@@ -329,22 +323,25 @@ function parseResources(pkg, files, doi, ldpm, callback){
     files.forEach(function(f, i){
       var found = false;
       plosJournalsList.forEach(function(p, j){
-        if( (path.basename(f).slice(0,p.length) === p) && (path.extname(f) !== '.nxml') && (f.split('.')[f.split('.').length-2][0] !== 'e') ) {
+        var basename = path.basename(f,path.extname(f));
+        var extname = path.extname(f);
+        basename = basename.replace(/-/g,'.')
+        if( (basename.slice(0,p.length) === p) && (extname !== '.nxml') && (basename.split('.')[basename.split('.').length-1][0] !== 'e') ) {
           // note: figures which index starts with e (eg: pcbi.1000960.e001.jpg) are inline formulas. We don't bother
           // to test urls for them as they will be inlined.
           found = true;
 
-          if( path.extname(f) === '.pdf' ){
-            var tmp = path.basename(f,path.extname(f));
+          if( extname === '.pdf' ){
+            var tmp = basename;
             tmp = '.'+tmp.split('.')[tmp.split('.').length-1];
             var tmpind = plosJournalsLinks[p].indexOf('info:doi');
             urls.push(plosJournalsLinks[p].slice(0,tmpind) + 'fetchObject.action?uri=info:doi/' + doi +  tmp.slice(0,tmp.lastIndexOf('.')) + '&representation=PDF');
           } else {
-            var tmp = path.basename(f,path.extname(f));
+            var tmp = basename;
             tmp = '.' + tmp.split('.')[tmp.split('.').length - 1];
             var tmpind = plosJournalsLinks[p].indexOf('info:doi');
             urls.push(plosJournalsLinks[p].slice(0,tmpind) + 'fetchSingleRepresentation.action?uri=info:doi/' + doi +  tmp );
-            if(['.gif', '.jpg', '.tif'].indexOf(path.extname(f)) > -1){
+            if(['.gif', '.jpg', '.tif'].indexOf(extname) > -1){
               if(urls.indexOf(plosJournalsLinks[p] + doi +  tmp + '/' + 'powerpoint')==-1){
                 urls.push(plosJournalsLinks[p] + doi +  tmp  + '/' + 'powerpoint');
                 urls.push(plosJournalsLinks[p] + doi +  tmp  + '/' + 'largerimage');
@@ -396,44 +393,44 @@ function parseResources(pkg, files, doi, ldpm, callback){
               } else {
                 x.name = x[type][0].contentUrl.split('/')[x[type][0].contentUrl.split('/').length-1];
               }
-              if(x.name.slice(0,8)==='journal.'){
-                x.name = x.name.slice(8);
+              if( (x.name.slice(0,8)==='journal.') || (x.name.slice(0,8)==='journal-') ){
+                x.name = x.name.slice(8).replace(/\./g,'-');
               }
             })
           });
 
           resourcesFromUrls['code'].forEach(function(x){
             if(x.name.indexOf('SingleRepresentation')>-1){
-              x.name = x['targetProduct'][0].contentUrl.split('/')[x[['targetProduct']][0].contentUrl.split('/').length-1];
+              x.name = x['targetProduct'][0].contentUrl.split('/')[x[['targetProduct']][0].contentUrl.split('/').length-1].replace(/\./g,'-');
             } else {
-              x.name = x[['targetProduct']][0].contentUrl.split('/')[x[['targetProduct']][0].contentUrl.split('/').length-2];
+              x.name = x[['targetProduct']][0].contentUrl.split('/')[x[['targetProduct']][0].contentUrl.split('/').length-2].replace(/\./g,'-');
             }
-            if(x.name.slice(0,8)==='journal.'){
-              x.name = x.name.slice(8);
+            if( (x.name.slice(0,8)==='journal.') || (x.name.slice(0,8)==='journal-') ){
+              x.name = x.name.slice(8).replace(/\./g,'-').replace(/\./g,'-');
             }
           });
 
           resourcesFromUrls['dataset'].forEach(function(x){
             if(x.name.indexOf('SingleRepresentation')>-1){
-              x.name = x['distribution'][0].contentUrl.split('/')[x[['distribution']][0].contentUrl.split('/').length-1];
+              x.name = x['distribution'][0].contentUrl.split('/')[x[['distribution']][0].contentUrl.split('/').length-1].replace(/\./g,'-');
             } else {
-              x.name = x[['distribution']][0].contentUrl.split('/')[x[['distribution']][0].contentUrl.split('/').length-2];
+              x.name = x[['distribution']][0].contentUrl.split('/')[x[['distribution']][0].contentUrl.split('/').length-2].replace(/\./g,'-');
             }
-            if(x.name.slice(0,8)==='journal.'){
-              x.name = x.name.slice(8);
+            if( (x.name.slice(0,8)==='journal.') || (x.name.slice(0,8)==='journal-') ){
+              x.name = x.name.slice(8).replace(/\./g,'-').replace(/\./g,'-');
             }
           });
 
           resourcesFromUrls['article'].forEach(function(x){
             if(x.name.indexOf('fetchObject')>-1){
-              x.name = x['encoding'][0].contentUrl.slice(0,x['encoding'][0].contentUrl.indexOf('&representation=PDF')).split('/')[x[['encoding']][0].contentUrl.split('/').length-1];
+              x.name = x['encoding'][0].contentUrl.slice(0,x['encoding'][0].contentUrl.indexOf('&representation=PDF')).split('/')[x[['encoding']][0].contentUrl.split('/').length-1].replace(/\./g,'-');
             } else if(x['encoding'].indexOf("representation=PDF")>-1){
-              x.name = x['encoding'][0].contentUrl.slice(0,x['encoding'][0].contentUrl.indexOf('&representation=PDF')).split('/')[x[['encoding']][0].contentUrl.split('/').length-2];
+              x.name = x['encoding'][0].contentUrl.slice(0,x['encoding'][0].contentUrl.indexOf('&representation=PDF')).split('/')[x[['encoding']][0].contentUrl.split('/').length-2].replace(/\./g,'-');
             } else {
-              x.name = x['encoding'][0].contentUrl.split('/')[x['encoding'][0].contentUrl.split('/').length-1];
+              x.name = x['encoding'][0].contentUrl.split('/')[x['encoding'][0].contentUrl.split('/').length-1].replace(/\./g,'-');
             }
-            if(x.name.slice(0,8)==='journal.'){
-              x.name = x.name.slice(8);
+            if( (x.name.slice(0,8)==='journal.') || (x.name.slice(0,8)==='journal-') ){
+              x.name = x.name.slice(8).replace(/\./g,'-').replace(/\./g,'-');
             }
           });
 
@@ -1404,7 +1401,7 @@ function parseXml(xml, pkg, pmcid, mainArticleName, ldpm, opts, callback){
           if(x.name==undefined){
             x.name = type+'-'+i;
           }
-          x.name = x.name.replace(/\./g,'-');
+          // x.name = x.name.replace(/\./g,'-');
 
           if(typeMap[type]){
             x['@type'] = typeMap[type];

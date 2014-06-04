@@ -5,6 +5,7 @@ var request = require('request')
   , path = require('path')
   , BASE = require('package-jsonld').BASE
   , xml2js = require('xml2js')
+  , clone = require('clone')
   , traverse = require('traverse')
   , tools = require('./lib/tools');
 
@@ -14,7 +15,6 @@ exports.parseXml = parseXml;
 /**
  * 'this' is an Ldpm instance
  */
-
 function pubmed(uri, opts, callback){
 
   if(arguments.length === 2){
@@ -25,10 +25,10 @@ function pubmed(uri, opts, callback){
   var that = this;
 
   // check url
-  if(uri.slice(0,57)=='http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?'){
+  if(uri.slice(0,57) === 'http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?'){
 
     var pkg = { version: '0.0.0' };
-    var pmcid = tools.extractBetween(uri,'PMC');
+    var pmcid = tools.extractBetween(uri, 'PMC');
 
     // 1. fetch xml
     that.logHttp('GET', uri);
@@ -44,27 +44,28 @@ function pubmed(uri, opts, callback){
       }
 
       // 2. parse xml
-      parseXml(pkg,body,function(err,pkg){
+      parseXml(pkg, body, function(err,pkg){
+        if(error) return callback(error);
 
         // 3. convert to html
-        tools.json2html(that,{},pkg, opts, function(err,htmlBody){
+        tools.json2html(that, {}, pkg, opts, function(err, htmlBody){
           if(err) return callback(err);
 
           if(opts.writeHTML){
             // a. integrate the html article as a resource of the pkg
-            fs.writeFile(path.join(that.root,pkg.article[0].name+'.html'),htmlBody,function(err){
+            fs.writeFile(path.join(that.root, pkg.article[0].name + '.html'), htmlBody, function(err){
               if(err) return callback(err);
-              that.paths2resources([path.join(that.root,pkg.article[0].name+'.html')],{}, function(err,resources){
+              that.paths2resources([path.join(that.root,pkg.article[0].name + '.html')], {}, function(err,resources){
                 if(err) return callback(err);
 
                 pkg.article[0].encoding = [resources.article[0].encoding[0]];
 
                 // b. extract pubmed annotations, adapt the target computing html hash, and add to the pkg
-                var tmppkg = pkg;
+                var tmppkg = clone(pkg);
                 delete tmppkg.annotation;
-                tools.addPubmedAnnotations(tmppkg,pkg,that,function(err,pkg){
+                tools.addPubmedAnnotations(tmppkg, pkg, that, function(err,pkg){
                   if(err) return callback(err);
-                  callback(null,pkg);
+                  callback(null, pkg);
                 });
               });
             });

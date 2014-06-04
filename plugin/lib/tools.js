@@ -257,7 +257,7 @@ function parseXmlNodesRec(node,xml){
         tag = 'sup-ref';
       }
       if(node.attributes[att].localName==='rid'){
-        if(node.attributes[att].value!=undefined){
+        if(node.attributes[att].value !== undefined){
           tmp.id = node.attributes[att].value;
         }
       }
@@ -458,7 +458,7 @@ function parseXmlNodesRec(node,xml){
   }
 };
 
-function parseJsonNodesRec(ldpm,jsonNode,pkg,hlevel,callback){
+function parseJsonNodesRec(ldpm, jsonNode, pkg, hlevel, callback){
   callback = once(callback);
 
   // recursive exploration of the json representation of the articleBody
@@ -665,8 +665,6 @@ function parseJsonNodesRec(ldpm,jsonNode,pkg,hlevel,callback){
         })
       }
     });
-
-
 
 
     if(!found){
@@ -1110,6 +1108,7 @@ function parseJsonNodesRec(ldpm,jsonNode,pkg,hlevel,callback){
     }
   }
 }
+
 
 function addPubmedAnnotations(pkg, pubmedPkg, ldpm, callback){
   // Pubmed metadata brings additional Mesh annotations.

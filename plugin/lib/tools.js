@@ -985,7 +985,7 @@ function parseJsonNodesRec(ldpm, jsonNode, pkg, hlevel, callback){
                 }
               })
 
-              fs.readFile(r[typeMap[type]][indjpg].contentPath,function (err, buffer) {
+              fs.readFile(path.join(ldpm.root,r[typeMap[type]][indjpg].contentPath),function (err, buffer) {
                 if (err) return callback(err);
                 var dataUrl =  "data:" + 'image/jpg' + ";base64," + buffer.toString('base64');
                 txt += '<img src="' + dataUrl +'">';
@@ -1021,7 +1021,7 @@ function parseJsonNodesRec(ldpm, jsonNode, pkg, hlevel, callback){
                 }
               })
 
-              fs.readFile(r[typeMap[type]][indjpg].contentPath,function (err, buffer) {
+              fs.readFile(path.join(ldpm.root,r[typeMap[type]][indjpg].contentPath),function (err, buffer) {
                 if (err) return callback(err);
                 var dataUrl = "data:" + 'image/jpg' + ";base64," + buffer.toString('base64');
                 txt += '<img src="' + dataUrl +'">';

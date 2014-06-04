@@ -464,7 +464,7 @@ function parseJsonNodesRec(ldpm, jsonNode, pkg, hlevel, callback){
   // recursive exploration of the json representation of the articleBody
 
   var knownTags = {
-    'disp-quote':'blockquote',
+    'disp-quote': 'blockquote',
     'sup': 'sup',
     'sub': 'sub',
     'bold': 'strong',
@@ -474,20 +474,20 @@ function parseJsonNodesRec(ldpm, jsonNode, pkg, hlevel, callback){
   };
   var txt = '';
   if( jsonNode.tag === 'body' ){
-    async.eachSeries(jsonNode.children,
-                     function(x,cb){
-                       parseJsonNodesRec(ldpm,x,pkg,hlevel,function(err,newTxt){
-                         txt += newTxt;
-                         process.nextTick(cb);
-                       });
-                     },
-                     function(err){
-                       if(err) return callback(err);
-                       return callback(null,txt);
-                     }
-                    );
+
+    async.eachSeries(jsonNode.children, function(x,cb){
+      parseJsonNodesRec(ldpm,x,pkg,hlevel,function(err, newTxt){
+        if(err) return cb(err);
+        txt += newTxt;
+        process.nextTick(cb);
+      });
+    }, function(err){
+      if(err) return callback(err);
+      return callback(null, txt);
+    });
 
   } else if( jsonNode.tag === 'sec' ){
+
     var id = uuid.v4();
     txt += '\n\n<section id="' + id + '"';
     var iri = matchDOCO(jsonNode);
@@ -495,88 +495,83 @@ function parseJsonNodesRec(ldpm, jsonNode, pkg, hlevel, callback){
       txt += ' typeof="' + iri + '" ';
     }
     txt += '>\n';
-    async.eachSeries(jsonNode.children,
-                     function(x,cb){
-                       parseJsonNodesRec(ldpm,x,pkg,hlevel,function(err,newTxt){
-                         txt += newTxt;
-                         process.nextTick(cb);
-                       });
-                     },
-                     function(err){
-                       if(err) return callback(err);
-                       txt += '</section>\n';
-                       return callback(null,txt);
-                     }
-                    );
+    async.eachSeries(jsonNode.children, function(x, cb){
+      parseJsonNodesRec(ldpm,x,pkg,hlevel,function(err, newTxt){
+        if(err) return cb(err);
+        txt += newTxt;
+        process.nextTick(cb);
+      });
+    }, function(err){
+      if(err) return callback(err);
+      txt += '</section>\n';
+      return callback(null,txt);
+    });
 
   } else if( jsonNode.tag === 'p' ){
 
     txt += '\n<p>\n';
-    async.eachSeries(jsonNode.children,
-                     function(x,cb){
-                       parseJsonNodesRec(ldpm,x,pkg,hlevel,function(err,newTxt){
-                         if(err) return cb(err);
-                         if( (x.tag === 'table') || (x.tag === 'figure') ){
-                           txt += '\n</p>';
-                           txt += newTxt;
-                           txt += '\n<p>\n';
-                         } else {
-                           txt += newTxt;
-                         }
-                         process.nextTick(cb);
-                       });
-                     },
-                     function(err){
-                       if(err) return callback(err);
-                       txt += '\n';
-                       txt += '</p>\n';
-                       txt = txt.replace(/<p>\n\n<\/p>/g,'');
-                       return callback(null,txt);
-                     }
-                    );
+
+    async.eachSeries(jsonNode.children, function(x, cb){
+      parseJsonNodesRec(ldpm,x,pkg,hlevel,function(err, newTxt){
+        if(err) return cb(err);
+        if( (x.tag === 'table') || (x.tag === 'figure') ){
+          txt += '\n</p>';
+          txt += newTxt;
+          txt += '\n<p>\n';
+        } else {
+          txt += newTxt;
+        }
+        process.nextTick(cb);
+      });
+    }, function(err){
+      if(err) return callback(err);
+      txt += '\n';
+      txt += '</p>\n';
+      txt = txt.replace(/<p>\n\n<\/p>/g,'');
+      return callback(null,txt);
+    });
 
   } else if( jsonNode.tag === 'title' ){
+
     txt += ' <h' + hlevel + '>\n';
-    async.eachSeries(jsonNode.children,
-                     function(x,cb){
-                       parseJsonNodesRec(ldpm,x,pkg,hlevel,function(err,newTxt){
-                         txt += newTxt;
-                         process.nextTick(cb);
-                       });
-                     },
-                     function(err){
-                       if(err) return callback(err);
-                       txt += '\n </h' + hlevel + '>\n';
-                       return callback(null,txt);
-                     }
-                    );
+    async.eachSeries(jsonNode.children, function(x, cb){
+      parseJsonNodesRec(ldpm, x, pkg, hlevel,function(err, newTxt){
+        if(err) return cb(err);
+        txt += newTxt;
+        process.nextTick(cb);
+      });
+    }, function(err){
+      if(err) return callback(err);
+      txt += '\n </h' + hlevel + '>\n';
+      return callback(null,txt);
+    });
 
   } else if(Object.keys(knownTags).indexOf(jsonNode.tag)>-1){
+
     if(typeof knownTags[jsonNode.tag] === 'string'){
       txt += '\n<'+knownTags[jsonNode.tag]+'>\n';
     } else {
       txt += '\n<'+knownTags[jsonNode.tag][0]+'>\n';
     }
-    async.eachSeries(jsonNode.children,
-                     function(x,cb){
-                       parseJsonNodesRec(ldpm,x,pkg,hlevel,function(err,newTxt){
-                         txt += newTxt;
-                         cb(null);
-                       });
-                     },
-                     function(err){
-                       if(err) return callback(err);
-                       txt += '\n';
-                       if(typeof knownTags[jsonNode.tag] === 'string'){
-                         txt += '</'+knownTags[jsonNode.tag]+'>\n';
-                       } else {
-                         txt += '</'+knownTags[jsonNode.tag][1]+'>\n';
-                       }
-                       return callback(null,txt);
-                     }
-                    );
+    async.eachSeries(jsonNode.children, function(x, cb){
+      parseJsonNodesRec(ldpm,x,pkg,hlevel,function(err, newTxt){
+        if(err) return cb(err);
+        txt += newTxt;
+        cb(null);
+      });
+    }, function(err){
+      if(err) return callback(err);
+      txt += '\n';
+      if(typeof knownTags[jsonNode.tag] === 'string'){
+        txt += '</'+knownTags[jsonNode.tag]+'>\n';
+      } else {
+        txt += '</'+knownTags[jsonNode.tag][1]+'>\n';
+      }
+      return callback(null, txt);
+    });
 
   } else if( jsonNode.tag === 'text' ){
+
     if(jsonNode.content.trim() != ''){
       if( (jsonNode.content.slice(0,1)==='.') || (jsonNode.content.slice(0,1)===')') ){ // TODO: regexp
         txt += jsonNode.content;
@@ -584,44 +579,42 @@ function parseJsonNodesRec(ldpm, jsonNode, pkg, hlevel, callback){
         txt += ' '+jsonNode.content;
       }
     }
-    return callback(null,txt);
+    return callback(null, txt);
 
   } else if( jsonNode.tag === 'ext-link' ){
+
     txt += ' <a href="'+jsonNode.children[0].content+'">';
     txt += jsonNode.children[0].content;
     txt += '</a>';
-    return callback(null,txt);
+    return callback(null, txt);
 
   } else if( jsonNode.tag === 'list' ){
 
     txt += ' <li>';
-    async.eachSeries(jsonNode.children,
-                     function(ch,cb){
-                       if(ch.tag==='list-item'){
-                         txt += ' <item>\n';
-                         async.eachSeries(ch.children,
-                                          function(ch2,cb2){
-                                            parseJsonNodesRec(ldpm,ch2,pkg,hlevel,function(err,newTxt){
-                                              txt += newTxt;
-                                              cb2(null);
-                                            });
-                                          },
-                                          function(err){
-                                            txt += ' </item>\n';
-                                            process.nextTick(cb);
-                                          }
-                                         )
-                       }
-                     },
-                     function(err){
-                       if(err) return callback(err);
-                       txt += jsonNode.children[0].content;
-                       txt += '</li>\n';
-                       return callback(null,txt);
-                     }
-                    );
+    async.eachSeries(jsonNode.children, function(ch, cb){
+      if(ch.tag==='list-item'){
+        txt += ' <item>\n';
+        async.eachSeries(ch.children, function(ch2,cb2){
+          parseJsonNodesRec(ldpm, ch2, pkg, hlevel,function(err,newTxt){
+            if(err) return cb2(err);
+            txt += newTxt;
+            cb2(null);
+          });
+        },function(err){
+          if(err) return cb(err);
+          txt += ' </item>\n';
+          process.nextTick(cb);
+        });
+      }
+    }, function(err){
+      if(err) return callback(err);
+      txt += jsonNode.children[0].content;
+      txt += '</li>\n';
+      return callback(null,txt);
+    });
 
   } else if( jsonNode.tag === 'bib-ref' ){
+
     found = false;
     pkg.article.forEach(function(art){
       if(art.citation){
@@ -631,157 +624,144 @@ function parseJsonNodesRec(ldpm, jsonNode, pkg, hlevel, callback){
             if(cit.url){
               txt += ' <a href="'+cit.url+'" property="http://schema.org/citation" >';
 
-              async.eachSeries(jsonNode.children,
-                               function(x,cb){
-                                 parseJsonNodesRec(ldpm,x,pkg,hlevel,function(err,newTxt){
-                                   txt += newTxt;
-                                   cb(null);
-                                 });
-                               },
-                               function(err){
-                                 if(err) return callback(err);
-                                 txt += '</a>';
-                                 return callback(null,txt);
-                               }
-                              );
+              async.eachSeries(jsonNode.children, function(x,cb){
+                parseJsonNodesRec(ldpm,x,pkg,hlevel,function(err, newTxt){
+                  if(err) return cb(err);
+                  txt += newTxt;
+                  cb(null);
+                });
+              }, function(err){
+                if(err) return callback(err);
+                txt += '</a>';
+                return callback(null,txt);
+              });
+
             } else {
               var ind = parseInt(jsonNode.children[0]['content'].slice(1,jsonNode.children[0]['content'].length-1),10);
               txt += ' <a href="#ref_' + ind + '" property="http://schema.org/citation">';
-              async.eachSeries(jsonNode.children,
-                               function(x,cb){
-                                 parseJsonNodesRec(ldpm,x,pkg,hlevel,function(err,newTxt){
-                                   txt += newTxt;
-                                   cb(null);
-                                 });
-                               },
-                               function(err){
-                                 if(err) return callback(err);
-                                 txt += '</a>';
-                                 return callback(null,txt);
-                               }
-                              );
+
+              async.eachSeries(jsonNode.children, function(x, cb){
+                parseJsonNodesRec(ldpm,x,pkg,hlevel,function(err, newTxt){
+                  if(err) return cb(err);
+                  txt += newTxt;
+                  cb(null);
+                });
+              }, function(err){
+                if(err) return callback(err);
+                txt += '</a>';
+                return callback(null,txt);
+              });
             }
           }
-        })
+        });
       }
     });
 
 
     if(!found){
-      async.eachSeries(jsonNode.children,
-                       function(x,cb){
-                         parseJsonNodesRec(ldpm,x,pkg,hlevel,function(err,newTxt){
-                           txt += newTxt;
-                           cb(null);
-                         });
-                       },
-                       function(err){
-                         if(err) return callback(err);
-                         return callback(null,txt);
-                       }
-                      );
+      async.eachSeries(jsonNode.children, function(x, cb){
+        parseJsonNodesRec(ldpm,x,pkg,hlevel,function(err, newTxt){
+          if(err) return cb(err);
+          txt += newTxt;
+          cb(null);
+        });
+      }, function(err){
+        if(err) return callback(err);
+        return callback(null, txt);
+      });
     }
 
   } else if( jsonNode.tag === 'sec-ref' ){
-    async.eachSeries(jsonNode.children,
-                     function(x,cb){
-                       parseJsonNodesRec(ldpm,x,pkg,hlevel,function(err,newTxt){
-                         txt += newTxt;
-                         process.nextTick(cb);
-                       });
-                     },
-                     function(err){
-                       if(err) return callback(err);
-                       return callback(null,txt);
-                     }
-                    );
+
+    async.eachSeries(jsonNode.children, function(x, cb){
+      parseJsonNodesRec(ldpm,x,pkg,hlevel,function(err, newTxt){
+        if(err) return cb(err);
+        txt += newTxt;
+        process.nextTick(cb);
+      });
+    }, function(err){
+      if(err) return callback(err);
+      return callback(null,txt);
+    });
 
   } else if( (jsonNode.tag === 'sup-ref') || (jsonNode.tag === 'fig-ref') || (jsonNode.tag === 'table-ref') ){
     found = false;
     jsonNode.id
     var typeMap = { 'figure': 'figure', 'audio': 'audio', 'video': 'video', 'code': 'targetProduct', 'dataset': 'distribution', 'article': 'encoding'};
-    Object.keys(typeMap).forEach(
-      function(type){
-        if(pkg[type]){
-          pkg[type].forEach(function(r,cb){
-            if(jsonNode.id != undefined){
-              if( (r.name == jsonNode.id.replace(/\./g,'-')) || (r.alternateName == jsonNode.id.replace(/\./g,'-')) ){
+    Object.keys(typeMap).forEach(function(type){
+      if(pkg[type]){
+        pkg[type].forEach(function(r,cb){
+          if(jsonNode.id != undefined){
+            if( (r.name == jsonNode.id.replace(/\./g,'-')) || (r.alternateName == jsonNode.id.replace(/\./g,'-')) ){
 
-                found = true;
-                if(r[typeMap[type]][0].contentUrl){
+              found = true;
+              if(r[typeMap[type]][0].contentUrl){
 
-                  txt += '<a href="'+r[typeMap[type]][0].contentUrl+'">';
-                  async.eachSeries(jsonNode.children,
-                                   function(x,cb){
-                                     parseJsonNodesRec(ldpm,x,pkg,hlevel,function(err,newTxt){
-                                       txt += newTxt;
-                                       process.nextTick(cb);
-                                     });
-                                   },
-                                   function(err){
-                                     if(err) return callback(err);
-                                     txt += '</a>';
-                                     return callback(null,txt);
-                                   }
-                                  );
-
-                } else {
-
-                  var sha1 = crypto.createHash('sha1');
-                  var size = 0
-
-                  if(r[typeMap[type]][0].contentPath){ // can be bundlePath
-                    var p = path.resolve(ldpm.root, r[typeMap[type]][0].contentPath);
-                  }
-
-                  if(type==='dataset'){
-                    var s = fs.createReadStream(p).pipe(zlib.createGzip());
-                  } else if(r[typeMap[type]][0].bundlePath){
-                    var s = fs.createReadStream(r[typeMap[type]][0].bundlePath+'.zip');
-                  } else {
-                    var s = fs.createReadStream(p);
-                  }
-
-                  s.on('error',  function(err){ return callback(err)});
-                  s.on('data', function(d) { size += d.length; sha1.update(d); });
-                  s.on('end', function() {
-                    var sha = sha1.digest('hex');
-                    txt += '<a href="' + BASE + 'r/'+sha+'">';
-                    async.eachSeries(jsonNode.children,
-                                     function(x,cb){
-                                       parseJsonNodesRec(ldpm,x,pkg,hlevel,function(err,newTxt){
-                                         txt += newTxt;
-                                         cb(null);
-                                       });
-                                     },
-                                     function(err){
-                                       if(err) return callback(err);
-                                       txt += '</a>';
-                                       return callback(null,txt);
-                                     }
-                                    );
+                txt += '<a href="'+r[typeMap[type]][0].contentUrl+'">';
+                async.eachSeries(jsonNode.children, function(x, cb){
+                  parseJsonNodesRec(ldpm,x,pkg,hlevel,function(err, newTxt){
+                    if(err) return cb(err);
+                    txt += newTxt;
+                    process.nextTick(cb);
                   });
+                }, function(err){
+                  if(err) return callback(err);
+                  txt += '</a>';
+                  return callback(null,txt);
+                });
+
+              } else {
+
+                var sha1 = crypto.createHash('sha1');
+                var size = 0
+
+                if(r[typeMap[type]][0].contentPath){ // can be bundlePath
+                  var p = path.resolve(ldpm.root, r[typeMap[type]][0].contentPath);
                 }
+
+                if(type==='dataset'){
+                  var s = fs.createReadStream(p).pipe(zlib.createGzip());
+                } else if(r[typeMap[type]][0].bundlePath){
+                  var s = fs.createReadStream(r[typeMap[type]][0].bundlePath+'.zip');
+                } else {
+                  var s = fs.createReadStream(p);
+                }
+
+                s.on('error',  function(err){ return callback(err)});
+                s.on('data', function(d) { size += d.length; sha1.update(d); });
+                s.on('end', function() {
+                  var sha = sha1.digest('hex');
+                  txt += '<a href="' + BASE + 'r/'+sha+'">';
+                  async.eachSeries(jsonNode.children, function(x, cb){
+                    parseJsonNodesRec(ldpm,x,pkg,hlevel,function(err, newTxt){
+                      if(err) return cb(err);
+                      txt += newTxt;
+                      cb(null);
+                    });
+                  }, function(err){
+                    if(err) return callback(err);
+                    txt += '</a>';
+                    return callback(null,txt);
+                  });
+                });
               }
             }
-          })
-          if(!found){
-            async.eachSeries(jsonNode.children,
-                             function(x,cb){
-                               parseJsonNodesRec(ldpm,x,pkg,hlevel,function(err,newTxt){
-                                 txt += newTxt;
-                                 cb(null);
-                               });
-                             },
-                             function(err){
-                               if(err) return callback(err);
-                               return callback(null,txt);
-                             }
-                            );
           }
+        });
+        if(!found){
+          async.eachSeries(jsonNode.children, function(x, cb){
+            parseJsonNodesRec(ldpm,x,pkg,hlevel,function(err, newTxt){
+              if(err) return cb(err);
+              txt += newTxt;
+              cb(null);
+            });
+          }, function(err){
+            if(err) return callback(err);
+            return callback(null,txt);
+          });
         }
       }
-    );
+    });
 
   } else if( jsonNode.tag === 'figure' ){
     var id = uuid.v4();
@@ -798,20 +778,17 @@ function parseJsonNodesRec(ldpm, jsonNode, pkg, hlevel, callback){
               txt += '<img src="' + enc.contentUrl +'">';
               if(jsonNode.caption){
                 txt += '<figcaption typeof="http://purl.org/spar/deo/Caption">\n';
-                async.eachSeries(jsonNode.caption,
-                                 function(x,cb){
-                                   parseJsonNodesRec(ldpm,x,pkg,hlevel,function(err,newTxt){
-                                     txt += newTxt;
-                                     process.nextTick(cb);
-                                   });
-                                 },
-                                 function(err){
-                                   if(err) return callback(err);
-                                   txt += '</figcaption>\n';
-                                   txt += '</figure>\n';
-                                   return callback(null,txt);
-                                 }
-                                );
+                async.eachSeries(jsonNode.caption, function(x,cb){
+                  parseJsonNodesRec(ldpm,x,pkg,hlevel,function(err,newTxt){
+                    txt += newTxt;
+                    process.nextTick(cb);
+                  });
+                }, function(err){
+                  if(err) return callback(err);
+                  txt += '</figcaption>\n';
+                  txt += '</figure>\n';
+                  return callback(null,txt);
+                });
               } else {
                 txt += '</figure>\n';
                 return callback(null,txt);
@@ -828,20 +805,17 @@ function parseJsonNodesRec(ldpm, jsonNode, pkg, hlevel, callback){
                 txt += '<img src="' + BASE + 'r/'+sha+'">';
                 if(jsonNode.caption){
                   txt += '<figcaption typeof="http://purl.org/spar/deo/Caption">\n';
-                  async.eachSeries(jsonNode.caption,
-                                   function(x,cb){
-                                     parseJsonNodesRec(ldpm,x,pkg,hlevel,function(err,newTxt){
-                                       txt += newTxt;
-                                       process.nextTick(cb);
-                                     });
-                                   },
-                                   function(err){
-                                     if(err) return callback(err);
-                                     txt += '</figcaption>\n';
-                                     txt += '</figure>\n';
-                                     return callback(null,txt);
-                                   }
-                                  );
+                  async.eachSeries(jsonNode.caption, function(x,cb){
+                    parseJsonNodesRec(ldpm,x,pkg,hlevel,function(err,newTxt){
+                      txt += newTxt;
+                      process.nextTick(cb);
+                    });
+                  }, function(err){
+                    if(err) return callback(err);
+                    txt += '</figcaption>\n';
+                    txt += '</figure>\n';
+                    return callback(null,txt);
+                  });
                 } else {
                   txt += '</figure>\n';
                   return callback(null,txt);
@@ -851,7 +825,7 @@ function parseJsonNodesRec(ldpm, jsonNode, pkg, hlevel, callback){
           }
         })
       }
-    })
+    });
 
   } else if( jsonNode.tag === 'table' ){
 
@@ -859,22 +833,20 @@ function parseJsonNodesRec(ldpm, jsonNode, pkg, hlevel, callback){
     var tabletxt = jsonNode.table;
     if(jsonNode.caption){
       var caption = '\n<caption typeof="http://purl.org/spar/deo/Caption">\n';
-      async.eachSeries(jsonNode.caption,
-                       function(x,cb){
-                         parseJsonNodesRec(ldpm,x,pkg,hlevel,function(err,newTxt){
-                           caption += newTxt;
-                           //cb(null);
-                           process.nextTick(cb);
-                         });
-                       },
-                       function(err){
-                         if(err) return callback(err);
-                         caption += '</caption>\n';
-                         tabletxt = tabletxt.slice(0,tabletxt.indexOf('>')+1) + caption + tabletxt.slice(tabletxt.indexOf('>')+1,tabletxt.length);
-                         txt += '\n' + tabletxt + '\n';
-                         return callback(null,txt);
-                       }
-                      );
+      async.eachSeries(jsonNode.caption, function(x, cb){
+        parseJsonNodesRec(ldpm,x,pkg,hlevel,function(err, newTxt){
+          if(err) return cb(err);
+          caption += newTxt;
+          //cb(null);
+          process.nextTick(cb);
+        });
+      }, function(err){
+        if(err) return callback(err);
+        caption += '</caption>\n';
+        tabletxt = tabletxt.slice(0,tabletxt.indexOf('>')+1) + caption + tabletxt.slice(tabletxt.indexOf('>')+1,tabletxt.length);
+        txt += '\n' + tabletxt + '\n';
+        return callback(null,txt);
+      });
     } else {
       txt += jsonNode.table;
       return callback(null,txt);
@@ -885,112 +857,108 @@ function parseJsonNodesRec(ldpm, jsonNode, pkg, hlevel, callback){
     txt += '<div>';
     found = false;
     var typeMap = { 'figure': 'figure', 'audio': 'audio', 'video': 'video', 'code': 'targetProduct', 'dataset': 'distribution', 'article': 'encoding'};
-    Object.keys(typeMap).forEach(
-      function(type){
-        if(pkg[type]){
-          pkg[type].forEach(
-            function(r,i){
-              if( r.name === path.basename(jsonNode.id,path.extname(jsonNode.id)).replace(/\./g,'-')){
-                found = true;
-                if(r[typeMap[type]][0].contentUrl){
-                  txt += '<a href="'+r[typeMap[type]][0].contentUrl+'">';
+    Object.keys(typeMap).forEach(function(type){
+      if(pkg[type]){
+        pkg[type].forEach(
+          function(r,i){
+            if( r.name === path.basename(jsonNode.id,path.extname(jsonNode.id)).replace(/\./g,'-')){
+
+              found = true;
+              if(r[typeMap[type]][0].contentUrl){
+                txt += '<a href="'+r[typeMap[type]][0].contentUrl+'">';
+                txt += jsonNode.id;
+                txt += '</a>';
+                if(jsonNode.caption){
+                  async.eachSeries(jsonNode.caption, function(x,cb){
+                    parseJsonNodesRec(ldpm,x,pkg,hlevel,function(err,newTxt){
+                      txt += newTxt;
+                      process.nextTick(cb);
+                    });
+                  }, function(err){
+                    if(err) return callback(err);
+                    txt += '</div>';
+                    return callback(null,txt);
+                  });
+                } else {
+                  txt += '</div>';
+                  return callback(null,txt);
+                }
+
+              } else if(r[typeMap[type]][0].bundlePath){
+
+                var sha1 = crypto.createHash('sha1');
+                var size = 0
+                var p = path.resolve(ldpm.root, jsonNode.id);
+                var s = fs.createReadStream(p);
+                s.on('error', callback);
+                s.on('data', function(d) { size += d.length; sha1.update(d); });
+                s.on('end', function() {
+                  var sha = sha1.digest('hex');
+                  txt += '<a href="' + BASE + 'r/'+sha+'">';
                   txt += jsonNode.id;
                   txt += '</a>';
                   if(jsonNode.caption){
-                    async.eachSeries(jsonNode.caption,
-                                     function(x,cb){
-                                       parseJsonNodesRec(ldpm,x,pkg,hlevel,function(err,newTxt){
-                                         txt += newTxt;
-                                         process.nextTick(cb);
-                                       });
-                                     },
-                                     function(err){
-                                       if(err) return callback(err);
-                                       txt += '</div>';
-                                       return callback(null,txt);
-                                     }
-                                    );
+                    async.eachSeries(jsonNode.caption, function(x,cb){
+                      parseJsonNodesRec(ldpm,x,pkg,hlevel,function(err,newTxt){
+                        if(err) return cb(err);
+                        txt += newTxt;
+                        process.nextTick(cb);
+                      });
+                    }, function(err){
+                      if(err) return callback(err);
+                      txt += '</div>';
+                      return callback(null,txt);
+                    });
                   } else {
                     txt += '</div>';
                     return callback(null,txt);
                   }
-                } else if(r[typeMap[type]][0].bundlePath){
-                  var sha1 = crypto.createHash('sha1');
-                  var size = 0
-                  var p = path.resolve(ldpm.root, jsonNode.id);
-                  var s = fs.createReadStream(p);
-                  s.on('error', callback);
-                  s.on('data', function(d) { size += d.length; sha1.update(d); });
-                  s.on('end', function() {
-                    var sha = sha1.digest('hex');
-                    txt += '<a href="' + BASE + 'r/'+sha+'">';
-                    txt += jsonNode.id;
-                    txt += '</a>';
-                    if(jsonNode.caption){
-                      async.eachSeries(jsonNode.caption,
-                                       function(x,cb){
-                                         parseJsonNodesRec(ldpm,x,pkg,hlevel,function(err,newTxt){
-                                           txt += newTxt;
-                                           process.nextTick(cb);
-                                         });
-                                       },
-                                       function(err){
-                                         if(err) return callback(err);
-                                         txt += '</div>';
-                                         return callback(null,txt);
-                                       }
-                                      );
+                });
+
+              } else {
+
+                r[typeMap[type]].forEach(function(enc){
+                  if(path.basename(enc.contentPath)===jsonNode.id){
+                    var sha1 = crypto.createHash('sha1');
+                    var size = 0
+                    var p = path.resolve(ldpm.root, enc.contentPath);
+                    if(type==='dataset'){
+                      var s = fs.createReadStream(p).pipe(zlib.createGzip());
                     } else {
-                      txt += '</div>';
-                      return callback(null,txt);
+                      var s = fs.createReadStream(p);
                     }
-                  });
-                } else {
-                  r[typeMap[type]].forEach(function(enc){
-                    if(path.basename(enc.contentPath)===jsonNode.id){
-                      var sha1 = crypto.createHash('sha1');
-                      var size = 0
-                      var p = path.resolve(ldpm.root, enc.contentPath);
-                      if(type==='dataset'){
-                        var s = fs.createReadStream(p).pipe(zlib.createGzip());
-                      } else {
-                        var s = fs.createReadStream(p);
-                      }
-                      s.on('error', callback);
-                      s.on('data', function(d) { size += d.length; sha1.update(d); });
-                      s.on('end', function() {
-                        var sha = sha1.digest('hex');
-                        txt += '<a href="' + BASE + 'r/'+sha+'">';
-                        txt += jsonNode.id;
-                        txt += '</a>';
-                        if(jsonNode.caption){
-                          async.eachSeries(jsonNode.caption,
-                                           function(x,cb){
-                                             parseJsonNodesRec(ldpm,x,pkg,hlevel,function(err,newTxt){
-                                               txt += newTxt;
-                                               process.nextTick(cb);
-                                             });
-                                           },
-                                           function(err){
-                                             if(err) return callback(err);
-                                             txt += '</div>';
-                                             return callback(null,txt);
-                                           }
-                                          );
-                        } else {
+                    s.on('error', callback);
+                    s.on('data', function(d) { size += d.length; sha1.update(d); });
+                    s.on('end', function() {
+                      var sha = sha1.digest('hex');
+                      txt += '<a href="' + BASE + 'r/'+sha+'">';
+                      txt += jsonNode.id;
+                      txt += '</a>';
+                      if(jsonNode.caption){
+                        async.eachSeries(jsonNode.caption, function(x,cb){
+                          parseJsonNodesRec(ldpm,x,pkg,hlevel,function(err,newTxt){
+                            if(err) return cb(err);
+                            txt += newTxt;
+                            process.nextTick(cb);
+                          });
+                        }, function(err){
+                          if(err) return callback(err);
                           txt += '</div>';
                           return callback(null,txt);
-                        }
-                      });
-                    }
-                  });
-                }
+                        });
+                      } else {
+                        txt += '</div>';
+                        return callback(null,txt);
+                      }
+                    });
+                  }
+                });
               }
             }
-          )
-        }
+          }
+        )
       }
-    );
+    });
 
 
     if(!found){
@@ -1002,34 +970,32 @@ function parseJsonNodesRec(ldpm, jsonNode, pkg, hlevel, callback){
 
     found = false;
     var typeMap = { 'figure': 'figure' };
-    Object.keys(typeMap).forEach(
-      function(type){
-        if(pkg[type]){
-          pkg[type].forEach(function(r){
-            if(jsonNode.id != undefined){
-              if( (!found) && (r.name === path.basename(jsonNode.id,path.extname(jsonNode.id)).replace(/\./g,'-'))){
-                found = true;
+    Object.keys(typeMap).forEach(function(type){
+      if(pkg[type]){
+        pkg[type].forEach(function(r){
+          if(jsonNode.id != undefined){
+            if( (!found) && (r.name === path.basename(jsonNode.id,path.extname(jsonNode.id)).replace(/\./g,'-'))){
+              found = true;
 
-                var indjpg;
-                r[typeMap[type]].forEach(function(enc,i){
-                  if(enc.encodingFormat === 'image/jpeg'){
-                    indjpg = i;
-                  }
-                })
+              var indjpg;
+              r[typeMap[type]].forEach(function(enc,i){
+                if(enc.encodingFormat === 'image/jpeg'){
+                  indjpg = i;
+                }
+              })
 
-                fs.readFile(r[typeMap[type]][indjpg].contentPath,function (err, buffer) {
-                  if (err) return callback(err);
-                  var dataUrl =  "data:" + 'image/jpg' + ";base64," + buffer.toString('base64');
-                  txt += '<img src="' + dataUrl +'">';
-                  return callback(null,txt);
-                });
+              fs.readFile(r[typeMap[type]][indjpg].contentPath,function (err, buffer) {
+                if (err) return callback(err);
+                var dataUrl =  "data:" + 'image/jpg' + ";base64," + buffer.toString('base64');
+                txt += '<img src="' + dataUrl +'">';
+                return callback(null,txt);
+              });
 
-              }
             }
-          })
-        }
+          }
+        })
       }
-    );
+    });
 
   } else if ( jsonNode.tag === 'disp-formula'){
 
@@ -1040,39 +1006,38 @@ function parseJsonNodesRec(ldpm, jsonNode, pkg, hlevel, callback){
     txt += '>\n';
     found = false;
     var typeMap = { 'figure': 'figure' };
-    Object.keys(typeMap).forEach(
-      function(type){
-        if(pkg[type]){
-          pkg[type].forEach(function(r,cb){
-            if(jsonNode.id != undefined){
-              if( (!found) && ( (r.name === jsonNode.id.replace(/\./g,'-')) || (r.name === path.basename(jsonNode.id,path.extname(jsonNode.id)).replace(/\./g,'-')))){
-                found = true;
+    Object.keys(typeMap).forEach(function(type){
+      if(pkg[type]){
+        pkg[type].forEach(function(r,cb){
+          if(jsonNode.id != undefined){
+            if( (!found) && ( (r.name === jsonNode.id.replace(/\./g,'-')) || (r.name === path.basename(jsonNode.id,path.extname(jsonNode.id)).replace(/\./g,'-')))){
+              found = true;
 
-                var indjpg;
-                r[typeMap[type]].forEach(function(enc,i){
-                  if(enc.encodingFormat === 'image/jpeg'){
-                    indjpg = i;
-                  }
-                })
+              var indjpg;
+              r[typeMap[type]].forEach(function(enc,i){
+                if(enc.encodingFormat === 'image/jpeg'){
+                  indjpg = i;
+                }
+              })
 
-                fs.readFile(r[typeMap[type]][indjpg].contentPath,function (err, buffer) {
-                  if (err) return callback(err);
-                  var dataUrl = "data:" + 'image/jpg' + ";base64," + buffer.toString('base64');
-                  txt += '<img src="' + dataUrl +'">';
-                  if(jsonNode.label){
-                    txt += '\n<span class="eq-label">\n';
-                    txt += jsonNode.label;
-                    txt += '\n</span>\n';
-                  }
-                  return callback(null,txt);
-                });
+              fs.readFile(r[typeMap[type]][indjpg].contentPath,function (err, buffer) {
+                if (err) return callback(err);
+                var dataUrl = "data:" + 'image/jpg' + ";base64," + buffer.toString('base64');
+                txt += '<img src="' + dataUrl +'">';
+                if(jsonNode.label){
+                  txt += '\n<span class="eq-label">\n';
+                  txt += jsonNode.label;
+                  txt += '\n</span>\n';
+                }
+                return callback(null,txt);
+              });
 
-              }
             }
-          })
-        }
+          }
+        })
       }
-    );
+    });
+
     if(!found){
       console.log('disp-formula not found')
       return callback(null,txt);
@@ -1087,25 +1052,24 @@ function parseJsonNodesRec(ldpm, jsonNode, pkg, hlevel, callback){
     }
     txt += '>';
     if(jsonNode.children != undefined){
-      async.eachSeries(jsonNode.children,
-                       function(x,cb){
-                         parseJsonNodesRec(ldpm,x,pkg,hlevel,function(err,newTxt){
-                           txt += newTxt;
-                           cb(null);
-                         });
-                       },
-                       function(err){
-                         if(err) return callback(err);
-                         txt += '</' + jsonNode.tag + '>';
-                         txt += '</div>';
-                         return callback(null,txt);
-                       }
-                      );
+      async.eachSeries(jsonNode.children, function(x, cb){
+        parseJsonNodesRec(ldpm,x,pkg,hlevel,function(err, newTxt){
+          if(err) return cb(err);
+          txt += newTxt;
+          cb(null);
+        });
+      }, function(err){
+        if(err) return callback(err);
+        txt += '</' + jsonNode.tag + '>';
+        txt += '</div>';
+        return callback(null,txt);
+      });
     } else {
       txt += '</' + jsonNode.tag + '>';
       txt += '</div>';
       return callback(null,txt);
     }
+
   }
 }
 

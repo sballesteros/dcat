@@ -58,7 +58,7 @@ function oapmc(uri, opts, callback){
 
       // First way to get the name of the main article: from the pdf name in oaContentBody
       // that contains pdf and tar.gz
-      mainArticleName = extractPdfName(oaContentBody).replace(/\./g, '-');
+      mainArticleName = extractPdfName(oaContentBody);
 
       var conversionUrl = 'http://www.pubmedcentral.nih.gov/utils/idconv/v1.0/?ids=' + 'PMC' + pmcid + '&format=json';
       that.logHttp('GET', conversionUrl);
@@ -90,7 +90,7 @@ function oapmc(uri, opts, callback){
           // Second way to get the name of the main article: from the name of the nxml file
           // in the tar.gz. OAPMC entries always have at least a pdf or an nxml.
           if(mainArticleName===undefined){
-            mainArticleName = extractNXMLName(files).replace(/\./g, '-');
+            mainArticleName = extractNXMLName(files);
           }
 
           // b. xml
@@ -129,6 +129,9 @@ function oapmc(uri, opts, callback){
 
                         that.paths2resources([path.join(that.root,pkg.article[artInd].name + '.html')], function(err,resources){
                           if(err) return callback(err);
+                          if(pkg.article[artInd].encoding==undefined){
+                            pkg.article[artInd].encoding = [];
+                          }
                           pkg.article[artInd].encoding.push(resources.article[0].encoding[0]);
 
                           // d. extract pubmed annotations, adapt the target, and add to the pkg
@@ -162,7 +165,7 @@ function extractPdfName(body){
     var tmp = tools.extractBetween(body, 'format="pdf"');
     var href = tools.extractBetween(tmp, 'href="','"');
     var tmp = path.basename(href.slice(6),path.extname(href.slice(6)));
-    return tmp.slice(0,tmp.lastIndexOf('.'));
+    return tmp.slice(0,tmp.lastIndexOf('.')).replace(/\./g, '-');
   } else {
     return null;
   }
@@ -172,7 +175,7 @@ function extractNXMLName(files){
   var name;
   files.forEach(function(f){
     if(path.extname(path.basename(f))==='.nxml'){
-      name = path.basename(path.basename(f),path.extname(path.basename(f)));
+      name = path.basename(path.basename(f),path.extname(path.basename(f))).replace(/\./g, '-');
     }
   })
   return name;

@@ -463,7 +463,7 @@ function parseResources(pkg, files, doi, ldpm, callback){
               var ind2=ind+1;
               while(ind2 < resources[type].length){
                 r2 = resources[type][ind2];
-                if(resources[type][ind].name === r2.name){
+                if(resources[type][ind].name === r2.name && r2[type]){
                   resources[type][ind][typeMap[type]].push(r2[type][0]);
                   resources[type].splice(ind2, 1);
                 } else {

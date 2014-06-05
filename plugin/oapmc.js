@@ -96,7 +96,6 @@ function oapmc(uri, opts, callback){
           // b. xml
           fetchXml('http://www.pubmedcentral.nih.gov/oai/oai.cgi?verb=GetRecord&identifier=oai:pubmedcentral.nih.gov:' + pmcid + '&metadataPrefix=pmc', that, function(err, xml){
             if(err) return callback(err);
-
             // c. pubmed metadata
             fetchPubmedMetadata('http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id='+pmid+'&rettype=abstract&retmode=xml', that, opts, function(err,pubmedPkg){
               if(err) return callback(err);
@@ -212,8 +211,11 @@ function fetchTar(uri, ldpm, callback){
               var extname = path.extname(path.basename(file));
               var basename = path.basename(file,extname);
               basename = basename.replace(/ /g, '-').replace(/\./g, '-');
-              fs.rename(file, path.join(ldpm.root, basename + extname), cb);
-              newFiles.push(path.join(ldpm.root, basename + extname ));
+              fs.rename(file, path.join(ldpm.root, basename + extname), function(err){
+                if(err) return cb(err);
+                newFiles.push(path.join(ldpm.root, basename + extname ));
+                cb(null);
+              });
 
             }, function(err){
               if(err) return callback(err);
@@ -223,9 +225,7 @@ function fetchTar(uri, ldpm, callback){
 
           });
         });
-        stream.on('error',function(err){
-          return callback(err);
-        });
+        stream.on('error',callback);
       })
     });
   });

@@ -597,12 +597,12 @@ function parseJsonNodesRec(ldpm, jsonNode, pkg, hlevel, callback){
 
   } else if( jsonNode.tag === 'list' ){
 
-    txt += ' <li>';
+    txt += ' <ul>';
     async.eachSeries(jsonNode.children, function(ch, cb){
 
       if(ch.tag === 'list-item'){
 
-        txt += ' <item>\n';
+        txt += ' <li>\n';
         async.eachSeries(ch.children, function(ch2,cb2){
           parseJsonNodesRec(ldpm, ch2, pkg, hlevel,function(err,newTxt){
             if(err) return cb2(err);
@@ -611,18 +611,24 @@ function parseJsonNodesRec(ldpm, jsonNode, pkg, hlevel, callback){
           });
         },function(err){
           if(err) return cb(err);
-          txt += ' </item>\n';
+          txt += ' </li>\n';
           process.nextTick(cb);
         });
 
-      } else { //TODO @JDureau can you check that ? I had a bug on ldpm convert PMC3877328
-        process.nextTick(cb);
+      } else if(ch.tag === 'text'){ //TODO @JDureau can you check that ? I had a bug on ldpm convert PMC3877328
+        parseJsonNodesRec(ldpm,ch,pkg,hlevel,function(err, newTxt){
+          if(err) return cb(err);
+          txt += newTxt;
+          process.nextTick(cb);
+        });
+      } else {
+        cb(new Error('unknown tag in list'))
       }
 
     }, function(err){
       if(err) return callback(err);
       txt += jsonNode.children[0].content;
-      txt += '</li>\n';
+      txt += '</ul>\n';
       return callback(null,txt);
     });
 

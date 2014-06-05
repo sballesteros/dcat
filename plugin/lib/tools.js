@@ -31,6 +31,7 @@ function json2html(ldpm,jsonBody,pkg,opts,callback){
 
   var html  = "<!doctype html>\n";
   var artInd = getArtInd(pkg);
+
   var abstract = pkg.article[artInd].abstract;
   html += "<html>\n";
   html += "\n<head>\n<title>\n" + pkg.article[artInd].headline + "\n</title>\n<meta charset='UTF-8'>\n";
@@ -147,7 +148,7 @@ function json2html(ldpm,jsonBody,pkg,opts,callback){
   }
 
 
-  if(abstract!=undefined){
+  if(abstract !== undefined){
     var id = uuid.v4();
     html += '\n<section id="' + id + '" typeof="http://salt.semanticauthoring.org/ontologies/sro#Abstract">\n'; //+ '" resource="' + pkg.name + '/' + id + '">\n';
     html += "<h2>Abstract</h2>";
@@ -157,7 +158,7 @@ function json2html(ldpm,jsonBody,pkg,opts,callback){
       if(err) return callback(err);
       html += newTxt;
       html += "</section>\n\n";
-      parseJsonNodesRec(ldpm,jsonBody,pkg,2, function(err,newTxt){
+      parseJsonNodesRec(ldpm, jsonBody, pkg, 2, function(err,newTxt){
         if(err) return callback(err);
         html += newTxt;
 
@@ -186,11 +187,14 @@ function json2html(ldpm,jsonBody,pkg,opts,callback){
         html += '\n</article>\n';
         html += '</body>\n';
         html += '</html>';
-        callback(null,html);
+
+        callback(null, html);
       });
     });
   } else {
     parseJsonNodesRec(ldpm,jsonBody,pkg,2, function(err,newTxt){
+      if(err) return callback(err);
+
       if(newTxt != '<div>undefined</div>'){
         html += newTxt;
       } else {
@@ -464,7 +468,6 @@ function parseJsonNodesRec(ldpm, jsonNode, pkg, hlevel, callback){
   callback = once(callback);
 
   // recursive exploration of the json representation of the articleBody
-
   var knownTags = {
     'disp-quote': 'blockquote',
     'sup': 'sup',
@@ -596,7 +599,9 @@ function parseJsonNodesRec(ldpm, jsonNode, pkg, hlevel, callback){
 
     txt += ' <li>';
     async.eachSeries(jsonNode.children, function(ch, cb){
-      if(ch.tag==='list-item'){
+
+      if(ch.tag === 'list-item'){
+
         txt += ' <item>\n';
         async.eachSeries(ch.children, function(ch2,cb2){
           parseJsonNodesRec(ldpm, ch2, pkg, hlevel,function(err,newTxt){
@@ -609,7 +614,11 @@ function parseJsonNodesRec(ldpm, jsonNode, pkg, hlevel, callback){
           txt += ' </item>\n';
           process.nextTick(cb);
         });
+
+      } else { //TODO @JDureau can you check that ? I had a bug on ldpm convert PMC3877328
+        process.nextTick(cb);
       }
+
     }, function(err){
       if(err) return callback(err);
       txt += jsonNode.children[0].content;

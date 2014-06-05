@@ -115,6 +115,7 @@ function oapmc(uri, opts, callback){
                   // 3. Convert xml + pkg to html
                   // a. two steps conversion of the xml articleBody: xml -> json -> html
                   var jsonBody = xml2json(xml);
+
                   tools.json2html(that, jsonBody, pkg, function(err, htmlBody){
                     if(err) return callback(err);
 
@@ -179,7 +180,7 @@ function extractNXMLName(files){
     }
   })
   return name;
-}
+};
 
 function fetchTar(uri, ldpm, callback){
   // return the list of files contained in the tar.gz of the article,
@@ -233,7 +234,6 @@ function fetchTar(uri, ldpm, callback){
 
 
 function fetchXml(uri, ldpm, callback){
-  console.log(uri)
   ldpm.logHttp('GET', uri);
   request(uri, function(error, response, body){
     if(error) return callback(error);

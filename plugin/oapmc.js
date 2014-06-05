@@ -13,6 +13,7 @@ var request = require('request')
   , zlib = require('zlib')
   , traverse = require('traverse')
   , recursiveReaddir = require('recursive-readdir')
+  , isUrl = require('is-url')
   , DOMParser = require('xmldom').DOMParser
   , tools = require('./lib/tools');
 
@@ -1153,7 +1154,7 @@ function parseXml(xml, pkg, pmcid, mainArticleName, ldpm, opts, callback){
               }
             });
           }
-          if(ref.doi == undefined){
+          if(ref.doi === undefined){
             if(y['pub-id']){
               y['pub-id'].forEach(function(z){
                 if(z['$']['pub-id-type']=='doi'){
@@ -1166,7 +1167,7 @@ function parseXml(xml, pkg, pmcid, mainArticleName, ldpm, opts, callback){
             }
           }
 
-          if(ref.doi != undefined){
+          if(ref.doi !== undefined){
             ref.url = 'http://doi.org/'+ref.doi;
             if(ref.pmid){
               ref.sameAs = 'http://www.ncbi.nlm.nih.gov/pubmed/?term=' + ref.pmid;
@@ -1175,6 +1176,11 @@ function parseXml(xml, pkg, pmcid, mainArticleName, ldpm, opts, callback){
             if(ref.pmid){
               ref.url = 'http://www.ncbi.nlm.nih.gov/pubmed/?term=' + ref.pmid;
             }
+          }
+
+          //be sure URLs are URLs... for instance ldpm  convert PMC3237657 returns  'xlink:href': 'clinicaltrials.gov'
+          if(!isUrl(ref.url)){
+            delete ref.url;
           }
 
           var tmpName;

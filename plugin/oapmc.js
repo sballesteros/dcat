@@ -1098,11 +1098,11 @@ function parseXml(xml, pkg, pmcid, mainArticleName, ldpm, opts, callback){
             ref.description = y['_'];
           }
 
-          if(y['ext-link']){
-            if(y['ext-link'][0]){
-              if(y['ext-link'][0]['_']){
-                ref.url = y['ext-link'][0]['_'];
-              }
+          if(y['ext-link'] && y['ext-link'][0]){
+            if(y['ext-link'][0]['$'] && y['ext-link'][0]['$']['xlink:href']){
+              ref.url = y['ext-link'][0]['$']['xlink:href'];
+            } else if(y['ext-link'][0]['_']) {
+              ref.url = y['ext-link'][0]['_'];
             }
           }
 

@@ -31,8 +31,7 @@ var crypto = require('crypto')
   , temp = require('temp')
   , githubUrl = require('github-url')
   , previewTabularData = require('preview-tabular-data').preview
-  , jsonldContextInfer = require('jsonld-context-infer')
-  , targz = require('tar.gz');
+  , jsonldContextInfer = require('jsonld-context-infer');
 
 var conf = require('rc')('ldpm', {protocol: 'https', port: 443, hostname: 'registry.standardanalytics.io', strictSSL: false, sha:true});
 

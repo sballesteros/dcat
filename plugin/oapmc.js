@@ -295,8 +295,8 @@ function parseResources(pkg, files, doi, ldpm, callback){
   async.each(compressedBundles, function(f, cb){
     cb = once(cb);
     // uncompress bundles
-    if(path.extname(f) === '.tgz'){
-      var s = fs.createReadStream(path.join(ldpm.root,f));
+    if((path.extname(f) === '.tgz')||(path.extname(f) === '.gz')){
+      var s = fs.createReadStream(path.join(ldpm.root, path.basename(f)));
       s = s.pipe(zlib.Unzip()).pipe(tar.Extract({ path: path.join(ldpm.root, path.basename(f, path.extname(f))) }));
       s.on('error',  cb);
       s.on('end', function() { cb(null); });

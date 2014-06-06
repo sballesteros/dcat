@@ -1146,7 +1146,7 @@ function addPubmedAnnotations(pkg, pubmedPkg, ldpm, callback){
 
     var hasBody = {
       "@type": ["Tag", "Mesh"],
-      "@context": BASE + "/mesh.jsonld"
+      "@context": BASE + "mesh.jsonld"
     };
     var graph = [];
     var artInd = getArtInd(pkg);

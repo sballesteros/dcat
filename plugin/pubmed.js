@@ -83,6 +83,8 @@ function pubmed(uri, opts, callback){
 };
 
 
+
+//e.g http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id=17284678&retmode=xml&rettype=abstract
 function parseXml(pkg,body,callback){
 
   var parser = new xml2js.Parser();
@@ -276,6 +278,9 @@ function parseXml(pkg,body,callback){
           pkg.author = author;
         }
       })
+
+      //TODO fix!! use author affiliation and take care of GrantList (e.g http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id=17284678&retmode=xml&rettype=abstract)
+
       pkg.sourceOrganisation = [ {
         '@type': 'Organization',
         '@id': 'http://www.nlm.nih.gov/',

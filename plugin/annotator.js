@@ -11,7 +11,6 @@ var request = require('request')
   , emitter = require('events').EventEmitter
   , events = require('events')
   , tar = require('tar')
-  , targz = require('tar.gz')
   , Client = require('ftp')
   , xml2js = require('xml2js')
   , DecompressZip = require('decompress-zip')

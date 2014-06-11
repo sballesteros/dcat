@@ -17,7 +17,6 @@ exports.matchDOCO = matchDOCO;
 exports.extractBetween = extractBetween;
 exports.extractKeywords = extractKeywords;
 exports.getArtInd = getArtInd;
-exports.unlinkList = unlinkList;
 exports.removeDiacritics = removeDiacritics;
 
 function json2html(ldpm,jsonBody,pkg,opts,callback){
@@ -1194,7 +1193,7 @@ function addPubmedAnnotations(pkg, pubmedPkg, ldpm, callback){
     callback(null,pkg);
   }
 
-}
+};
 
 
 function matchDOCO(node){
@@ -1220,7 +1219,7 @@ function matchDOCO(node){
     }
   })
   return iri;
-}
+};
 
 
 function extractKeywords(obj){
@@ -1233,17 +1232,18 @@ function extractKeywords(obj){
   } else {
     return obj['subject'];
   }
-}
+};
 
-function extractBetween(str,str_beg,str_end){
-  var beg = str.indexOf(str_beg) + str_beg.length;
+function extractBetween(str, strBeg, strEnd){
+  var beg = str.indexOf(strBeg) + strBeg.length;
+  var end;
   if(arguments.length === 3){
-    var end = beg + str.slice(beg,str.length).indexOf(str_end);
+    end = beg + str.slice(beg, str.length).indexOf(strEnd);
   } else {
-    var end = str.length;
+    end = str.length;
   }
-  return str.slice(beg,end);
-}
+  return str.slice(beg, end);
+};
 
 function findNodePaths(obj,names){
   var paths = {};
@@ -1253,7 +1253,7 @@ function findNodePaths(obj,names){
     }
   });
   return paths;
-}
+};
 
 function getArtInd(pkg,mainArticleName){
   var ind = -1;
@@ -1280,22 +1280,8 @@ function getArtInd(pkg,mainArticleName){
     })
   }
   return ind;
-}
+};
 
-function unlinkList(toUnlink,callback){
-  async.each(toUnlink,
-    function(file,cb){
-      fs.unlink(file,function(err){
-        if(err) return cb(err);
-        cb(null);
-      })
-    },
-    function(err){
-      if(err) return callback(err);
-      callback(null);
-    }
-  )
-}
 
 var defaultDiacriticsRemovalMap = [
   {'base':'A', 'letters':/[\u0041\u24B6\uFF21\u00C0\u00C1\u00C2\u1EA6\u1EA4\u1EAA\u1EA8\u00C3\u0100\u0102\u1EB0\u1EAE\u1EB4\u1EB2\u0226\u01E0\u00C4\u01DE\u1EA2\u00C5\u01FA\u01CD\u0200\u0202\u1EA0\u1EAC\u1EB6\u1E00\u0104\u023A\u2C6F]/g},

@@ -236,7 +236,7 @@ Ldpm.prototype.convert = function(id,opts,callback){
 
       if(body.indexOf('pmcid=')>-1){
         pmcid = body.slice(body.indexOf('pmcid=')+7,body.indexOf('pmcid=')+17);
-        uri = 'http://www.pubmedcentral.nih.gov/utils/oa/oa.fcgi?format=tgz&id=' + pmcid;        
+        uri = 'http://www.pubmedcentral.nih.gov/utils/oa/oa.fcgi?id=' + pmcid;        
         oapmc.call(that, uri, opts, function(err,pkg){
           if(err) return callback(err);
           callback(null,pkg);
@@ -255,7 +255,7 @@ Ldpm.prototype.convert = function(id,opts,callback){
 
   } else if(id.slice(0,3)==='PMC'){
 
-    uri = 'http://www.pubmedcentral.nih.gov/utils/oa/oa.fcgi?format=tgz&id=' + id;
+    uri = 'http://www.pubmedcentral.nih.gov/utils/oa/oa.fcgi?id=' + id;
     that.logHttp('GET', uri);
     request(uri, function(error, response, body) {
       if(error) return callback(error);
@@ -268,7 +268,7 @@ Ldpm.prototype.convert = function(id,opts,callback){
       }
 
       if(body.toString().indexOf('idDoesNotExist') === -1){
-        uri = 'http://www.pubmedcentral.nih.gov/utils/oa/oa.fcgi?format=tgz&id=' + id;
+        uri = 'http://www.pubmedcentral.nih.gov/utils/oa/oa.fcgi?id=' + id;
         oapmc.call(that, uri, opts, function(err,pkg){
           if(err) return callback(err);
           callback(null,pkg);
@@ -318,7 +318,7 @@ Ldpm.prototype.convert = function(id,opts,callback){
 
       if(body.indexOf('pmcid=')>-1){
         pmcid = body.slice(body.indexOf('pmcid=')+7,body.indexOf('pmcid=')+17);
-        uri = 'http://www.pubmedcentral.nih.gov/utils/oa/oa.fcgi?format=tgz&id=' + pmcid;
+        uri = 'http://www.pubmedcentral.nih.gov/utils/oa/oa.fcgi?id=' + pmcid;
         oapmc.call(that, uri, opts, function(err,pkg){
           if(err) return callback(err);
           callback(null,pkg);

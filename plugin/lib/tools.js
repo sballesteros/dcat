@@ -277,6 +277,7 @@ function parseXmlNodesRec(node,xml){
       tmp.id = node.attributes.value;
     }
   }
+
   if(node.childNodes != null){
     if(node.childNodes.length>0){
       Array.prototype.forEach.call(node.childNodes,function(x){
@@ -420,6 +421,7 @@ function parseXmlNodesRec(node,xml){
         }
       });
       return tmp;
+
     } else if(tmp.tag === 'img'){
       var img = {
         tag: 'inline-graphic'
@@ -458,7 +460,7 @@ function parseXmlNodesRec(node,xml){
       return {
         tag: 'text',
         content: ''
-      }
+      };
     }
   }
 };
@@ -1222,16 +1224,87 @@ function matchDOCO(node){
 };
 
 
-function extractKeywords(obj){
-  if(obj['subj-group']!=undefined){
-    var res = obj['subject'];
-    obj['subj-group'].forEach(function(x){
-      res = res.concat(_extractKeywords(x));
-    })
-    return res;
-  } else {
-    return obj['subject'];
+/**
+ * !!! in case of nested tags only the last one will be reported... e.g. subj-group:
+ * <article-categories>
+ *   <subj-group subj-group-type="keywords"> 
+ *     <subject>Biological Sciences</subject>
+ *     <subj-group subj-group-type="keywords">
+ *       <subject>Neuroscience</subject>
+ *       <subj-group subj-group-type="keywords">
+ *         <subject>Cellular and Molecular Biology</subject>  
+ *         <subj-group subj-group-type="keywords">
+ *          <subject>Blood–brain barrier</subject>
+ *         </subj-group>
+ *       </subj-group>
+ *     </subj-group>
+ *   </subj-group> 
+ * </article-categories> 
+ * => avoid subj-group and use higher level tag (article-categories)
+ */
+function findNodePaths(obj,names){
+  var paths = {};
+  traverse(obj).forEach(function(x){
+    if(names.indexOf(this.key)>-1){
+      paths[this.key] = this.path;
+    }
+  });
+  return paths;
+};
+
+function getArtInd(pkg, mainArticleName){
+
+  if(pkg.article){
+    for(var i=0; i<pkg.article.length; i++){
+      var art = pkg.article[i];
+      if(mainArticleName && (art.name === mainArticleName)){
+        return i;
+      }
+
+      if(art['@type']){
+        if(typeof art['@type'] === 'string'){
+          if(art['@type']==='ScholarlyArticle'){
+            return i;
+          }
+        } else {
+          for(var j=0; j<art['@type'].length; j++){                   
+            if(art['@type'][j] === 'ScholarlyArticle'){
+              return i;
+            }
+          }
+        }
+      }
+    }
   }
+
+  return undefined;
+};
+
+/**
+ * obj is a node from article-categories http://jats.nlm.nih.gov/publishing/tag-library/1.1d1/index.html
+ */
+
+function extractKeywords($el){
+  var res = [];
+
+  if($el.tagName === 'subj-group'){
+
+    for(var i=0; i<$el.childNodes.length; i++){
+      if($el.childNodes[i].tagName === 'subject'){
+        res.push($el.childNodes[i].textContent);
+      } else if ($el.childNodes[i].tagName === 'subj-group'){
+        res = res.concat(extractKeywords($el.childNodes[i]));          
+      }
+    }
+    return res;
+
+  } else if($el.tagName === 'subject') {      
+
+    return [$el.textContent];
+
+  }
+
+  return res;
 };
 
 function extractBetween(str, strBeg, strEnd){
@@ -1245,42 +1318,6 @@ function extractBetween(str, strBeg, strEnd){
   return str.slice(beg, end);
 };
 
-function findNodePaths(obj,names){
-  var paths = {};
-  traverse(obj).forEach(function(x){
-    if(names.indexOf(this.key)>-1){
-      paths[this.key] = this.path;
-    }
-  });
-  return paths;
-};
-
-function getArtInd(pkg,mainArticleName){
-  var ind = -1;
-  if(pkg.article != undefined){
-    pkg.article.forEach(function(art,i){
-      if(mainArticleName!=undefined){
-        if(art.name===mainArticleName){
-          ind=i;
-        }
-      }
-      if(art['@type']!=undefined){
-        if(typeof art['@type']==='string'){
-          if(art['@type']==='ScholarlyArticle'){
-            ind = i;
-          }
-        } else {
-          art['@type'].forEach(function(t){
-            if(t==='ScholarlyArticle'){
-              ind = i;
-            }
-          });
-        }
-      }
-    })
-  }
-  return ind;
-};
 
 
 var defaultDiacriticsRemovalMap = [

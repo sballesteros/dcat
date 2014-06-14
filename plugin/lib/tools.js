@@ -18,6 +18,7 @@ exports.extractBetween = extractBetween;
 exports.extractKeywords = extractKeywords;
 exports.getArtInd = getArtInd;
 exports.removeDiacritics = removeDiacritics;
+exports.cleanText = cleanText;
 
 function json2html(ldpm,jsonBody,pkg,opts,callback){
   // Build the html article, merging information from the pkg and from the jsonBody
@@ -1277,7 +1278,7 @@ function getArtInd(pkg, mainArticleName){
     }
   }
 
-  return undefined;
+  return -1;
 };
 
 /**
@@ -1413,4 +1414,11 @@ function removeDiacritics (str) {
     str = str.replace(defaultDiacriticsRemovalMap[i].letters, defaultDiacriticsRemovalMap[i].base);
   }
   return str;
+};
+
+/**
+ * rm multiple spaces and \n
+ */
+function cleanText(str){
+  return str.replace(/\s{2,}|\n/g, ' ').trim();
 };

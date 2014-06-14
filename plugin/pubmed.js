@@ -1,12 +1,10 @@
 var request = require('request')
   , fs = require('fs')
   , url = require('url')
-  , async = require('async')
   , path = require('path')
   , BASE = require('package-jsonld').BASE
-  , xml2js = require('xml2js')
-  , clone = require('clone')
-  , traverse = require('traverse')
+  , DOMParser = require('xmldom').DOMParser
+  , _ = require('underscore')
   , tools = require('./lib/tools');
 
 exports.pubmed = pubmed;
@@ -24,56 +22,33 @@ function pubmed(uri, opts, callback){
 
   var that = this;
 
-  // check url
-  if(uri.slice(0,57) === 'http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?'){
+  var puri = url.parse(uri, true);
 
-    var pkg = { version: '0.0.0' };
-    var pmcid = tools.extractBetween(uri, 'PMC');
+  // check url  
+  if((puri.hostname === 'eutils.ncbi.nlm.nih.gov') && (puri.pathname === '/entrez/eutils/efetch.fcgi') && puri.query.id){
+    var pmid = puri.query.id;
 
     // 1. fetch xml
     that.logHttp('GET', uri);
-    request(uri, function(error,response,body){
+    request(uri, function(error,response, xml){
       if(error) return callback(error);
 
       that.logHttp(response.statusCode, uri)
 
       if(response.statusCode >= 400){
-        var err = new Error(body);
+        var err = new Error(xml);
         err.code = response.statusCode;
         return callback(err);
       }
 
       // 2. parse xml
-      parseXml(pkg, body, function(err,pkg){
-        if(error) return callback(error);
-
-        // 3. convert to html
-        tools.json2html(that, {}, pkg, opts, function(err, htmlBody){
-          if(err) return callback(err);
-
-          if(opts.writeHTML){
-            // a. integrate the html article as a resource of the pkg
-            fs.writeFile(path.join(that.root, pkg.article[0].name + '.html'), htmlBody, function(err){
-              if(err) return callback(err);
-              that.paths2resources([path.join(that.root,pkg.article[0].name + '.html')], {}, function(err,resources){
-                if(err) return callback(err);
-
-                pkg.article[0].encoding = [resources.article[0].encoding[0]];
-
-                // b. extract pubmed annotations, adapt the target computing html hash, and add to the pkg
-                var tmppkg = clone(pkg);
-                delete tmppkg.annotation;
-                tools.addPubmedAnnotations(tmppkg, pkg, that, function(err,pkg){
-                  if(err) return callback(err);
-                  callback(null, pkg);
-                });
-              });
-            });
-          } else {
-            callback(null,pkg);
-          }
-        });
-      });
+      try{
+        var pkg = parseXml(xml, pmid);
+      }  catch(err){
+        return callback(err);
+      }
+      
+      callback(null, pkg);
     });
 
   } else {
@@ -82,348 +57,352 @@ function pubmed(uri, opts, callback){
 
 };
 
+/**
+ * see http://www.nlm.nih.gov/bsd/licensee/elements_descriptions.html
+ */ 
+function parseXml(xml, pmid){
 
+  var article =  { '@type': 'ScholarlyArticle', 'pmid': pmid };
 
-//e.g http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id=17284678&retmode=xml&rettype=abstract
-function parseXml(pkg,body,callback){
+  var doc = new DOMParser().parseFromString(xml, 'text/xml');
 
-  var parser = new xml2js.Parser();
-  var meta = {};
-  var relPaths;
+  var $PubmedArticle = doc.getElementsByTagName('PubmedArticle')[0];
+  if($PubmedArticle){
+    var $ArticleTitle = $PubmedArticle.getElementsByTagName('ArticleTitle')[0];
+    if($ArticleTitle){
+      article.headline = tools.cleanText($ArticleTitle.textContent);
+      //remove [] Cf http://www.nlm.nih.gov/bsd/licensee/elements_descriptions.html#articletitle
+      article.headline = article.headline.replace(/^\[/, '').replace(/\]\.*$/, '');
+    }
 
-  parser.parseString(body, function(err, body){
+    var $Abstract = $PubmedArticle.getElementsByTagName('Abstract')[0];
+    if($Abstract){
+      //CF http://www.nlm.nih.gov/bsd/licensee/elements_descriptions.html structured abstract.
+      //Abstract can be structured => TODO use annotation or RDFa to keep structure.
+      //e.g PMID:19897313  http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id=19897313&rettype=abstract&retmode=xml
 
-    if(err) return callback(err);
-
-    var pathArt = tools.findNodePaths(body, ['PubmedArticle','PMID','Article']);
-
-    if(pathArt['PubmedArticle']){
-      if(typeof(traverse(body).get(pathArt['PubmedArticle'])) == 'object'){
-        var data = traverse(body).get(pathArt['PubmedArticle']);
-      } else {
-        var data = traverse(body).get(pathArt['PubmedArticle'])[0];
+      var abstractTexts = []
+      var $AbstractTexts = $Abstract.getElementsByTagName('AbstractText');
+      if($AbstractTexts){
+        Array.prototype.forEach.call($AbstractTexts, function($AbstractText){
+          abstractTexts.push(tools.cleanText($AbstractText.textContent));
+        });
       }
-    } else {
-      var data = body;
-    }
-
-    pkg.article = [{}];
-    pkg.article[0]['@type'] = [ 'ScholarlyArticle' ];
-
-    if(traverse(body).get(pathArt['PMID'])[0]['$']){
-      pkg.article[0].pmid = traverse(body).get(pathArt['PMID'])[0]['_'];
-    } else {
-      pkg.article[0].pmid = traverse(body).get(pathArt['PMID'])[0];
-    }
-    if(tools.findNodePaths(data,['Journal'])['Journal']){
-      var $journal = traverse(data).get(tools.findNodePaths(data,['Journal'])['Journal'])[0];
-      relPaths = tools.findNodePaths($journal,
-        [
-          'Title',
-          'Volume',
-          'Issue',
-          'PubDate',
-          'ISSN',
-          'ISOAbbreviation'
-        ]
-      );
-    } else {
-      relPaths = {};
-    }
-
-    if(relPaths['Title']){
-      pkg.article[0].journal = {
-        '@type': 'bibo:Journal',
-        name: traverse($journal).get(relPaths['Title'])[0]
-      };
-    }
-
-    if(relPaths['Volume']){
-      pkg.article[0].volume = traverse($journal).get(relPaths['Volume'])[0];
-    }
-
-    if(relPaths['Issue']){
-      pkg.article[0].issue = traverse($journal).get(relPaths['Issue'])[0];
-    }
-
-    if(relPaths['PubDate']){
-      var tmpDate = '';
-      if(traverse($journal).get(relPaths['PubDate'])[0]['Year']){
-        tmpDate += traverse($journal).get(relPaths['PubDate'])[0]['Year'][0];
-        meta.year = traverse($journal).get(relPaths['PubDate'])[0]['Year'][0];
-      }
-      if(traverse($journal).get(relPaths['PubDate'])[0]['Month']){
-        tmpDate += '-' + traverse($journal).get(relPaths['PubDate'])[0]['Month'][0];
-      }
-      if(traverse($journal).get(relPaths['PubDate'])[0]['Day']){
-        tmpDate += '-' + traverse($journal).get(relPaths['PubDate'])[0]['Day'][0];
-      }
-      if(tmpDate!=''){
-        pkg.article[0].datePublished = (new Date(tmpDate).toISOString());
+      if(abstractTexts.length){
+        article.abstract = tools.cleanText(abstractTexts.join(' '));
       }
     }
 
-    if(relPaths['ISSN']){
-      if(pkg.article[0].journal){
-        if(traverse($journal).get(relPaths['ISSN'])[0]['$']){
-          pkg.article[0].journal.issn = traverse($journal).get(relPaths['ISSN'])[0]['_'];
-        } else {
-          pkg.article[0].journal.issn = traverse($journal).get(relPaths['ISSN'])[0];
+    var $Journal = $PubmedArticle.getElementsByTagName('Journal')[0];
+    var jsDate;
+    if($Journal){
+      var journal = { '@type': 'Journal' };
+
+      var $Title = $Journal.getElementsByTagName('Title')[0];
+      if($Title){
+        journal.name = tools.cleanText($Title.textContent);
+      }
+
+      var $ISSN = $Journal.getElementsByTagName('ISSN')[0];
+      if($ISSN){
+        journal.issn = tools.cleanText($ISSN.textContent);
+      }
+
+      if(Object.keys(journal).length){
+        article.journal = journal;
+      }
+      
+      var $volume = $Journal.getElementsByTagName('Volume')[0];
+      if($volume){
+        article.volume = parseInt(tools.cleanText($volume.textContent), 10);        
+      }
+
+      var $issue = $Journal.getElementsByTagName('Issue')[0];
+      if($issue){
+        article.issue = parseInt(tools.cleanText($issue.textContent), 10);        
+      }
+
+      var $PubDate = $Journal.getElementsByTagName('PubDate')[0];
+      if($PubDate){
+        var $day = $PubDate.getElementsByTagName('Day')[0];
+        var $month = $PubDate.getElementsByTagName('Month')[0];
+        var $year = $PubDate.getElementsByTagName('Year')[0];
+
+        if($month){
+          var abrMonth2int = {
+            'jan': 0,
+            'feb': 1,
+            'mar': 2,
+            'apr': 3,
+            'may': 4,
+            'jun': 5,
+            'july': 6,
+            'aug': 7,
+            'sep': 8,
+            'oct': 9,
+            'nov': 10,
+            'dec': 11
+          };
+
+          var month = abrMonth2int[$month.textContent.trim().toLowerCase()];
+        }
+
+        if($year && month && $day){
+          jsDate = new Date($year.textContent, month, $day.textContent);
+        } else if($year && month){
+          jsDate = new Date($year.textContent, month);
+        } else if($year){
+          jsDate = new Date($year.textContent);
+        }
+
+        if(jsDate){
+          article.datePublished = jsDate.toISOString();
         }
       }
+
+      var journalShortName; //will be used to generate name of the pkg
+      var $ISOAbbreviation = $Journal.getElementsByTagName('ISOAbbreviation')[0];
+      if($ISOAbbreviation){
+        journalShortName = tools.cleanText($ISOAbbreviation.textContent);
+        journalShortName = journalShortName.replace(/ /g, '-').replace(/\W/g, '').toLowerCase();
+      }
     }
 
-    if(pkg.article[0].journal){
-      pkg.copyrightHolder = pkg.article[0].journal;
-    }
-
-    if(relPaths['ISOAbbreviation']){
-      meta.journalShortName = '';
-      traverse($journal).get(relPaths['ISOAbbreviation'])[0].split(' ').forEach(function(x,i){
-        if(i>0){
-          meta.journalShortName += '-'
-        }
-        meta.journalShortName += x.replace(/\W/g, '').toLowerCase();
-      })
-    } else if(pkg.article[0].journal) {
-      if(pkg.article[0].journal.name){
-        meta.journalShortName = '';
-        pkg.article[0].journal.name.split(' ').forEach(function(x,i){
-          if(i>0){
-            meta.journalShortName += '-'
+    //doi
+    var $ELocationID = $PubmedArticle.getElementsByTagName('ELocationID');
+    if($ELocationID){
+      for(var i=0; i<$ELocationID.length; i++){
+        if($ELocationID[i].getAttribute('EIdType') === 'doi'){
+          var doiValid = $ELocationID[i].getAttribute('ValidYN');
+          if(!doiValid || doiValid === 'Y'){
+            article.doi = tools.cleanText($ELocationID[i].textContent);
+            break;
           }
-          meta.journalShortName += x.replace(/\W/g, '').toLowerCase();
-        })
-      }
-    } else {
-      meta.journalShortName = '';
-    }
-
-    if (tools.findNodePaths(data,['Article'])['Article']){
-      var $article = traverse(data).get(tools.findNodePaths(data,['Article'])['Article'])[0];
-      relPaths = tools.findNodePaths($article,
-        [
-          'ELocationID',
-          'ArticleTitle',
-          'AuthorList',
-          'Abstract'
-        ]
-      );
-    } else {
-      relPaths = {};
-    }
-
-    if(relPaths['Abstract']){
-      if(traverse($article).get(relPaths['Abstract'])[0]['AbstractText'][0]['$']!=undefined){
-        pkg.article[0].abstract = traverse($article).get(relPaths['Abstract'])[0]['AbstractText'][0]['_'];
-      } else {
-        pkg.article[0].abstract = traverse($article).get(relPaths['Abstract'])[0]['AbstractText'][0];
+        }
       }
     }
 
-    if(relPaths['ELocationID']){
-      traverse($article).get(relPaths['ELocationID']).forEach(function(x){
-        if(x['$']['EIdType']==='doi'){
-          pkg.article[0].doi = x['_'];
-        }
-      })
-    }
-    if(pkg.article[0].doi){
-      pkg.article[0].url = 'http://dx.doi.org/'+pkg.article[0].doi ;
+    if(article.doi){
+      article.url = 'http://dx.doi.org/' + article.doi;
     }
 
-    if(relPaths['ArticleTitle']){
-      pkg.article[0].headline = traverse($article).get(relPaths['ArticleTitle'])[0];
-      pkg.description = pkg.article[0].headline;
-    } else {
-      callback(new Error('could not find the article title'));
-    }
 
-    if(relPaths['AuthorList']){
-      var allAffilsNames = [];
-      var allAffils = [];
-      traverse($article).get(relPaths['AuthorList'])[0]['Author'].forEach(function(x){
-        var author = {
-          '@type': 'Person'
-        };
-        if(x.LastName){
-          author.familyName = x.LastName[0];
-        }
-        if(x.ForeName){
-          author.givenName = x.ForeName[0];
-        }
-        if(author.familyName && author.givenName ){
-          author.name = author.givenName + ' ' + author.familyName ;
-        }
-        if(x.Affiliation){
-          author.affiliation = [];
-          x.Affiliation[0].split(';').forEach(function(y){
-            author.affiliation.push({ description: y.trim() });
-            if(allAffilsNames.indexOf(y.trim())==-1){
-              allAffils.push({
-                '@type': 'Organization',
-                description: y.trim()
-              });
-              allAffilsNames.push(y.trim());
+    //pkg stuff
+    var pkg = {};
+
+    var authors = {};
+
+    var $AuthorList = $PubmedArticle.getElementsByTagName('AuthorList')[0];
+    if($AuthorList){
+      var $Authors = $AuthorList.getElementsByTagName('Author');
+      if($Authors){
+        Array.prototype.forEach.call($Authors, function($Author, i){
+          var person = { '@type': 'Person' };
+
+          var $LastName = $Author.getElementsByTagName('LastName')[0];
+          if($LastName){
+            person.familyName = tools.cleanText($LastName.textContent);
+          }
+
+          var $ForeName = $Author.getElementsByTagName('ForeName')[0];
+          if($ForeName){
+            person.givenName = tools.cleanText($ForeName.textContent);
+          }
+
+          if(person.familyName && person.givenName ){
+            person.name = person.givenName + ' ' + person.familyName;
+          }
+
+          var $Affiliation = $Author.getElementsByTagName('Affiliation')[0];
+          if($Affiliation){
+            person.affiliation = {
+              '@type': 'Organization',
+              description: tools.cleanText($Affiliation.textContent)
             }
-          })
-        }
-
-        if(pkg.author){
-          if(pkg.contributor==undefined){
-            pkg.contributor = [];
           }
-          pkg.contributor.push(author);
-        } else {
-          pkg.author = author;
-        }
-      })
+          
+          if(Object.keys(person).length > 1){
+            if(i === 0){
+              authors.author = person;
+            } else {
+              if(!authors.contributor){
+                authors.contributor = [];
+              }
+              authors.contributor.push(person);
+            }
+          }
 
-      //TODO fix!! use author affiliation and take care of GrantList (e.g http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id=17284678&retmode=xml&rettype=abstract)
-
-      pkg.sourceOrganisation = [ {
-        '@type': 'Organization',
-        '@id': 'http://www.nlm.nih.gov/',
-        name: 'National Library of Medecine',
-        department: 'Department of Health and Human Services',
-        address: {
-          '@type': 'PostalAddress',
-          addressCountry: 'US'
-        }
-      }]
-      if(allAffils.length){
-        pkg.sourceOrganisation = pkg.sourceOrganisation.concat(allAffils);
+        });
       }
+    }
 
+    var pkgName = [];
+
+    if(journalShortName){
+      pkgName.push(journalShortName);
+    }
+
+    if(authors.author && authors.author.familyName){
+      pkgName.push(tools.removeDiacritics(authors.author.familyName.toLowerCase()).replace(/\W/g, ''));
+    }
+
+    if(jsDate){
+      pkgName.push(jsDate.getFullYear());
+    }
+
+    if(pkgName.length>=2){
+      pkg.name = pkgName.join('-');
+    } else {
+      pkg.name = pmid;
+    }
+
+    pkg.version = '0.0.0';
+
+    //keywords e.g PMID 24920540
+    //TODO: take advandage of Owner attribute Cf http://www.nlm.nih.gov/bsd/licensee/elements_descriptions.html#Keyword
+    var keywords = [];
+    var $KeywordLists = $PubmedArticle.getElementsByTagName('KeywordList');
+    if($KeywordLists){
+      Array.prototype.forEach.call($KeywordLists, function($KeywordList){
+        var $Keywords = $KeywordList.getElementsByTagName('Keyword');
+        if($Keywords){
+          Array.prototype.forEach.call($Keywords, function($Keyword){
+            keywords.push(tools.cleanText($Keyword.textContent).toLowerCase());            
+          });
+        }
+      });    
+    }
+
+    if(keywords.length){
+      pkg.keywords = _.uniq(keywords);
+    }
+
+    if(authors.author){
+      pkg.author = authors.author;
+    }
+
+    if(authors.contributor){
+      pkg.contributor = authors.contributor;
     }
 
     pkg.provider = {
       '@type': 'Organization',
       '@id': 'http://www.ncbi.nlm.nih.gov/pubmed/',
       description: 'From MEDLINE®/PubMed®, a database of the U.S. National Library of Medicine.'
-    }
+    };
 
-    pkg.name = '';
-    if(meta.journalShortName){
-      pkg.name = meta.journalShortName;
-    }
-    if(pkg.author){
-      if(pkg.author.familyName){
-        pkg.name += '-' + tools.removeDiacritics(pkg.author.familyName.toLowerCase()).replace(/\W/g, '');
-      } else {
-        console.log('did not find the author family name');
-      }
-    } else {
-      if(pkg.headline){
-        pkg.name += '-' + tools.removeDiacritics(pkg.headline.split(' ')[0].toLowerCase()).replace(/\W/g, '');
-      } else if(pkg.article.headline) {
-        pkg.name += '-' + tools.removeDiacritics(pkg.article.headline.split(' ')[0].toLowerCase()).replace(/\W/g, '');
-      }
-    }
-    if(meta.year){
-      pkg.name += '-' + meta.year;
-    }
-    pkg.article[0].name = pkg.name;
-
-    pkg.datePublished = (new Date()).toISOString();
-    pkg.dateCreated = pkg.article[0].datePublished;
-
-
-    var path = tools.findNodePaths(data,['MeshHeadingList']);
-    if(path['MeshHeadingList']){
-      var mesh = traverse(data).get(path['MeshHeadingList']);
-      if(mesh[0]['MeshHeading']){
-
-        pkg.annotation = [];
-        var graph = [];
-        var hasBody = {
-          "@type": ["Tag", "Mesh"],
-          "@context": BASE + "/mesh.jsonld"
-        };
-        mesh[0]['MeshHeading'].forEach(function(x){
-          var tmp = {
-            "@type": "Heading",
-          };
-          if(x.DescriptorName){
-            tmp.descriptor = {
-              '@type': 'Record',
-              name: x.DescriptorName[0]['_'],
-              majorTopic: (x.DescriptorName[0]['$']['MajorTopicYN'] === 'Y')
-            }
-            if(x.QualifierName){
-              tmp.qualifier = {
-                '@type': 'Record',
-                name: x.QualifierName[0]['_'],
-                majorTopic: (x.QualifierName[0]['$']['MajorTopicYN'] === 'Y')
-              }
-            }
-          }
-          graph.push(tmp)
-        });
-        hasBody['@graph'] = graph;
-
-
-        pkg.annotation.push({
-          "@type": "Annotation",
-          annotatedAt: pkg.article[0].datePublished,
-          annotatedBy: {
-            "@id": "http://www.ncbi.nlm.nih.gov/pubmed",
-            "@type": "Organization",
-            name: "PubMed"
-          },
-          serializedBy: {
-            "@id": "http://standardanalytics.io",
-            "@type": "Organization",
-            name: "Standard Analytics IO"
-          },
-          serializedAt: (new Date()).toISOString(),
-          motivatedBy: "oa:tagging",
-          hasBody: [
-            hasBody
-          ],
-          hasTarget: [
-            {
-              "@type": "SpecificResource",
-              hasSource: "r/f9b634be34cb3f2af4fbf4395e3f24b3834da926",
-              hasScope: pkg.name + '/' + pkg.version + '/article/' + pkg.article[0].name,
-              hasState: {
-                "@type": "HttpRequestState",
-                value: "Accept: text/html"
-              }
-            }
-          ]
-        })
-      }
-    }
-
-
+    pkg.accountablePerson = {
+      '@type': 'Organization',
+      name: 'Standard Analytics IO',
+      email: 'contact@standardanalytics.io'
+    };
+    
     var citations = [];
-    var path = tools.findNodePaths(data,['CommentsCorrectionsList']);
-    if(path['CommentsCorrectionsList']){
-      var cites = traverse(data).get(path['CommentsCorrectionsList']);
-      if(cites[0]['CommentsCorrections']){
-        cites[0]['CommentsCorrections'].forEach(function(x){
-          var citation = {};
-          if(x['RefSource']){
-            citation.description = x['RefSource'][0];
+    var $CommentsCorrectionsList = $PubmedArticle.getElementsByTagName('CommentsCorrectionsList')[0];
+    if($CommentsCorrectionsList){
+      var $CommentsCorrections = $CommentsCorrectionsList.getElementsByTagName('CommentsCorrections');
+      if($CommentsCorrections){
+        Array.prototype.forEach.call($CommentsCorrections, function($CommentsCorrections){
+          var ref = {};
+          var refType = $CommentsCorrections.getAttribute('RefType');
+          if(refType){
+            ref['@type'] = ['ScholarlyArticle', refType];
           }
-          if(x['PMID']){
-            if(x['PMID'][0]['_']){
-              citation.pmid = x['PMID'][0]['_'];
-            } else {
-              citation.pmid = x['PMID'][0];
-            }
+
+          var $RefSource = $CommentsCorrections.getElementsByTagName('RefSource')[0];
+          if($RefSource){
+            ref.description = tools.cleanText($RefSource.textContent);
           }
-          citations.push(citation);
-        })
+
+          var $PMID = $CommentsCorrections.getElementsByTagName('PMID')[0];
+          if($PMID){
+            ref.pmid = tools.cleanText($PMID.textContent);
+          }
+
+          if(Object.keys(ref).length){
+            citations.push(ref);
+          }
+        });
       }
     }
     if(citations.length){
-      pkg.article.citation = citations;
+      article.citation = citations;
+    }
+     
+    if(Object.keys(article).length){
+      pkg.article = [article];
     }
 
-    return callback(null,pkg);
+    //TODO MeSH and Chemical List
+//    var path = tools.findNodePaths(data,['MeshHeadingList']);
+//    if(path['MeshHeadingList']){
+//      var mesh = traverse(data).get(path['MeshHeadingList']);
+//      if(mesh[0]['MeshHeading']){
+//
+//        pkg.annotation = [];
+//        var graph = [];
+//        var hasBody = {
+//          "@type": ["Tag", "Mesh"],
+//          "@context": BASE + "/mesh.jsonld"
+//        };
+//        mesh[0]['MeshHeading'].forEach(function(x){
+//          var tmp = {
+//            "@type": "Heading",
+//          };
+//          if(x.DescriptorName){
+//            tmp.descriptor = {
+//              '@type': 'Record',
+//              name: x.DescriptorName[0]['_'],
+//              majorTopic: (x.DescriptorName[0]['$']['MajorTopicYN'] === 'Y')
+//            }
+//            if(x.QualifierName){
+//              tmp.qualifier = {
+//                '@type': 'Record',
+//                name: x.QualifierName[0]['_'],
+//                majorTopic: (x.QualifierName[0]['$']['MajorTopicYN'] === 'Y')
+//              }
+//            }
+//          }
+//          graph.push(tmp)
+//        });
+//        hasBody['@graph'] = graph;
+//
+//
+//        pkg.annotation.push({
+//          "@type": "Annotation",
+//          annotatedAt: pkg.article[0].datePublished,
+//          annotatedBy: {
+//            "@id": "http://www.ncbi.nlm.nih.gov/pubmed",
+//            "@type": "Organization",
+//            name: "PubMed"
+//          },
+//          serializedBy: {
+//            "@id": "http://standardanalytics.io",
+//            "@type": "Organization",
+//            name: "Standard Analytics IO"
+//          },
+//          serializedAt: (new Date()).toISOString(),
+//          motivatedBy: "oa:tagging",
+//          hasBody: [
+//            hasBody
+//          ],
+//          hasTarget: [
+//            {
+//              "@type": "SpecificResource",
+//              hasSource: "r/f9b634be34cb3f2af4fbf4395e3f24b3834da926",
+//              hasScope: pkg.name + '/' + pkg.version + '/article/' + pkg.article[0].name,
+//              hasState: {
+//                "@type": "HttpRequestState",
+//                value: "Accept: text/html"
+//              }
+//            }
+//          ]
+//        })
+//      }
+//    }
+    
+  }
 
-  });
+  return pkg;
+}
 
-};

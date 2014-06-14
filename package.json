@@ -75,7 +75,6 @@
     "underscore": "^1.6.0",
     "xlsjs": "^0.6.17",
     "xlsx": "^0.6.0",
-    "xml2js": "^0.4.4",
     "xmldom": "0.1.19"
   },
   "devDependencies": {

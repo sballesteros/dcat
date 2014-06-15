@@ -14,7 +14,6 @@ var request = require('request')
   , Client = require('ftp')
   , DecompressZip = require('decompress-zip')
   , zlib = require('zlib')
-  , traverse = require('traverse')
   , recursiveReaddir = require('recursive-readdir')
   , Ldpm = require('../index')
   , DOMParser = require('xmldom').DOMParser;

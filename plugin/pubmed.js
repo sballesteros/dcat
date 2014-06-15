@@ -296,6 +296,9 @@ function parseXml(xml, pmid){
       name: 'Standard Analytics IO',
       email: 'contact@standardanalytics.io'
     };
+
+    //TODO Grant
+
     
     var citations = [];
     var $CommentsCorrectionsList = $PubmedArticle.getElementsByTagName('CommentsCorrectionsList')[0];
@@ -333,74 +336,82 @@ function parseXml(xml, pmid){
       pkg.article = [article];
     }
 
-    //TODO MeSH and Chemical List
-//    var path = tools.findNodePaths(data,['MeshHeadingList']);
-//    if(path['MeshHeadingList']){
-//      var mesh = traverse(data).get(path['MeshHeadingList']);
-//      if(mesh[0]['MeshHeading']){
-//
-//        pkg.annotation = [];
-//        var graph = [];
-//        var hasBody = {
-//          "@type": ["Tag", "Mesh"],
-//          "@context": BASE + "/mesh.jsonld"
-//        };
-//        mesh[0]['MeshHeading'].forEach(function(x){
-//          var tmp = {
-//            "@type": "Heading",
-//          };
-//          if(x.DescriptorName){
-//            tmp.descriptor = {
-//              '@type': 'Record',
-//              name: x.DescriptorName[0]['_'],
-//              majorTopic: (x.DescriptorName[0]['$']['MajorTopicYN'] === 'Y')
-//            }
-//            if(x.QualifierName){
-//              tmp.qualifier = {
-//                '@type': 'Record',
-//                name: x.QualifierName[0]['_'],
-//                majorTopic: (x.QualifierName[0]['$']['MajorTopicYN'] === 'Y')
-//              }
-//            }
-//          }
-//          graph.push(tmp)
-//        });
-//        hasBody['@graph'] = graph;
-//
-//
-//        pkg.annotation.push({
-//          "@type": "Annotation",
-//          annotatedAt: pkg.article[0].datePublished,
-//          annotatedBy: {
-//            "@id": "http://www.ncbi.nlm.nih.gov/pubmed",
-//            "@type": "Organization",
-//            name: "PubMed"
-//          },
-//          serializedBy: {
-//            "@id": "http://standardanalytics.io",
-//            "@type": "Organization",
-//            name: "Standard Analytics IO"
-//          },
-//          serializedAt: (new Date()).toISOString(),
-//          motivatedBy: "oa:tagging",
-//          hasBody: [
-//            hasBody
-//          ],
-//          hasTarget: [
-//            {
-//              "@type": "SpecificResource",
-//              hasSource: "r/f9b634be34cb3f2af4fbf4395e3f24b3834da926",
-//              hasScope: pkg.name + '/' + pkg.version + '/article/' + pkg.article[0].name,
-//              hasState: {
-//                "@type": "HttpRequestState",
-//                value: "Accept: text/html"
-//              }
-//            }
-//          ]
-//        })
-//      }
-//    }
+
+    //Mesh: MeshHeading, [ MeshSupplementaryConcept, Mesh+Type whith Type [ Chemical, Protocol, Disease ] ]
+    var meshGraph = [];
+    var $MeshHeadingList = $PubmedArticle.getElementsByTagName('MeshHeadingList')[0];
+    if($MeshHeadingList){
+      var $MeshHeadings = $MeshHeadingList.getElementsByTagName('MeshHeading');
+      if($MeshHeadings){        
+        Array.prototype.forEach.call($MeshHeadings, function($MeshHeading){
+          var meshHeading = { '@type': 'MeshHeading' };
+
+          var $DescriptorName = $MeshHeading.getElementsByTagName('DescriptorName')[0];
+          if($DescriptorName){
+            meshHeading.descriptor = { 
+              name: tools.cleanText($DescriptorName.textContent) ,
+              majorTopic: ($DescriptorName.getAttribute('MajorTopicYN') === 'Y') ? true : false
+            };
+          }
+
+          var $QualifierNames = $MeshHeading.getElementsByTagName('QualifierName');
+          if($QualifierNames){
+            var qualifiers = [];
+            Array.prototype.forEach.call($QualifierNames, function($QualifierName){
+              qualifiers.push({
+                name: tools.cleanText($QualifierName.textContent) ,
+                majorTopic: ($QualifierName.getAttribute('MajorTopicYN') === 'Y') ? true : false
+              });
+            });
+            if(qualifiers.length){
+              meshHeading.qualifier = qualifiers;
+            }
+          }
+          
+          meshGraph.push(meshHeading);          
+        });
+
+      }
+    }
+
+    //TODO MeshSupplementaryConcept <SupplMeshList> and <ChemicalList>
+
+
+    if(meshGraph.length){
+      //TODO add "annotatedAt", and "serializedAt"
+      pkg.annotation = [
+        {
+          "@type": "Annotation",
+          annotatedBy: {
+            "@id": "http://www.ncbi.nlm.nih.gov/pubmed",
+            "@type": "Organization",
+            name: "PubMed"
+          },            
+          serializedBy: {
+            "@id": "http://standardanalytics.io",
+            "@type": "Organization",
+            name: "Standard Analytics IO"
+          },
+          motivatedBy: "oa:tagging",
+          hasBody: {
+            "@type": ["Tag", "Mesh"],
+            "@context": "mesh.jsonld",
+            "@graph": meshGraph
+          },
+          hasTarget: [
+            {
+              "@type": "SpecificResource",
+              hasSource: pkg.name + '/' + pkg.version + '/article/' + pkg.article[0].name,
+            }
+          ],
+        }
+      ];
+    }
+
     
+    //TODO DataBank
+
+
   }
 
   return pkg;

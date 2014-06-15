@@ -554,6 +554,9 @@ function parseResources(pkg, files, doi, ldpm, callback){
   });
 };
 
+/**
+ * Cf. http://jats.nlm.nih.gov/archiving/tag-library/1.1d1/index.html
+*/
 function parseXml(xml, pkg, pmcid, mainArticleName, ldpm, opts){
 
   var artInd = tools.getArtInd(pkg, mainArticleName);

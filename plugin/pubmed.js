@@ -62,7 +62,7 @@ function pubmed(uri, opts, callback){
  */ 
 function parseXml(xml, pmid){
 
-  var article =  { '@type': 'ScholarlyArticle', 'pmid': pmid };
+  var article =  { '@type': 'ScholarlyArticle', name: pmid, 'pmid': pmid };
 
   var doc = new DOMParser().parseFromString(xml, 'text/xml');
 
@@ -85,11 +85,17 @@ function parseXml(xml, pmid){
       var $AbstractTexts = $Abstract.getElementsByTagName('AbstractText');
       if($AbstractTexts){
         Array.prototype.forEach.call($AbstractTexts, function($AbstractText){
-          abstractTexts.push(tools.cleanText($AbstractText.textContent));
+          var about = {};
+          var nlmCategory = $AbstractText.getAttribute('NlmCategory');
+          if(nlmCategory){
+            about.name = nlmCategory.trim().toLowerCase();
+          }
+          about.description = tools.cleanText($AbstractText.textContent);
+          abstractTexts.push(about);
         });
       }
       if(abstractTexts.length){
-        article.abstract = tools.cleanText(abstractTexts.join(' '));
+        article.about = abstractTexts;
       }
     }
 
@@ -153,6 +159,13 @@ function parseXml(xml, pmid){
           jsDate = new Date($year.textContent, month);
         } else if($year){
           jsDate = new Date($year.textContent);
+        } else {
+          var $MedlineDate = $PubDate.getElementsByTagName('MedlineDate')[0];
+          if($MedlineDate){
+            try {
+              jsDate = new Date(tools.cleanText($MedlineDate.textContent));
+            } catch(e){}
+          }
         }
 
         if(jsDate){
@@ -374,7 +387,41 @@ function parseXml(xml, pmid){
       }
     }
 
-    //TODO MeshSupplementaryConcept <SupplMeshList> and <ChemicalList>
+    //MeshSupplementaryConcept <SupplMeshList> (e.g 12416895)
+    var $SupplMeshLists = $PubmedArticle.getElementsByTagName('SupplMeshList');
+    if($SupplMeshLists){
+      Array.prototype.forEach.call($SupplMeshLists, function($SupplMeshList){
+        var $SupplMeshNames = $SupplMeshList.getElementsByTagName('SupplMeshName');
+        if($SupplMeshNames){
+          Array.prototype.forEach.call($SupplMeshNames, function($SupplMeshName){
+            meshGraph.push({
+              '@type': 'Mesh' + $SupplMeshName.getAttribute('Type'),
+              name: tools.cleanText($SupplMeshName.textContent)
+            });
+          });
+        }
+      });    
+    }
+
+    //MeshSupplementaryConcept <ChemicalList> (e.g 12416895)
+    var $ChemicalLists = $PubmedArticle.getElementsByTagName('ChemicalList');
+    if($ChemicalLists){
+      Array.prototype.forEach.call($ChemicalLists, function($ChemicalList){
+        var $Chemicals = $ChemicalList.getElementsByTagName('Chemical');
+        if($Chemicals){
+          Array.prototype.forEach.call($Chemicals, function($Chemical){
+            meshGraph.push({
+              '@type': ['MeshChemical', 'Drug'], //rm http://schema.org/Drug ??
+              name: tools.cleanText($Chemical.getElementsByTagName('NameOfSubstance')[0].textContent), 
+              code: { //http://schema.org/MedicalCode
+                '@type': 'MedicalCode',
+                codeValue: tools.cleanText($Chemical.getElementsByTagName('RegistryNumber')[0].textContent) 
+              } 
+            });
+          });
+        }
+      });    
+    }
 
 
     if(meshGraph.length){

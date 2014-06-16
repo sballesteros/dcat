@@ -976,7 +976,7 @@ function parseXml(xml, pkg, pmcid, mainArticleName, ldpm, opts){
 
   var $abstract = $articleMeta.getElementsByTagName('abstract')[0];
   if($abstract){
-    meta.abstract = tools.cleanText($abstract.textContent);
+    meta.abstract = { name: 'abstract', description: tools.cleanText($abstract.textContent) };
   }
 
   //references
@@ -1341,7 +1341,7 @@ function parseXml(xml, pkg, pmcid, mainArticleName, ldpm, opts){
       newpkg.article[artInd].headline = meta.title;
     }
     if (meta.abstract){
-      newpkg.article[artInd].abstract = meta.abstract;
+      newpkg.article[artInd].about = meta.abstract;
     }
     if(meta.issue){
       newpkg.article[artInd].issue = meta.issue;

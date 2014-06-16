@@ -349,6 +349,44 @@ function parseXml(xml, pmid){
       pkg.article = [article];
     }
 
+    //dataset: <DataBankList> e.g pmid: 19237716
+    var datasets = [];
+    var $DataBankLists = $PubmedArticle.getElementsByTagName('DataBankList');
+    if($DataBankLists){
+      Array.prototype.forEach.call($DataBankLists, function($DataBankList){
+        var $DataBanks = $DataBankList.getElementsByTagName('DataBank');
+        if($DataBanks){
+          Array.prototype.forEach.call($DataBanks, function($DataBank){
+            var catalogName;
+            var $DataBankName = $DataBank.getElementsByTagName('DataBankName')[0];
+            if($DataBankName){
+              catalogName = tools.cleanText($DataBankName.textContent);
+            }
+
+            if(catalogName){
+              var $accessionNumberLists = $DataBank.getElementsByTagName('AccessionNumberList');
+              if($accessionNumberLists){
+                Array.prototype.forEach.call($accessionNumberLists, function($accessionNumberList){
+                  var $accessionNumbers = $accessionNumberList.getElementsByTagName('AccessionNumber');
+                  if($accessionNumbers){
+                    Array.prototype.forEach.call($accessionNumbers, function($accessionNumber){
+                      datasets.push({
+                        name: tools.cleanText($accessionNumber.textContent),
+                        catalog: { name: catalogName }
+                      });
+                    });
+                  }
+                });
+              }             
+            }           
+          });
+        }
+      });    
+    }
+    if(datasets.length){
+      pkg.dataset = datasets;
+    }
+
 
     //Mesh: MeshHeading, [ MeshSupplementaryConcept, Mesh+Type whith Type [ Chemical, Protocol, Disease ] ]
     var meshGraph = [];
@@ -454,11 +492,7 @@ function parseXml(xml, pmid){
         }
       ];
     }
-
-    
-    //TODO DataBank
-
-
+   
   }
 
   return pkg;

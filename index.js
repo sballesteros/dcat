@@ -316,9 +316,7 @@ Ldpm.prototype.convert = function(id,opts,callback){
         return callback(err);
       }
 
-      console.log(body);
-
-      if(body.indexOf('ccpmcid=')>-1){
+      if(body.indexOf('pmcid=')>-1){
         pmcid = body.slice(body.indexOf('pmcid=')+7,body.indexOf('pmcid=')+17);
         uri = 'http://www.pubmedcentral.nih.gov/utils/oa/oa.fcgi?id=' + pmcid;
         oapmc.call(that, uri, opts, function(err,pkg){

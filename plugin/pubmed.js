@@ -78,7 +78,7 @@ function parseXml(xml, pmid){
     var $Abstract = $PubmedArticle.getElementsByTagName('Abstract')[0];
     if($Abstract){
       //CF http://www.nlm.nih.gov/bsd/licensee/elements_descriptions.html structured abstract.
-      //Abstract can be structured => TODO use annotation or RDFa to keep structure.
+      //Abstract can be structured => TODO RDFa with doco.
       //e.g PMID:19897313  http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id=19897313&rettype=abstract&retmode=xml
 
       var abstractTexts = []
@@ -310,9 +310,41 @@ function parseXml(xml, pmid){
       email: 'contact@standardanalytics.io'
     };
 
-    //TODO Grant
+    //<Grant> as sourceOrganization (grantId is added TODO fix...)
+    var sourceOrganizations = [];
+    var $GrantList = $PubmedArticle.getElementsByTagName('GrantList')[0];
+    if($GrantList){
+      var $Grants = $GrantList.getElementsByTagName('Grant');
+      if($Grants){
+        Array.prototype.forEach.call($Grants, function($Grant){
+          var $Agency = $Grant.getElementsByTagName('Agency')[0];
+          var $GrantID = $Grant.getElementsByTagName('GrantID')[0];
+          var $Country = $Grant.getElementsByTagName('Country')[0];
+          
+          if($Agency || $GrantID){
+            var organization = { '@type': 'Organization' };
+            if($Agency){
+              organization.name = tools.cleanText($Agency.textContent);
+            }
+            if($GrantID){
+              organization.grandId = tools.cleanText($GrantID.textContent);
+            }
+            if($Country){
+              organization.adress = {
+                '@type': 'PostalAddress',
+                'addressCountry': tools.cleanText($Country.textContent)
+              }
+            }
+            sourceOrganizations.push(organization);
+          }
+        });
+      }
+    }
 
-    
+    if(sourceOrganizations.length){
+      pkg.sourceOrganization = sourceOrganizations;
+    }
+
     var citations = [];
     var $CommentsCorrectionsList = $PubmedArticle.getElementsByTagName('CommentsCorrectionsList')[0];
     if($CommentsCorrectionsList){

@@ -42,11 +42,11 @@ function oapmc(pmcid, opts, callback){
 //      return callback(err);
 //    }
 
-    console.log(util.inspect(meta, {depth: null}));
+//    console.log(util.inspect(meta, {depth: null}));
 
     fetchTar(pmcid, that, function(err, files, mainArticleName){
       if(err) return callback(err);
-      console.log(files, mainArticleName);
+//      console.log(files, mainArticleName);
 
     });
 
@@ -396,8 +396,91 @@ function parseXml(xml, pmcid, opts){
   meta.editor = editor;
   meta.accountablePerson = accountablePerson;
 
-  //TODO! funding and grants are put in http://www.schema.org/sourceOrganization
-  //      var sourceOrganisation = [];
+  //Grants are put in http://www.schema.org/sourceOrganization
+  var sourceOrganisation = [];  
+
+  //1- <funding-statement> without <funding-source> and without <award-id>
+  var $fundingStatements = $article.getElementsByTagName('funding-statement');
+  if($fundingStatements && $fundingStatements.length){
+    Array.prototype.forEach.call($fundingStatements, function($fundingStatement){
+      var isfundingSource = $fundingStatement.getElementsByTagName('funding-source')[0];
+      var isAwardId = $fundingStatement.getElementsByTagName('award-id')[0];
+      if(!isfundingSource || !isAwardId){
+        sourceOrganisation.push({description: tools.cleanText($fundingStatement.textContent)});
+      }
+    });
+  }
+
+  //2- <funding-source> and <award-id> WITH id or rid
+  var tmpGrant = {};
+
+  var $fundingSources = $article.getElementsByTagName('funding-source');
+  if($fundingSources && $fundingSources.length){
+    Array.prototype.forEach.call($fundingSources, function($fundingSource){    
+      var id = $fundingSource.getAttribute('id');
+      var rid = $fundingSource.getAttribute('rid');
+      var country = $fundingSource.getAttribute('country');
+      if(id || rid){
+        var s = { 
+          '@type': 'Organization',
+          'name': tools.cleanText($fundingSource.textContent) 
+        };
+        if(country){
+          s.address = {'@type': 'PostalAddress', addressCountry: country };
+        }
+        tmpGrant[id || rid] = s;
+      }      
+    });
+  }
+
+  var $awardIds = $article.getElementsByTagName('award-id');
+  if($awardIds && $awardIds.length){
+    Array.prototype.forEach.call($awardIds, function($awardId){    
+      var id = $awardId.getAttribute('id');
+      var rid = $awardId.getAttribute('rid');
+      if(id || rid){
+        tmpGrant[id || rid]['grantId'] = tools.cleanText($awardId.textContent);
+      }      
+    });
+  }
+
+  for(var keyId in tmpGrant){
+    sourceOrganisation.push(tmpGrant[keyId]);
+  }
+
+  //3- <funding-group> containing exactly 0 or 1 <funding-source> and <award-id> without id or rid.
+  var $fundingGroups = $article.getElementsByTagName('funding-group');
+  if($fundingGroups && $fundingGroups.length){
+    Array.prototype.forEach.call($fundingGroups, function($fundingGroup){    
+      var s = {};
+      var $fundingSource = $fundingGroup.getElementsByTagName('funding-source');
+      if($fundingSource && $fundingSource.length === 1 && !$fundingSource[0].getAttribute('id') && !$fundingSource[0].getAttribute('rid')){
+
+        s['@type'] = 'Organization';
+        s.name = tools.cleanText($fundingSource.textContent);
+        var country = $fundingSource.getAttribute('country');
+        if(country){
+          s.address = {'@type': 'PostalAddress', addressCountry: country };
+        }        
+      }
+
+      var $awardId = $fundingGroup.getElementsByTagName('award-id');
+      if($awardId && $awardId.length === 1 && !$awardId[0].getAttribute('id') && !$awardId[0].getAttribute('rid')){
+        s.grantId = tools.cleanText($awardId.textContent);
+      }
+
+      if(Object.keys(s).length){
+        sourceOrganisation.push(s);
+      }
+
+    });    
+  }
+
+  if(sourceOrganisation.length){
+    meta.sourceOrganisation = sourceOrganisation;
+  }
+
+
 
   var $pubDate = $articleMeta.getElementsByTagName('pub-date');
   var jsDate;

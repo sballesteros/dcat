@@ -316,10 +316,10 @@ function parseXml(xml, pmid){
               organization.name = tools.cleanText($Agency.textContent);
             }
             if($GrantID){
-              organization.grandId = tools.cleanText($GrantID.textContent);
+              organization.grantId = tools.cleanText($GrantID.textContent);
             }
             if($Country){
-              organization.adress = {
+              organization.address = {
                 '@type': 'PostalAddress',
                 'addressCountry': tools.cleanText($Country.textContent)
               }

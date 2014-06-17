@@ -26,7 +26,7 @@ describe('pubmed', function(){
   it('should return a pkg with name plosone-haseleu-2014 when asked for finger-wrinkles paper through doi', function(done){
     var ldpm = new Ldpm(conf,root);
     ldpm.convert('17642720', function(err,pkg){
-      assert.equal(pkg.name,'indian-j-med-microbiol-padhi');
+      assert.equal(pkg.name, 'indian-j-med-microbiol-padhi');
       done();
     });
   });

@@ -13,47 +13,36 @@ exports.parseXml = parseXml;
 /**
  * 'this' is an Ldpm instance
  */
-function pubmed(uri, opts, callback){
+function pubmed(pmid, opts, callback){
 
   if(arguments.length === 2){
     callback = opts;
-    opts = { writeHTML: true };
+    opts = {};
   }
 
   var that = this;
 
-  var puri = url.parse(uri, true);
+  var uri = 'http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id=' + pmid + '&rettype=abstract&retmode=xml';
+  that.logHttp('GET', uri);
+  request(uri, function(error,response, xml){
+    if(error) return callback(error);
 
-  // check url  
-  if((puri.hostname === 'eutils.ncbi.nlm.nih.gov') && (puri.pathname === '/entrez/eutils/efetch.fcgi') && puri.query.id){
-    var pmid = puri.query.id;
+    that.logHttp(response.statusCode, uri)
 
-    // 1. fetch xml
-    that.logHttp('GET', uri);
-    request(uri, function(error,response, xml){
-      if(error) return callback(error);
+    if(response.statusCode >= 400){
+      var err = new Error(xml);
+      err.code = response.statusCode;
+      return callback(err);
+    }
 
-      that.logHttp(response.statusCode, uri)
-
-      if(response.statusCode >= 400){
-        var err = new Error(xml);
-        err.code = response.statusCode;
-        return callback(err);
-      }
-
-      // 2. parse xml
-      try{
-        var pkg = parseXml(xml, pmid);
-      }  catch(err){
-        return callback(err);
-      }
-      
-      callback(null, pkg);
-    });
-
-  } else {
-    callback(new Error('entrez called with wrong url'))
-  }
+    try{
+      var pkg = parseXml(xml, pmid);
+    }  catch(err){
+      return callback(err);
+    }
+    
+    callback(null, pkg);
+  });
 
 };
 
@@ -529,4 +518,3 @@ function parseXml(xml, pmid){
 
   return pkg;
 }
-

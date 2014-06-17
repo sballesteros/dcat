@@ -208,7 +208,7 @@ Ldpm.prototype.unpublish = function(pkgId, callback){
 
 };
 
-Ldpm.prototype.convert = function(id,opts,callback){
+Ldpm.prototype.convert = function(id, opts, callback){
 
   var that = this;
 
@@ -217,127 +217,34 @@ Ldpm.prototype.convert = function(id,opts,callback){
     opts = {};
   }
 
-  var uri, pmid, pmcid;
+  var uri = "http://www.pubmedcentral.nih.gov/utils/idconv/v1.0/?ids=" + id + '&format=json&versions=no';
+  that.logHttp('GET', uri);
+  request(uri,function(error, response, body){
+    if(error) return callback(error);
+    that.logHttp(response.statusCode, uri);
 
-  if(id.indexOf('.')>-1){
+    if(response.statusCode >= 400){
+      var err = new Error(body);
+      err.code = response.statusCode;
+      return callback(err);
+    }
 
-    // we assume it's a doi.
-    uri = "http://www.pubmedcentral.nih.gov/utils/idconv/v1.0/?ids=" + id;
-    that.logHttp('GET', uri);
-    request(uri,function(error,response,body){
-      if(error) return callback(error);
-      that.logHttp(response.statusCode, uri);
-
-      if(response.statusCode >= 400){
-        var err = new Error(body);
-        err.code = response.statusCode;
-        return callback(err);
-      }
-
-      if(body.indexOf('pmcid=')>-1){
-        pmcid = body.slice(body.indexOf('pmcid=')+7,body.indexOf('pmcid=')+17);
-        uri = 'http://www.pubmedcentral.nih.gov/utils/oa/oa.fcgi?id=' + pmcid;        
-        oapmc.call(that, uri, opts, function(err,pkg){
-          if(err) return callback(err);
-          callback(null,pkg);
-        });
-      } else if(body.indexOf('pmid')>-1){
-        pmid = body.slice(body.indexOf('pmid')+6,body.indexOf('pmid')+14);
-        uri = 'http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id='+id+'&rettype=abstract&retmode=xml';
-        pubmed.call(that, uri, function(err,pkg){
-          if(err) return callback(err);
-          callback(null,pkg);
-        });
+    body = JSON.parse(body);
+    if(body.records && body.records.length){
+      var pmcid = body.records[0].pmcid;
+      var pmid = body.records[0].pmid;
+      var doi = body.records[0].doi;
+      if (pmcid){
+        oapmc.call(that, pmcid, { pmid: pmid, doi: doi }, callback);
+      } else if(pmid){
+        pubmed.call(that, pmid, opts, callback);
       } else {
-        callback(new Error('the id cannot be recognized'));
+        callback(new Error('the id cannot be recognized'));      
       }
-    });
-
-  } else if(id.slice(0,3)==='PMC'){
-
-    uri = 'http://www.pubmedcentral.nih.gov/utils/oa/oa.fcgi?id=' + id;
-    that.logHttp('GET', uri);
-    request(uri, function(error, response, body) {
-      if(error) return callback(error);
-      that.logHttp(response.statusCode, uri);
-
-      if(response.statusCode >= 400){
-        var err = new Error(body);
-        err.code = response.statusCode;
-        return callback(err);
-      }
-
-      if(body.toString().indexOf('idDoesNotExist') === -1){
-        uri = 'http://www.pubmedcentral.nih.gov/utils/oa/oa.fcgi?id=' + id;
-        oapmc.call(that, uri, opts, function(err,pkg){
-          if(err) return callback(err);
-          callback(null,pkg);
-        });
-      } else {
-        console.log('This pmc article does not belong to the OA subset of PMC')
-        uri = "http://www.pubmedcentral.nih.gov/utils/idconv/v1.0/?ids=" + id;
-        that.logHttp('GET', uri);
-        request(uri,function(error,response,body){
-          if(error) return callback(error);
-          that.logHttp(response.statusCode, uri);
-
-          if(response.statusCode >= 400){
-            var err = new Error(body);
-            err.code = response.statusCode;
-            return callback(err);
-          }
-
-          if(body.indexOf('pmid')>-1){
-            pmid = body.slice(body.indexOf('pmid')+6,body.indexOf('pmid')+14);
-            uri = 'http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id='+id+'&rettype=abstract&retmode=xml';
-            pubmed.call(that, uri, function(err,pkg){
-              if(err) return callback(err);
-              callback(null,pkg);
-            });
-          } else {
-            callback(new Error('the id cannot be recognized'));
-          }
-        });
-      }
-    });
-
-  } else {
-
-    // we assume it's a PMID
-    uri = "http://www.pubmedcentral.nih.gov/utils/idconv/v1.0/?ids=" + id;
-    that.logHttp('GET', uri);
-    request(uri,function(error,response,body){
-      if(error) return callback(error);
-      that.logHttp(response.statusCode, uri);
-
-      if(response.statusCode >= 400){
-        var err = new Error(body);
-        err.code = response.statusCode;
-        return callback(err);
-      }
-
-      if(body.indexOf('pmcid=')>-1){
-        pmcid = body.slice(body.indexOf('pmcid=')+7,body.indexOf('pmcid=')+17);
-        uri = 'http://www.pubmedcentral.nih.gov/utils/oa/oa.fcgi?id=' + pmcid;
-        oapmc.call(that, uri, opts, function(err,pkg){
-          if(err) return callback(err);
-          callback(null,pkg);
-        });
-      } else if(body.indexOf('pmid')>-1){
-        pmid = body.slice(body.indexOf('pmid')+6,body.indexOf('pmid')+14);
-        uri = 'http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id='+id+'&rettype=abstract&retmode=xml';
-        pubmed.call(that, uri, function(err,pkg){
-          if(err) return callback(err);
-          callback(null,pkg);
-        });
-      } else {
-        err = new Error('the id cannot be recognized');
-        err.code = '404';
-        callback(err);
-      }
-    });
-
-  }
+    } else {
+      callback(new Error('the id cannot be recognized'));      
+    }
+  });
 
 };
 

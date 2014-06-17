@@ -429,7 +429,7 @@ if (argv._[0] === 'init') {
   (function(){
     var id = argv._[1].toString();
 
-    ldpm.convert(id,{},function(err,pkg){
+    ldpm.convert(id, function(err,pkg){
       if(err) _fail(err);
       fs.writeFileSync(path.resolve(ldpm.root, 'package.jsonld'), JSON.stringify(pkg, null, 2));
     });

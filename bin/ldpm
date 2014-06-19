@@ -155,11 +155,15 @@ if (argv._[0] === 'init') {
       prompted = Array.isArray(prompted) ? prompted[0]: prompted;
 
       var pkg = {};
-      [ 'name', 'version', 'description', 'license' ].forEach(function(key){
+      [ 'name', 'version', 'description' ].forEach(function(key){
         if(prompted[key]){
           pkg[key] = prompted[key];
         }
       });
+
+      if(prompted.license){
+        pkg.license = { name: prompted.license };
+      }
 
       if(prompted.keywords && (prompted.keywords.filter(function(x){return x;})).length){
         pkg.keywords = prompted.keywords;

@@ -54,7 +54,7 @@
   "figure": [
     {
       "name": "img",
-      "figure": [{
+      "encoding": [{
         "contentPath": "img/daftpunk.jpg"
       }]
     }

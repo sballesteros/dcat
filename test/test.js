@@ -17,7 +17,7 @@ temp.track();
 var root = path.dirname(__filename);
 
 describe('ldpm', function(){
-  this.timeout(40000);
+  this.timeout(100000);
 
   var conf = {
     protocol: 'http',
@@ -50,7 +50,7 @@ describe('ldpm', function(){
 
     var expected = {
       description: 'my package description',
-      license: 'CC0-1.0',
+      license: { name: 'CC0-1.0' },
       dataset: [
         { name: 'x1',
           distribution: [{ contentPath: 'x1.csv', encodingFormat: 'text/csv' }],

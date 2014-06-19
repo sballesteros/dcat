@@ -47,7 +47,6 @@ describe('pubmed', function(){
   });
 
   it('should support articles with video and zipped supplementary material', function(done){
-    // Note: in this example, a zipped video is tagged as code
     temp.mkdir('__tests',function(err, dirPath) {
       var ldpm = new Ldpm(conf,dirPath);
       if(err) console.log(err);

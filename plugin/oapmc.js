@@ -15,6 +15,7 @@ var request = require('request')
   , isUrl = require('is-url')
   , DOMParser = require('xmldom').DOMParser
   , XMLSerializer = require('xmldom').XMLSerializer
+  , _ = require('underscore')
   , tools = require('./lib/tools');
 
 temp.track();
@@ -33,46 +34,89 @@ function oapmc(pmcid, opts, callback){
 
   var that = this;
 
-  fetchXml(pmcid, that, function(err, xml){
+  fetchTar(pmcid, that, function(err, xml, root, files, mainArticleName, license){
+    console.log('fetchTar');
     if(err) return callback(err);
-    
-//    try {
-      var meta = parseXml(xml, pmcid, opts);
-//    }  catch(err){
-//      return callback(err);
-//    }
 
-//    console.log(util.inspect(meta, {depth: null}));
+    //    try {
+    var meta = parseXml(xml, pmcid, opts);
+    //    }  catch(err){
+    //      return callback(err);
+    //    }
 
-    fetchTar(pmcid, that, function(err, files, mainArticleName){
-      if(err) return callback(err);
-//      console.log(files, mainArticleName);
+    if(license && !meta.license){
+      meta.license = {text: license};
+    }
+
+    //    console.log(util.inspect(meta, {depth: null}));
+
+    files2resources(that, root, meta, files, mainArticleName, function(err, resources){
+      console.log('Meta2resources');
+      //        console.log(util.inspect(resources, {depth: null}));
+
+      console.log(util.inspect(meta.resources, {depth: null}), util.inspect(resources, {depth: null}));
+
+      //add tables and captions
+
+      
+      meta.resources.forEach(function(mr){
+
+        var hrefs = [];
+        ['graphic', 'media', 'supplementary-material'].forEach(function(type){
+          if(type in mr){
+            for(var i=0; i<mr[type].length; i++){
+              if(mr[type][i].href){
+                hrefs.push(mr[type][i].href);
+              }
+            }
+          }
+        });
+
+
+        if(hrefs.length){ //match resources and add caption, description and id (as alternateName)
+
+          Object.keys(resources).forEach(function(type){
+            (resources[type] || []).forEach(function(r){
+              if(_match(r, type, hrefs)){
+                if(mr.id) r.alternateName = mr.id;
+                if(mr.label) r.description = mr.label;
+                if(mr.caption){
+                  if(mr.caption.title) r.headline = mr.caption.title;
+                  if(mr.caption.content) r.caption = mr.caption.content;
+                }
+                if(mr.ids && mr.ids.doi) r.doi = mr.ids.doi;
+              }
+            });
+          });
+
+        }
+
+      });
+      
 
     });
 
+    
   });
 
 };
 
 
-
-function fetchXml(pmcid, ldpm, callback){
-  var uri = 'http://www.pubmedcentral.nih.gov/oai/oai.cgi?verb=GetRecord&identifier=oai:pubmedcentral.nih.gov:' + pmcid.slice(3) + '&metadataPrefix=pmc';
-
-  ldpm.logHttp('GET', uri);
-  request(uri, function(error, resp, xml){
-    if(error) return callback(error);
-
-    ldpm.logHttp(resp.statusCode, uri);
-
-    if(resp.statusCode >= 400){
-      var err = new Error(xml);
-      err.code = resp.statusCode;
-      return callback(err);
+function _match(r, type, hrefs){
+  var typeMap = { 'figure': 'figure', 'audio': 'audio', 'video': 'video', 'code': 'targetProduct', 'dataset': 'distribution', 'article': 'encoding'};
+  
+  if(r[typeMap[type]] && r[typeMap[type]].length){
+    for(var i=0; i<r[typeMap[type]].length; i++){
+      var mpath = r[typeMap[type]][i].contenPath || r[typeMap[type]][i].filePath || r[typeMap[type]][i].bundlePath;
+      var mname = path.basename(mpath, path.extname(mpath));
+      var mname2 = mname.replace(/ /g, '-');
+      if(mpath && ( (hrefs.indexOf(mpath) > -1) || (hrefs.indexOf(mname) > -1) || (hrefs.indexOf(mname2) > -1) )){
+        return true;
+      }
     }
+  }
 
-    callback(null, xml);
-  });
+  return false;
 };
 
 
@@ -381,9 +425,7 @@ function parseXml(xml, pmcid, opts){
             }
 
           } else if(contribType === 'editor'){
-
-            editor.push(person);
-            
+            editor.push(person);            
           }
 
         }
@@ -420,11 +462,15 @@ function parseXml(xml, pmcid, opts){
       var id = $fundingSource.getAttribute('id');
       var rid = $fundingSource.getAttribute('rid');
       var country = $fundingSource.getAttribute('country');
+      var url = $fundingSource.getAttribute('xlink:href');
+
       if(id || rid){
-        var s = { 
-          '@type': 'Organization',
-          'name': tools.cleanText($fundingSource.textContent) 
-        };
+        var s = {};
+        if(url){
+          s['@id'] = url;
+        }        
+        s['@type'] = 'Organization';
+        s['name'] = tools.cleanText($fundingSource.textContent);         
         if(country){
           s.address = {'@type': 'PostalAddress', addressCountry: country };
         }
@@ -456,6 +502,11 @@ function parseXml(xml, pmcid, opts){
       var $fundingSource = $fundingGroup.getElementsByTagName('funding-source');
       if($fundingSource && $fundingSource.length === 1 && !$fundingSource[0].getAttribute('id') && !$fundingSource[0].getAttribute('rid')){
 
+        var url = $fundingSource.getAttribute('xlink:href');
+        if(url){
+          s['@id'] = url;
+        }               
+
         s['@type'] = 'Organization';
         s.name = tools.cleanText($fundingSource.textContent);
         var country = $fundingSource.getAttribute('country');
@@ -479,8 +530,6 @@ function parseXml(xml, pmcid, opts){
   if(sourceOrganisation.length){
     meta.sourceOrganisation = sourceOrganisation;
   }
-
-
 
   var $pubDate = $articleMeta.getElementsByTagName('pub-date');
   var jsDate;
@@ -557,13 +606,22 @@ function parseXml(xml, pmcid, opts){
     if(licenseLink){
       meta.license = licenseLink;
     } else {
-      var $licenseP = $license.getElementsByTagName('license-p')[0];
-      if($licenseP){
-        meta.license = $licenseP.textContent;
+      var license = {};
+      var licenseType = $license.getAttribute('license-type');
+      if(licenseType){
+        license.name = licenseType;
+      }
+
+      var $licenseP = $license.getElementsByTagName('license-p');
+      if($licenseP && $licenseP.length){
+        license.text = tools.cleanText(Array.prototype.map.call($licenseP, function(p){ return tools.cleanText(p.textContent);}).join(' '));
+      }
+
+      if(Object.keys(license).length){
+        meta.license = license;
       }
     }
   }
-
 
   //take into account possibility of different type of abstracts. 
   //TODO: structure
@@ -609,7 +667,7 @@ function parseXml(xml, pmcid, opts){
   }
  
   //add the caption from the extracted ```resources```
-  meta.resources = findResources(doc); // finds the resources and their captions in the xml
+  meta.resources = findResourcesMeta(doc); // finds the resources and their captions in the xml
 
   //inline content (get a list of ids)
   var inline = [];
@@ -834,7 +892,7 @@ function _extractKeywords($el){
 /**
  * find figure, tables, supplementary materials and their captions
  */ 
-function findResources(doc){
+function findResourcesMeta(doc){
   var resources = [];
 
   var tags = ['fig', 'table-wrap', 'supplementary-material'];
@@ -874,17 +932,16 @@ function findResources(doc){
         }
       }
 
-      if(r.id === 'pone.0084949.s001'){
-        var $objectIds = $el.getElementsByTagName('object-id');
-        if($objectIds && $objectIds.length){
-          r.ids = {};
-          Array.prototype.forEach.call($objectIds, function($o){
-            var pubIdType = $o.getAttribute('pub-id-type');
-            if(pubIdType){
-              r.ids[pubIdType] = tools.cleanText($o.textContent);
-            }
-          });
-        }
+
+      var $objectIds = $el.getElementsByTagName('object-id');
+      if($objectIds && $objectIds.length){
+        r.ids = {};
+        Array.prototype.forEach.call($objectIds, function($o){
+          var pubIdType = $o.getAttribute('pub-id-type');
+          if(pubIdType){
+            r.ids[pubIdType] = tools.cleanText($o.textContent);
+          }
+        });
       }
 
 
@@ -916,10 +973,23 @@ function findResources(doc){
       //table (serialize the <table> element)
       var $table = $el.getElementsByTagName('table')[0];
       if($table){
-        var serializer = new XMLSerializer();
-        r.table = serializer.serializeToString($table);
-      }
+        removeAttributes($table);
+        //TODO replace <bold> and other tags...
 
+        var serializer = new XMLSerializer();
+        r.table = [
+          '<!DOCTYPE html>',
+          '<html>',
+          '<head>',
+          '<meta charset="utf-8">',
+          '</head>',
+          '<body>',
+          serializer.serializeToString($table),
+          '</body>',
+          '</html>'
+        ].join('\n');
+      }
+      
       //footnote
       var $fns = $el.getElementsByTagName('fn');
       if($fns && $fns.length){
@@ -942,6 +1012,7 @@ function findResources(doc){
 
 
 /**
+ * see http://www.ncbi.nlm.nih.gov/pmc/tools/ftp/
  * return the list of files contained in the tar.gz of the article,
  * and move the relevant one (i.e non inline formula or co) into the current directory
  */
@@ -986,37 +1057,50 @@ function fetchTar(pmcid, ldpm, callback){
           if (err) return callback(err);
           ldpm.logHttp(200, tgzUri, 'ftp');
 
-          stream = stream
+          var s = stream
             .pipe(zlib.Unzip())
             .pipe(tar.Extract({ path: dirPath, strip: 1 }));
 
-          stream.on('error', callback);
-
-          stream.on('end', function() {
-            recursiveReaddir(path.resolve(dirPath), function (err, files) {
+          s.on('error', callback);        
+          s.on('end', function() {
+            recursiveReaddir(path.resolve(dirPath), function (err, files) {              
               if (err) return callback(err);
 
               c.end();
 
-              var mainArticleName;
-
-              // first way to get the name of the main article: from the pdf name in oaContentBody that contains pdf and tar.gz
-              try {
-                var $linkPdf = Array.prototype.filter.call($links, function(x){return x.getAttribute('format') === 'pdf';})[0];
-                mainArticleName = url.parse($linkPdf.getAttribute('href')).pathname;
-                mainArticleName = path.basename(mainArticleName, path.extname(mainArticleName));
-                mainArticleName = mainArticleName.slice(0, mainArticleName.lastIndexOf('.')).replace(/ /g, '-'); //eg pone.0012255.PMC2924383 -> pone.0012255
-              } catch(e){
-                mainArticleName = undefined;
+              //locate nxml file
+              var nxml;
+              for(var i=0; i<files.length; i++){
+                if(path.extname(path.basename(files[i])) === '.nxml'){
+                  nxml = files[i];
+                  break;
+                }
+              }
+              
+              if(!nxml){
+                return callback(new Error('tar.gz does not contain .nxml file'));
               }
 
-              // Second way to get the name of the main article: from the name of the nxml file
-              // in the tar.gz. OAPMC entries always have at least a pdf or an nxml.
-              if(!mainArticleName){
-                mainArticleName = extractNXMLName(files);
-              }
 
-              callback(null, files, mainArticleName);
+              //get the name of the main article: from the name of  nxml file
+              var mainArticleName = path.basename(nxml, path.extname(nxml)).replace(/ /g, '-');
+
+              fs.readFile(nxml, {encoding: 'utf8'}, function(err, xml){
+                if(err) return callback(err);
+
+                var filteredFiles = files.filter(function(x){ return path.basename(x) !== 'license.txt' && path.extname(x) !== '.nxml' ;});              
+                var licensePath = files.filter(function(x){ return path.basename(x) === 'license.txt';})[0];
+
+                if(licensePath){
+                  fs.readFile(licensePath, {encoding: 'utf8'}, function(err, license){
+                    callback(null, xml, dirPath, filteredFiles, mainArticleName, license);                    
+                  });
+                } else {
+                  callback(null, xml, dirPath, filteredFiles, mainArticleName);
+                }
+                
+                
+              });
             });
           });
 
@@ -1025,5 +1109,136 @@ function fetchTar(pmcid, ldpm, callback){
     });
     
   });
+
+};
+
+
+function files2resources(ldpm, root, meta, files, mainArticleName, callback){  
+
+  var compressedBundles = files.filter(function(file){
+    return !! (['.gz', '.gzip', '.tgz','.zip'].indexOf(path.extname(file))>-1);
+  });
+
+
+  var inline = meta.inline || [];
+  files = _.difference(files, compressedBundles, inline);
+  //some inline ref have no extension: take care of that...
+  files = files.filter(function(file){
+    return !!(inline.indexOf(path.basename(file, path.extname(file))) >-1);
+  });
+
+  
+  //uncompress bundles so that we can check if truely a code bundle or a compression of a single media file.
+  var codeBundles = [];
+  
+  async.eachSeries(compressedBundles, function(f, cb){
+    cb = once(cb);
+    var uncompressedDir = path.join(path.dirname(f), path.basename(f, path.extname(f)));
+    
+    function _next (){
+      recursiveReaddir(uncompressedDir, function(err, newFiles){
+        if(err) return cb(err);
+        
+        if(newFiles.length === 1) {
+
+          var recognisedFormat = ['.avi', '.mpeg', '.mov','.wmv', '.mpg', '.mp4'].concat(
+            ['.wav', '.mp3', '.aif', '.aiff', '.aifc', '.m4a', '.wma', '.aac'],
+            ['.r', '.py', '.m','.pl'],
+            ['.pdf', '.odt', '.doc', '.docx', '.html'],
+            ['.png', '.jpg', '.jpeg', '.gif', '.tif', '.tiff', '.eps', '.ppt', '.pptx'],
+            ['.csv', '.tsv', '.xls', '.xlsx', '.ods', '.json', '.jsonld', '.ldjson', '.txt', '.xml', '.nxml', '.ttl', '.rtf']
+          );
+
+          if(recognisedFormat.indexOf(path.extname(newFiles[0])) > -1){ //recognized
+            files.push(newFiles[0]);
+          } else {
+            codeBundles.push(uncompressedDir);
+          }
+
+        } else {
+          codeBundles.push(uncompressedDir);          
+        }
+
+        cb(null);
+        
+      });
+    };
+
+    var s;
+    if(path.extname(f) === '.zip'){
+
+      var unzipper = new DecompressZip(f);
+      unzipper.on('error', cb);
+      unzipper.on('extract', _next);
+      unzipper.extract({ path: uncompressedDir });
+
+    } else {
+
+      s = fs.createReadStream(f);
+      s = s.pipe(zlib.Unzip()).pipe(tar.Extract({ path: uncompressedDir }));
+      s.on('error',  cb);
+      s.on('end', _next);
+
+    }
+
+  }, function(err){
+
+    if(err) return callback(err);
+    ldpm.paths2resources(files, {root: root, codeBundles: codeBundles}, callback);
+
+  });
+
+  
+  
+};
+
+
+/*
+ * depreciated: use the .nxml contained in the tar.gz instead
+ */
+function fetchXml(pmcid, ldpm, callback){
+  var uri = 'http://www.pubmedcentral.nih.gov/oai/oai.cgi?verb=GetRecord&identifier=oai:pubmedcentral.nih.gov:' + pmcid.slice(3) + '&metadataPrefix=pmc';
+
+  ldpm.logHttp('GET', uri);
+  request(uri, function(error, resp, xml){
+    if(error) return callback(error);
+
+    ldpm.logHttp(resp.statusCode, uri);
+
+    if(resp.statusCode >= 400){
+      var err = new Error(xml);
+      err.code = resp.statusCode;
+      return callback(err);
+    }
+
+    callback(null, xml);
+  });
+};
+
+
+function removeAttributes($el){
+  
+  if($el.attributes && $el.attributes.length){
+    var atts = Array.prototype.map.call($el.attributes, function(x){return x.name;});
+    if(atts.length){
+      atts.forEach(function(att){
+        $el.removeAttribute(att);      
+      })
+    }
+  }
+
+  if($el.childNodes && $el.childNodes.length){
+    for(var i=0; i<$el.childNodes.length; i++){
+      removeAttributes($el.childNodes[i]);
+    }
+  }
+
+};
+
+
+
+function addTablesAndCaptions(meta, resources,  mainArticleName, callback){
+  
+
 
 };

@@ -489,31 +489,16 @@ Ldpm.prototype._cache = function(pkg, context, root, callback){
     }
   });
 
-  (pkg.article || []).forEach(function(r){
-    if(r.encoding){
-      for(var i=0; i < r.encoding.length; i++){
-        if(r.encoding[i].contentUrl){
-          toCache.push({
-            name: r.name,
-            type: 'article',
-            url: r.encoding[i].contentUrl,
-            path: r.encoding[i].contentPath
-          });
-        }
-      }
-    }
-  });
-
-  ['figure', 'video', 'audio'].forEach(function(type){
+  ['article', 'figure', 'video', 'audio'].forEach(function(type){
     (pkg[type] || []).forEach(function(r){
-      if(r[type]){
-        for(var i=0; i < r[type].length; i++){
-          if(r[type][i].contentUrl){
+      if(r.encoding){
+        for(var i=0; i < r.encoding.length; i++){
+          if(r.encoding[i].contentUrl){
             toCache.push({
               name: r.name,
               type: type,
-              url: r[type][i].contentUrl,
-              path: r[type][i].contentPath
+              url: r.encoding[i].contentUrl,
+              path: r.encoding[i].contentPath
             });
           }
         }
@@ -660,7 +645,7 @@ Ldpm.prototype.adduser = function(callback){
 
 /**
  * from paths expressed as globs (*.csv, ...) to resources
- * opts: { fFilter: function(){}, codeBundles: [] }
+ * opts: { fFilter: function(){}, codeBundles: [], root }
  */
 Ldpm.prototype.paths2resources = function(globs, opts, callback){
 
@@ -669,14 +654,16 @@ Ldpm.prototype.paths2resources = function(globs, opts, callback){
     opts = {};
   }
 
+  var root = opts.root || this.root;
+
   callback = once(callback);
 
   //supposes that codeBundles are relative path to code project directories
-  var absCodeBundles = (opts.codeBundles || []).map(function(x){return path.resolve(this.root, x)}, this);
+  var absCodeBundles = (opts.codeBundles || []).map(function(x){return path.resolve(root, x);});
 
 
   async.map(globs, function(pattern, cb){
-    glob(path.resolve(this.root, pattern), {matchBase: true}, cb);
+    glob(path.resolve(root, pattern), {matchBase: true}, cb);
   }.bind(this), function(err, paths){
     if(err) return cb(err);
 
@@ -698,11 +685,11 @@ Ldpm.prototype.paths2resources = function(globs, opts, callback){
 
     async.map(fpaths, function(p, cb){
       var ext = path.extname(p)
-        , mypath = path.relative(this.root, p)
+        , mypath = path.relative(root, p)
         , myformat = mime.lookup(ext)
         , myname = path.basename(p, ext).replace(/ /g, '-');
 
-      if(['.csv', '.tsv', '.xls', '.xlsx', '.ods', '.json', '.jsonld', '.ldjson', '.txt', '.xml', '.nxml', '.ttl', '.rtf'].indexOf(ext.toLowerCase()) !== -1){
+      if(['.csv', '.tsv', '.xls', '.xlsx', '.ods', '.json', '.jsonld', '.ldjson', '.txt', '.xml', '.ttl', '.rtf'].indexOf(ext.toLowerCase()) !== -1){
 
         var dataset = {
           name: myname,
@@ -712,8 +699,8 @@ Ldpm.prototype.paths2resources = function(globs, opts, callback){
           }]
         };
 
-        if(dataset.distribution[0].contentPath.indexOf('..') !== -1){ //check that all path are within this.root
-          return cb(new Error('only dataset files within ' + this.root + ' can be added (' + dataset.distribution[0].contentPath +')'));
+        if(dataset.distribution[0].contentPath.indexOf('..') !== -1){ //check that all path are within root
+          return cb(new Error('only dataset files within ' + root + ' can be added (' + dataset.distribution[0].contentPath +')'));
         }
 
         //about
@@ -734,19 +721,19 @@ Ldpm.prototype.paths2resources = function(globs, opts, callback){
 
         var figure = {
           name: myname,
-          figure: [{
+          encoding: [{
             contentPath: mypath,
             encodingFormat: myformat
           }]
         };
 
-        if(figure.figure[0].contentPath.indexOf('..') !== -1){
-          return cb(new Error('only figure files within ' + this.root + ' can be added (' + figure.figure[0].contentPath +')'));
+        if(figure.encoding[0].contentPath.indexOf('..') !== -1){
+          return cb(new Error('only figure files within ' + root + ' can be added (' + figure.encoding[0].contentPath +')'));
         }
 
         cb(null, {type: 'figure', value: figure});
 
-      } else if (['.pdf', '.odt', '.doc', '.docx', '.html'].indexOf(ext.toLowerCase()) !== -1){
+      } else if (['.pdf', '.odt', '.doc', '.docx', '.html', '.nxml'].indexOf(ext.toLowerCase()) !== -1){
 
         var article = {
           name: myname,
@@ -757,7 +744,7 @@ Ldpm.prototype.paths2resources = function(globs, opts, callback){
         };
 
         if(article.encoding[0].contentPath.indexOf('..') !== -1){
-          return cb(new Error('only article files within ' + this.root + ' can be added (' + article.encoding[0].contentPath +')'));
+          return cb(new Error('only article files within ' + root + ' can be added (' + article.encoding[0].contentPath +')'));
         }
 
         cb(null, {type: 'article', value: article});
@@ -781,7 +768,7 @@ Ldpm.prototype.paths2resources = function(globs, opts, callback){
         };
 
         if(code.targetProduct[0].filePath.indexOf('..') !== -1){
-          return cb(new Error('only standalone scripts within ' + this.root + ' can be added (' + code.targetProduct[0].filePath +')'));
+          return cb(new Error('only standalone scripts within ' + root + ' can be added (' + code.targetProduct[0].filePath +')'));
         }
 
         cb(null, {type: 'code', value: code});
@@ -790,14 +777,14 @@ Ldpm.prototype.paths2resources = function(globs, opts, callback){
 
         var audio = {
           name: myname,
-          audio: [{
+          encoding: [{
             contentPath: mypath,
             encodingFormat: myformat
           }]
         };
 
-        if(audio.audio[0].contentPath.indexOf('..') !== -1){
-          return cb(new Error('only audio files within ' + this.root + ' can be added (' + audio.audio[0].contentPath +')'));
+        if(audio.endoding[0].contentPath.indexOf('..') !== -1){
+          return cb(new Error('only audio files within ' + root + ' can be added (' + audio.encoding[0].contentPath +')'));
         }
 
         cb(null, {type: 'audio', value: audio});
@@ -806,25 +793,45 @@ Ldpm.prototype.paths2resources = function(globs, opts, callback){
 
         var video = {
           name: myname,
-          video: [{
+          encoding: [{
             contentPath: mypath,
             encodingFormat: myformat
           }]
         };
 
-        if(video.video[0].contentPath.indexOf('..') !== -1){
-          return cb(new Error('only video files within ' + this.root + ' can be added (' + video.video[0].contentPath +')'));
+        if(video.encoding[0].contentPath.indexOf('..') !== -1){
+          return cb(new Error('only video files within ' + root + ' can be added (' + video.encoding[0].contentPath +')'));
         }
 
         cb(null, {type: 'video', value: video});
 
       } else {
-        cb(new Error('non suported file type: ' + path.relative(this.root, p) + " If it is part of a code project, use --codebundle and the directory to be bundled"));
+        cb(new Error('non suported file type: ' + path.relative(root, p) + " If it is part of a code project, use --codebundle and the directory to be bundled"));
       }
 
     }.bind(this), function(err, typedResources){
 
       if(err) return callback(err);
+
+      //for resource with same name merge different encodings      
+      var byName = {
+        dataset: {},
+        code: {},
+        figure: {},
+        article: {},
+        audio: {},
+        video: {}
+      };
+
+      var typeMap = { 'figure': 'encoding', 'audio': 'encoding', 'video': 'encoding', 'code': 'targetProduct', 'dataset': 'distribution', 'article': 'encoding'};
+
+      typedResources.forEach(function(r){
+        if (r.value.name in byName[r.type]){          
+          byName[r.type][r.value.name].push(r.value);
+        } else {
+          byName[r.type][r.value.name] = [r.value];
+        }
+      });
 
       var resources = {
         dataset: [],
@@ -835,9 +842,25 @@ Ldpm.prototype.paths2resources = function(globs, opts, callback){
         video: []
       };
 
-      for(var i=0; i<typedResources.length; i++){
-        var r = typedResources[i];
-        resources[r.type].push(r.value);
+      for(var rtype in byName){
+        for(var rname in byName[rtype]){
+          var r = {};
+          for(var i=0; i< byName[rtype][rname].length; i++){
+            var rr = byName[rtype][rname][i];
+            Object.keys(rr).forEach(function(k){
+              if(k === typeMap[rtype]){
+                if(r[k]){
+                  r[k].push(rr[k][0]);
+                } else {
+                  r[k] = [rr[k][0]];
+                }
+              }else{
+                r[k] = rr[k];
+              }
+            });
+          }
+          resources[rtype].push(r);
+        }
       }
 
       if(!absCodeBundles.length){
@@ -856,7 +879,7 @@ Ldpm.prototype.paths2resources = function(globs, opts, callback){
         var ws = ignore.pipe(tar.Pack()).pipe(zlib.createGzip()).pipe(fs.createWriteStream(tempPath));
         ws.on('error', cb);
         ws.on('finish', function(){
-          cb(null, {name: path.basename(absPath), targetProduct: [{filePath: tempPath, bundlePath: path.relative(this.root, absPath), fileFormat:'application/x-gzip'}]});
+          cb(null, {name: path.basename(absPath), targetProduct: [{filePath: tempPath, bundlePath: path.relative(root, absPath), fileFormat:'application/x-gzip'}]});
         }.bind(this));
 
       }.bind(this), function(err, codeResources){
@@ -952,7 +975,7 @@ Ldpm.prototype.urls2resources = function(urls, callback){
         var figure = {
           value: {
             name: myname,
-            figure:[{
+            encoding: [{
               encodingFormat: resp.headers['content-type'],
               contentUrl: myurl
             }]
@@ -961,12 +984,12 @@ Ldpm.prototype.urls2resources = function(urls, callback){
         };
 
         if('content-encoding' in resp.headers){
-          figure.value.figure[0].encoding = { encodingFormat: resp.headers['content-encoding']};
+          figure.value.encoding[0].encoding = { encodingFormat: resp.headers['content-encoding']};
           if('content-length' in resp.headers){
-            figure.value.figure[0].encoding.contentSize = parseInt(resp.headers['content-length'], 10);
+            figure.value.encoding[0].encoding.contentSize = parseInt(resp.headers['content-length'], 10);
           }
         } else if('content-length' in resp.headers){
-          figure.value.figure[0].contentSize = parseInt(resp.headers['content-length'], 10);
+          figure.value.encoding[0].contentSize = parseInt(resp.headers['content-length'], 10);
         }
 
         cb(null, figure);
@@ -976,7 +999,7 @@ Ldpm.prototype.urls2resources = function(urls, callback){
         var audio = {
           value: {
             name: myname,
-            audio: [{
+            encoding: [{
               encodingFormat: resp.headers['content-type'],
               contentUrl: myurl
             }]
@@ -985,12 +1008,12 @@ Ldpm.prototype.urls2resources = function(urls, callback){
         };
 
         if('content-encoding' in resp.headers){
-          audio.value.audio[0].encoding = { encodingFormat: resp.headers['content-encoding']};
+          audio.value.encoding[0].encoding = { encodingFormat: resp.headers['content-encoding']};
           if('content-length' in resp.headers){
-            audio.value.audio[0].encoding.contentSize = parseInt(resp.headers['content-length'], 10);
+            audio.value.encoding[0].encoding.contentSize = parseInt(resp.headers['content-length'], 10);
           }
         } else if('content-length' in resp.headers){
-          audio.value.audio[0].contentSize = parseInt(resp.headers['content-length'], 10);
+          audio.value.encoding[0].contentSize = parseInt(resp.headers['content-length'], 10);
         }
 
         cb(null, audio);
@@ -1000,7 +1023,7 @@ Ldpm.prototype.urls2resources = function(urls, callback){
         var video = {
           value: {
             name: myname,
-            video: [{
+            encoding: [{
               encodingFormat: resp.headers['content-type'],
               contentUrl: myurl
             }]
@@ -1009,12 +1032,12 @@ Ldpm.prototype.urls2resources = function(urls, callback){
         };
 
         if('content-encoding' in resp.headers){
-          video.value.video[0].encoding = { encodingFormat: resp.headers['content-encoding']};
+          video.value.encoding[0].encoding = { encodingFormat: resp.headers['content-encoding']};
           if('content-length' in resp.headers){
-            video.value.video[0].encoding.contentSize = parseInt(resp.headers['content-length'],10);
+            video.value.encoding[0].encoding.contentSize = parseInt(resp.headers['content-length'],10);
           }
         } else if('content-length' in resp.headers){
-          video.value.video[0].contentSize = parseInt(resp.headers['content-length'],10);
+          video.value.encoding[0].contentSize = parseInt(resp.headers['content-length'],10);
         }
 
         cb(null, video);

@@ -43,7 +43,6 @@
     "concat-stream": "^1.4.5",
     "cookie": "^0.1.2",
     "couch-multipart-stream": "0.0.0",
-    "decompress-zip": "0.0.6",
     "flat": "~1.0.0",
     "fs-readdir-recursive": "0.0.1",
     "fstream-ignore": "0.0.7",
@@ -75,7 +74,9 @@
     "underscore": "^1.6.0",
     "xlsjs": "^0.6.17",
     "xlsx": "^0.6.0",
-    "xmldom": "0.1.19"
+    "xmldom": "0.1.19",
+    "decompress-zip": "0.0.8",
+    "sax": "~0.6.0"
   },
   "devDependencies": {
     "mocha": "~1.15.1"

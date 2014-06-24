@@ -97,33 +97,40 @@ function _match(r, type, hrefs){
   
   if(r[typeMap[type]] && r[typeMap[type]].length){
     for(var i=0; i<r[typeMap[type]].length; i++){
-      var mpath = r[typeMap[type]][i].contentPath || r[typeMap[type]][i].filePath || r[typeMap[type]][i].bundlePath;
-      var mname = path.basename(mpath, path.extname(mpath));
-      var mname2 = mname.replace(/ /g, '-');
+      var mpath = r[typeMap[type]][i].contentPath || r[typeMap[type]][i].bundlePath || r[typeMap[type]][i].filePath; //note: bundlePath is first!
+      if(mpath){
+        var cext = ['.gz', '.gzip', '.tgz', '.zip', '.tar.gz'];
 
-      //in case of compression of a single media file.
-      var mname3 = path.dirname(mpath); 
-      var mname4 = mname3 + '.gz';
-      var mname5 = mname3 + '.gzip';
-      var mname6 = mname3 + '.tgz';
-      var mname7 = mname3 + '.zip';
+        var mbase = path.basename(mpath);
+        var mname = path.basename(mpath, path.extname(mpath));
+        var mnamens = mname.replace(/ /g, '-');
 
-      if(mpath && ( (hrefs.indexOf(mpath) > -1) || 
-                    (hrefs.indexOf(mname) > -1) || 
-                    (hrefs.indexOf(mname2) > -1) || 
-                    (hrefs.indexOf(mname3) > -1) || 
-                    (hrefs.indexOf(mname4) > -1) || 
-                    (hrefs.indexOf(mname5) > -1) || 
-                    (hrefs.indexOf(mname6) > -1) || 
-                    (hrefs.indexOf(mname7) > -1) )){
-        return true;
-      }
+        //in case of compression of a single media file.
+        var mnamedir = path.dirname(mpath);
+        
+        var mynames = [ mbase, mname, mnamens ];
+        if(mnamedir !== '.'){
+          cext.forEach(function(ext){
+            mynames.push(mnamedir + ext);
+          });
+        }
+
+        if(r[typeMap[type]][i].bundlePath){
+          cext.forEach(function(ext){
+            mynames.push(mbase + ext);
+          });
+        }
+
+        if(mynames.some(function(x){ return hrefs.indexOf(x) >-1; })){
+          return true;
+        }
+
+      }      
     }
   }
 
   return false;
 };
-
 
 
 
@@ -563,7 +570,7 @@ function parseXml(xml, pmcid, opts){
   }
 
   if(jsDate){
-    meta.publicationDate = jsDate.toISOString(); //TODO fix timezone for bethesda DC because NLM
+    meta.datePublished = jsDate.toISOString(); //TODO fix timezone for bethesda DC because NLM
     meta.year = jsDate.getFullYear();
   }
   
@@ -726,8 +733,6 @@ function _getRef($ref){
   var $mixedCitation = $ref.getElementsByTagName('mixed-citation')[0];
   if($mixedCitation){
 
-    ref.description = tools.cleanText($mixedCitation.textContent);
-
     var publicationType = $mixedCitation.getAttribute('publication-type');
 
     var $articleTitle = $mixedCitation.getElementsByTagName('article-title')[0];
@@ -746,7 +751,7 @@ function _getRef($ref){
       }
     } else {
       if($source){
-        ref.header = tools.cleanText($source.textContent);
+        ref.headline = tools.cleanText($source.textContent);
       }
     }
 
@@ -786,13 +791,16 @@ function _getRef($ref){
     }
 
 
-    var $pubId = $mixedCitation.getElementsByTagName('pub-id')[0];
-    if($pubId){
-      var pubIdType = $pubId.getAttribute('pub-id-type');          
-      if(pubIdType){ //doi, pmid...
-        ref[pubIdType] = $pubId.textContent;
-      }
+    var $pubIds = $mixedCitation.getElementsByTagName('pub-id');
+    if($pubIds && $pubIds.length){
+      Array.prototype.forEach.call($pubIds, function($pubId){
+        var pubIdType = $pubId.getAttribute('pub-id-type');          
+        if(pubIdType){ //doi, pmid...
+          ref[pubIdType] = $pubId.textContent;
+        }
+      });
     }
+
 
     //try again to get doi 
     if(!ref.doi){
@@ -825,7 +833,7 @@ function _getRef($ref){
       var $extLinks = $mixedCitation.getElementsByTagName('ext-link');
       if($extLinks){
         for(var i=0; i<$extLinks.length; i++){
-          if($extLinks[i].getAttribute('ext-link-type') === 'uri'){
+          if(['uri', 'ftp'].indexOf($extLinks[i].getAttribute('ext-link-type'))>-1){
             var uriHref = $extLinks[i].getAttribute('xlink:href');
             if(uriHref && isUrl(uriHref)){
               ref.url = uriHref;
@@ -908,7 +916,7 @@ function _extractKeywords($el){
 function findResourcesMeta(doc){
   var resources = [];
 
-  var tags = ['fig', 'table-wrap', 'supplementary-material'];
+  var tags = [ 'fig', 'table-wrap', 'supplementary-material' ];
 
   tags.forEach(function(tag){
 
@@ -967,31 +975,26 @@ function findResourcesMeta(doc){
       }
 
       //footnote -> Comment
+      r.fn = [];
       var $fns = $el.getElementsByTagName('fn');
       if($fns && $fns.length){
-        r.fn = [];
         Array.prototype.forEach.call($fns, function($fn){
           if(_isPlainText($fn)){
-            var fn = { id: $fn.getAttribute('id') };
-
-            var $label = $fn.getElementsByTagName('label')[0];
-            if($label){
-              fn.label = tools.cleanText($label.textContent);
-            }
-
-            var $ps = $fn.getElementsByTagName('p');
-            if($ps && $ps.length){
-              fn.content = Array.prototype.map.call($ps, function($p){
-                return tools.cleanText($p.textContent);
-              }).join(' ');
-
-              fn.content = tools.cleanText(fn.content);
-            }
-
-            r.fn.push(fn);
+            r.fn.push(_getFn($fn));
           }
         });
       }
+
+      //<table-wrap-foot> e.g PMC3532326 http://www.pubmedcentral.nih.gov/oai/oai.cgi?verb=GetRecord&identifier=oai:pubmedcentral.nih.gov:3532326&metadataPrefix=pmc
+      //!!<fn> already parsed...
+      var $tableWrapFoot = $el.getElementsByTagName('table-wrap-foot')[0];
+      if($tableWrapFoot && _isPlainText($tableWrapFoot)){
+        var istableWrapFootFns = $tableWrapFoot.getElementsByTagName('fn')[0];
+        if(!istableWrapFootFns){
+          r.fn.push(_getFn($tableWrapFoot));
+        }
+      }
+
 
       if(tag === 'supplementary-material' && $el.getAttribute('xlink:href')){ //if no ```xlink:href```: => will be taken into account by graphic, media and code in the ```else```. The reason is that for example, a <supplementary-material> element could contain a description of an animation, including the first frame of the animation (tagged as a <graphic> element), a caption describing the animation, and a cross-reference made to the external file that held the full animation.
 
@@ -1196,13 +1199,15 @@ function files2resources(ldpm, root, meta, files, mainArticleName, callback){
     return !! (['.gz', '.gzip', '.tgz','.zip'].indexOf(path.extname(file))>-1);
   });
 
-
+ 
   var inline = meta.inline || [];
   files = _.difference(files, compressedBundles, inline);
 
   //some inline ref have no extension: take care of that...
   files = files.filter(function(file){
-    return !! (inline.indexOf(path.basename(file, path.extname(file))) === -1);
+    var name = path.basename(file);
+    var name2 = path.basename(file, path.extname(file));
+    return !! ((inline.indexOf(name) === -1) && (inline.indexOf(name2) === -1));
   });
   
   //uncompress bundles so that we can check if truely a code bundle or a compression of a single media file.
@@ -1264,9 +1269,7 @@ function files2resources(ldpm, root, meta, files, mainArticleName, callback){
     ldpm.paths2resources(files, {root: root, codeBundles: codeBundles}, callback);
 
   });
-
-  
-  
+    
 };
 
 
@@ -1368,6 +1371,32 @@ function _getCode($code){
     sampeType: $code.textContent
   };
 };
+
+
+function _getFn($fn){
+  var fn = { id: $fn.getAttribute('id') };
+
+  var $title = $fn.getElementsByTagName('title')[0];
+  if($title){
+    fn.title = tools.cleanText($title.textContent);
+  }
+
+  var $label = $fn.getElementsByTagName('label')[0];
+  if($label){
+    fn.label = tools.cleanText($label.textContent);
+  }
+
+  var $ps = $fn.getElementsByTagName('p');
+  if($ps && $ps.length){
+    fn.content = Array.prototype.map.call($ps, function($p){
+      return tools.cleanText($p.textContent);
+    }).join(' ');
+
+    fn.content = tools.cleanText(fn.content);
+  }
+
+  return fn;
+}
 
 
 
@@ -1668,6 +1697,10 @@ function meta2pkg(resources, meta, mainArticleName, pmcid){
 
   if(meta.keywords && meta.keywords.length){
     pkg.keywords = meta.keywords;
+  }
+
+  if(meta.datePublished){
+    pkg.datePublished = meta.datePublished;
   }
 
   if(meta.title){

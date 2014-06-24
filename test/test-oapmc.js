@@ -40,7 +40,6 @@ function getPkg(pmcid, callback){
   });
 };
 
-
 describe('pubmed central', function(){
 
   this.timeout(320000);
@@ -49,8 +48,36 @@ describe('pubmed central', function(){
   it('should create a package.jsonld for a ms with a movie zipped and not treat it as a code bundle', function(done){
     getPkg('PMC2924383', function(err, pkg){
       if(err) throw err;
-      console.log(util.inspect(pkg, {depth: null}));      
-      done();
+      fs.readFile(path.join(root, 'pmc2924383.json'), function(err, expected){
+        if(err) throw err;
+        assert.deepEqual(JSON.parse(JSON.stringify(pkg)), JSON.parse(expected)); //JSON.parse(JSON.stringify) so that NaN are taken into account...
+        done();
+      });
     });
   });
+
+  it('should create a package.jsonld for a ms with a lot of inline formulaes', function(done){
+    getPkg('PMC2958805', function(err, pkg){
+      fs.readFile(path.join(root, 'pmc2958805.json'), function(err, expected){
+        if(err) throw err;
+        assert.deepEqual(JSON.parse(JSON.stringify(pkg)), JSON.parse(expected)); //JSON.parse(JSON.stringify) so that NaN are taken into account...
+        done();
+      });
+    });
+  });
+
+  it('should create a package.jsonld for a ms with a codeBundle and an HTML table with footnotes', function(done){
+    getPkg('PMC3532326', function(err, pkg){
+      fs.readFile(path.join(root, 'pmc3532326.json'), function(err, expected){
+        if(err) throw err;
+        pkg = JSON.parse(JSON.stringify(pkg));
+        var expected = JSON.parse(expected);
+        delete pkg.code[0].targetProduct[0].filePath;
+        delete expected.code[0].targetProduct[0].filePath;
+        assert.deepEqual(pkg, expected);
+        done();
+      });
+    });
+  });
+
 });

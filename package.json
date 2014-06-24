@@ -42,11 +42,9 @@
     "colors": "~0.6.2",
     "concat-stream": "^1.4.5",
     "cookie": "^0.1.2",
-    "couch-multipart-stream": "0.0.0",
+    "couch-multipart-stream": "*",
     "flat": "~1.0.0",
-    "fs-readdir-recursive": "0.0.1",
     "fstream-ignore": "0.0.7",
-    "ftp": "0.3.6",
     "github-url": "^1.1.0",
     "glob": "^3.2.8",
     "is-url": "^1.0.0",
@@ -63,7 +61,6 @@
     "preview-tabular-data": "*",
     "rc": "~0.3.2",
     "read": "~1.0.5",
-    "recursive-readdir": "1.0.0",
     "request": "^2.34.0",
     "rimraf": "^2.2.6",
     "semver": "~2.2.1",
@@ -76,7 +73,10 @@
     "xlsx": "^0.6.0",
     "xmldom": "0.1.19",
     "decompress-zip": "0.0.8",
-    "sax": "~0.6.0"
+    "sax": "~0.6.0",
+    "ftp": "~0.3.7",
+    "recursive-readdir": "~1.1.1",
+    "fs-readdir-recursive": "0.0.2"
   },
   "devDependencies": {
     "mocha": "~1.15.1"

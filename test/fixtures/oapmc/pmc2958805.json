@@ -1,0 +1,1438 @@
+{
+  "name": "plos-comput-biol-rapoport-2010",
+  "version": "0.0.0",
+  "keywords": [
+    "Research Article",
+    "Mathematics",
+    "Nutrition",
+    "Physiology/Integrative Physiology",
+    "Public Health and Epidemiology/Exercise and Sports"
+  ],
+  "datePublished": "2010-11-21T05:00:00.000Z",
+  "description": "Metabolic Factors Limiting Performance in Marathon Runners",
+  "license": {
+    "text": "Terms of Use for Article PLoS Comput Biol. 2010 Oct 21; 6(10):e1000960 Read the license and copyright statements in the XML or PDF files for this article before reusing or redistributing any part of the article. The license and copyright statements define what uses of the article are permitted, and apply to all associated files, including images and supplementary material. The terms and conditions of use are not identical for all articles. Contact the publisher if you have any questions about the permissible uses of the article."
+  },
+  "author": {
+    "@type": "Person",
+    "givenName": "Benjamin I.",
+    "familyName": "Rapoport",
+    "name": "Benjamin I. Rapoport",
+    "email": "brapoport@post.harvard.edu",
+    "affiliation": [
+      {
+        "@type": "Organization",
+        "description": "M.D.– Ph.D. Program, Harvard Medical School, Boston, Massachusetts, United States of America."
+      },
+      {
+        "@type": "Organization",
+        "description": "Department of Electrical Engineering and Computer Science and Division of Health Sciences and Technology, Massachusetts Institute of Technology, Cambridge, Massachusetts, United States of America."
+      }
+    ]
+  },
+  "provider": {
+    "@type": "Organization",
+    "@id": "http://www.ncbi.nlm.nih.gov/pmc/",
+    "description": "From PMC®, a database of the U.S. National Library of Medicine."
+  },
+  "accountablePerson": {
+    "@type": "Organization",
+    "name": "Standard Analytics IO",
+    "email": "contact@standardanalytics.io"
+  },
+  "figure": [
+    {
+      "name": "pcbi-1000960-g001",
+      "alternateName": "Figure 1",
+      "description": "Relative use of fat and carbohydrate as metabolic fuels depends on exercise intensity.",
+      "doi": "10.1371/journal.pcbi.1000960.g001",
+      "thumbnailPath": [
+        "pcbi.1000960.g001.gif"
+      ],
+      "encoding": [
+        {
+          "contentPath": "pcbi.1000960.g001.jpg",
+          "encodingFormat": "image/jpeg"
+        }
+      ]
+    },
+    {
+      "name": "pcbi-1000960-g002",
+      "alternateName": "Figure 2",
+      "description": "When does glycogen storage capacity constrain maximal marathon speed?",
+      "doi": "10.1371/journal.pcbi.1000960.g002",
+      "thumbnailPath": [
+        "pcbi.1000960.g002.gif"
+      ],
+      "encoding": [
+        {
+          "contentPath": "pcbi.1000960.g002.jpg",
+          "encodingFormat": "image/jpeg"
+        }
+      ]
+    },
+    {
+      "name": "pcbi-1000960-g003",
+      "alternateName": "Figure 3",
+      "description": "Distance to ‘The Wall’ for endurance runners.",
+      "doi": "10.1371/journal.pcbi.1000960.g003",
+      "thumbnailPath": [
+        "pcbi.1000960.g003.gif"
+      ],
+      "encoding": [
+        {
+          "contentPath": "pcbi.1000960.g003.jpg",
+          "encodingFormat": "image/jpeg"
+        }
+      ]
+    },
+    {
+      "name": "pcbi-1000960-g004",
+      "alternateName": "Figure 4",
+      "description": "Estimating the aerobic capacity of a typical runner.",
+      "doi": "10.1371/journal.pcbi.1000960.g004",
+      "thumbnailPath": [
+        "pcbi.1000960.g004.gif"
+      ],
+      "encoding": [
+        {
+          "contentPath": "pcbi.1000960.g004.jpg",
+          "encodingFormat": "image/jpeg"
+        }
+      ]
+    }
+  ],
+  "article": [
+    {
+      "name": "pcbi.1000960",
+      "encoding": [
+        {
+          "contentPath": "pcbi.1000960.pdf",
+          "encodingFormat": "application/pdf"
+        }
+      ],
+      "@type": "ScholarlyArticle",
+      "alternateName": "Factors Limiting Performance in Marathon Runners",
+      "publisher": {
+        "@type": "Organization",
+        "name": "Public Library of Science",
+        "location": {
+          "@type": "PostalAddress",
+          "description": "San Francisco, USA"
+        }
+      },
+      "editor": [
+        {
+          "@type": "Person",
+          "givenName": "Philip E.",
+          "familyName": "Bourne",
+          "name": "Philip E. Bourne",
+          "affiliation": [
+            {
+              "@type": "Organization",
+              "description": "University of California San Diego, United States of America"
+            }
+          ]
+        }
+      ],
+      "accountablePerson": [
+        {
+          "@type": "Person",
+          "givenName": "Benjamin I.",
+          "familyName": "Rapoport",
+          "name": "Benjamin I. Rapoport",
+          "email": "brapoport@post.harvard.edu",
+          "affiliation": [
+            {
+              "@type": "Organization",
+              "description": "M.D.– Ph.D. Program, Harvard Medical School, Boston, Massachusetts, United States of America."
+            },
+            {
+              "@type": "Organization",
+              "description": "Department of Electrical Engineering and Computer Science and Division of Health Sciences and Technology, Massachusetts Institute of Technology, Cambridge, Massachusetts, United States of America."
+            }
+          ]
+        }
+      ],
+      "journal": {
+        "@type": "Journal",
+        "name": "PLoS Computational Biology",
+        "issn": "1553-7358"
+      },
+      "doi": "10.1371/journal.pcbi.1000960",
+      "pmid": "20975938",
+      "pmcid": "PMC2958805",
+      "headline": "Metabolic Factors Limiting Performance in Marathon Runners",
+      "issue": 10,
+      "volume": 6,
+      "citation": [
+        {
+          "name": "pcbi.1000960-Running1",
+          "alternateName": "1",
+          "datePublished": "2010-01-01T00:00:00.000Z"
+        },
+        {
+          "name": "pcbi.1000960-Buman1",
+          "alternateName": "2",
+          "@type": "ScholarlyArticle",
+          "headline": "Hitting the wall in the marathon: Phenomenological characteristics and associations with expectancy, gender, and running history.",
+          "journal": {
+            "@type": "Journal",
+            "name": "Psychol Sport Exerc"
+          },
+          "volume": 9,
+          "pageStart": 177,
+          "pageEnd": 190,
+          "datePublished": "2008-01-01T00:00:00.000Z",
+          "author": {
+            "@type": "Person",
+            "familyName": "Buman",
+            "givenName": "MP"
+          },
+          "contributor": [
+            {
+              "@type": "Person",
+              "familyName": "Brewer",
+              "givenName": "BW"
+            },
+            {
+              "@type": "Person",
+              "familyName": "Cornelius",
+              "givenName": "AE"
+            },
+            {
+              "@type": "Person",
+              "familyName": "Van Raalte",
+              "givenName": "JL"
+            },
+            {
+              "@type": "Person",
+              "familyName": "Petitpas",
+              "givenName": "AJ"
+            }
+          ]
+        },
+        {
+          "name": "pcbi.1000960-Buman2",
+          "alternateName": "3",
+          "@type": "ScholarlyArticle",
+          "headline": "A discrete-time hazard model of hitting the wall in recreational marathon runners.",
+          "journal": {
+            "@type": "Journal",
+            "name": "Psychol Sport Exerc"
+          },
+          "volume": 10,
+          "pageStart": 662,
+          "pageEnd": 666,
+          "datePublished": "2009-01-01T00:00:00.000Z",
+          "author": {
+            "@type": "Person",
+            "familyName": "Buman",
+            "givenName": "MP"
+          },
+          "contributor": [
+            {
+              "@type": "Person",
+              "familyName": "Brewer",
+              "givenName": "BW"
+            },
+            {
+              "@type": "Person",
+              "familyName": "Cornelius",
+              "givenName": "AE"
+            }
+          ]
+        },
+        {
+          "name": "pcbi.1000960-Sjodin1",
+          "alternateName": "4",
+          "@type": "ScholarlyArticle",
+          "headline": "Applied physiology of marathon running.",
+          "journal": {
+            "@type": "Journal",
+            "name": "Sports Med"
+          },
+          "volume": 2,
+          "pageStart": 83,
+          "pageEnd": 99,
+          "datePublished": "1985-01-01T00:00:00.000Z",
+          "pmid": "3890068",
+          "url": "http://www.ncbi.nlm.nih.gov/pubmed/3890068",
+          "author": {
+            "@type": "Person",
+            "familyName": "Sjodin",
+            "givenName": "B"
+          },
+          "contributor": [
+            {
+              "@type": "Person",
+              "familyName": "Svedenhag",
+              "givenName": "J"
+            }
+          ]
+        },
+        {
+          "name": "pcbi.1000960-Emmett1",
+          "alternateName": "5",
+          "@type": "ScholarlyArticle",
+          "headline": "The physiology of marathon running: Just what does running a marathon do to your body?",
+          "journal": {
+            "@type": "Journal",
+            "name": "Marathon and Beyond"
+          },
+          "volume": 11,
+          "pageStart": 20,
+          "pageEnd": 36,
+          "datePublished": "2007-01-01T00:00:00.000Z",
+          "author": {
+            "@type": "Person",
+            "familyName": "Emmett",
+            "givenName": "J"
+          }
+        },
+        {
+          "name": "pcbi.1000960-Locksley1",
+          "alternateName": "6",
+          "@type": "ScholarlyArticle",
+          "headline": "Fuel utilization in marathons: Implications for performance (Medical staff conference, University of California, San Francisco).",
+          "journal": {
+            "@type": "Journal",
+            "name": "West J Med"
+          },
+          "volume": 133,
+          "pageStart": 493,
+          "pageEnd": 502,
+          "datePublished": "1980-01-01T00:00:00.000Z",
+          "pmid": "7008360",
+          "url": "http://www.ncbi.nlm.nih.gov/pubmed/7008360",
+          "author": {
+            "@type": "Person",
+            "familyName": "Locksley",
+            "givenName": "R"
+          }
+        },
+        {
+          "name": "pcbi.1000960-diPrampero1",
+          "alternateName": "7",
+          "@type": "ScholarlyArticle",
+          "headline": "The energetics of endurance running.",
+          "journal": {
+            "@type": "Journal",
+            "name": "Eur J Appl Physiol Occup Physiol"
+          },
+          "volume": 55,
+          "pageStart": 259,
+          "pageEnd": 266,
+          "datePublished": "1986-01-01T00:00:00.000Z",
+          "pmid": "3732253",
+          "url": "http://www.ncbi.nlm.nih.gov/pubmed/3732253",
+          "author": {
+            "@type": "Person",
+            "familyName": "di Prampero",
+            "givenName": "PE"
+          },
+          "contributor": [
+            {
+              "@type": "Person",
+              "familyName": "Atchou",
+              "givenName": "G"
+            },
+            {
+              "@type": "Person",
+              "familyName": "Brückner",
+              "givenName": "JC"
+            },
+            {
+              "@type": "Person",
+              "familyName": "Moia",
+              "givenName": "C"
+            }
+          ]
+        },
+        {
+          "name": "pcbi.1000960-WardSmith1",
+          "alternateName": "8",
+          "@type": "ScholarlyArticle",
+          "headline": "A mathematical theory of running, based on the first law of thermodynamics, and its application to the performance of world-class athletes.",
+          "journal": {
+            "@type": "Journal",
+            "name": "J Biomech"
+          },
+          "volume": 18,
+          "pageStart": 337,
+          "pageEnd": 349,
+          "datePublished": "1985-01-01T00:00:00.000Z",
+          "pmid": "4008504",
+          "url": "http://www.ncbi.nlm.nih.gov/pubmed/4008504",
+          "author": {
+            "@type": "Person",
+            "familyName": "Ward-Smith",
+            "givenName": "AJ"
+          }
+        },
+        {
+          "name": "pcbi.1000960-Pronnet1",
+          "alternateName": "9",
+          "@type": "ScholarlyArticle",
+          "headline": "Mathematical analysis of running performance and world running records.",
+          "journal": {
+            "@type": "Journal",
+            "name": "J Appl Physiol"
+          },
+          "volume": 67,
+          "pageStart": 453,
+          "pageEnd": 465,
+          "datePublished": "1989-01-01T00:00:00.000Z",
+          "pmid": "2759974",
+          "url": "http://www.ncbi.nlm.nih.gov/pubmed/2759974",
+          "author": {
+            "@type": "Person",
+            "familyName": "Péronnet",
+            "givenName": "F"
+          },
+          "contributor": [
+            {
+              "@type": "Person",
+              "familyName": "Thibault",
+              "givenName": "G"
+            }
+          ]
+        },
+        {
+          "name": "pcbi.1000960-Joyner1",
+          "alternateName": "10",
+          "@type": "ScholarlyArticle",
+          "headline": "Modeling: optimal marathon performance on the basis of physiological factors.",
+          "journal": {
+            "@type": "Journal",
+            "name": "J Appl Physiol"
+          },
+          "volume": 70,
+          "pageStart": 683,
+          "pageEnd": 687,
+          "datePublished": "1991-01-01T00:00:00.000Z",
+          "pmid": "2022559",
+          "url": "http://www.ncbi.nlm.nih.gov/pubmed/2022559",
+          "author": {
+            "@type": "Person",
+            "familyName": "Joyner",
+            "givenName": "MJ"
+          }
+        },
+        {
+          "name": "pcbi.1000960-Billat1",
+          "alternateName": "11",
+          "@type": "ScholarlyArticle",
+          "headline": "Bioenergetics approach of female marathon best performance.",
+          "journal": {
+            "@type": "Journal",
+            "name": "Sci Sports"
+          },
+          "volume": 14,
+          "pageStart": 180,
+          "pageEnd": 182,
+          "datePublished": "1999-01-01T00:00:00.000Z",
+          "author": {
+            "@type": "Person",
+            "familyName": "Billat",
+            "givenName": "V"
+          },
+          "contributor": [
+            {
+              "@type": "Person",
+              "familyName": "Bocquet",
+              "givenName": "V"
+            }
+          ]
+        },
+        {
+          "name": "pcbi.1000960-Bocquet1",
+          "alternateName": "12",
+          "@type": "ScholarlyArticle",
+          "headline": "Mathematical and physiological models of human performance.",
+          "journal": {
+            "@type": "Journal",
+            "name": "Sci Sports"
+          },
+          "volume": 14,
+          "pageStart": 278,
+          "pageEnd": 291,
+          "datePublished": "1999-01-01T00:00:00.000Z",
+          "author": {
+            "@type": "Person",
+            "familyName": "Bocquet",
+            "givenName": "V"
+          },
+          "contributor": [
+            {
+              "@type": "Person",
+              "familyName": "Billat",
+              "givenName": "V"
+            }
+          ]
+        },
+        {
+          "name": "pcbi.1000960-diPrampero2",
+          "alternateName": "13",
+          "@type": "ScholarlyArticle",
+          "headline": "Factors limiting maximal performance in humans.",
+          "journal": {
+            "@type": "Journal",
+            "name": "Eur J Appl Physiol"
+          },
+          "volume": 90,
+          "pageStart": 420,
+          "pageEnd": 429,
+          "datePublished": "2003-01-01T00:00:00.000Z",
+          "pmid": "12910345",
+          "url": "http://www.ncbi.nlm.nih.gov/pubmed/12910345",
+          "author": {
+            "@type": "Person",
+            "familyName": "di Prampero",
+            "givenName": "PE"
+          }
+        },
+        {
+          "name": "pcbi.1000960-McGregor1",
+          "alternateName": "14",
+          "@type": "ScholarlyArticle",
+          "headline": "Performance modeling in an olympic 1500-m finalist: A practical approach.",
+          "journal": {
+            "@type": "Journal",
+            "name": "J Strength Cond Res"
+          },
+          "volume": 23,
+          "pageStart": 2515,
+          "pageEnd": 2523,
+          "datePublished": "2009-01-01T00:00:00.000Z",
+          "pmid": "19910822",
+          "url": "http://www.ncbi.nlm.nih.gov/pubmed/19910822",
+          "author": {
+            "@type": "Person",
+            "familyName": "McGregor",
+            "givenName": "SJ"
+          },
+          "contributor": [
+            {
+              "@type": "Person",
+              "familyName": "Weese",
+              "givenName": "RK"
+            },
+            {
+              "@type": "Person",
+              "familyName": "Ratz",
+              "givenName": "IK"
+            }
+          ]
+        },
+        {
+          "name": "pcbi.1000960-Jones1",
+          "alternateName": "15",
+          "@type": "ScholarlyArticle",
+          "headline": "The physiology of the world record holder for the women's marathon.",
+          "journal": {
+            "@type": "Journal",
+            "name": "Int J Sports Sci Coach"
+          },
+          "volume": 1,
+          "pageStart": 101,
+          "pageEnd": 116,
+          "datePublished": "2006-01-01T00:00:00.000Z",
+          "author": {
+            "@type": "Person",
+            "familyName": "Jones",
+            "givenName": "AM"
+          }
+        },
+        {
+          "name": "pcbi.1000960-Billat2",
+          "alternateName": "16",
+          "@type": "ScholarlyArticle",
+          "headline": "Physical and training characteristics of top-class marathon runners.",
+          "journal": {
+            "@type": "Journal",
+            "name": "Med Sci Sports Exerc"
+          },
+          "volume": 33,
+          "pageStart": 2089,
+          "pageEnd": 2097,
+          "datePublished": "2001-01-01T00:00:00.000Z",
+          "pmid": "11740304",
+          "url": "http://www.ncbi.nlm.nih.gov/pubmed/11740304",
+          "author": {
+            "@type": "Person",
+            "familyName": "Billat",
+            "givenName": "VL"
+          },
+          "contributor": [
+            {
+              "@type": "Person",
+              "familyName": "Demarle",
+              "givenName": "A"
+            },
+            {
+              "@type": "Person",
+              "familyName": "Slawinski",
+              "givenName": "A"
+            },
+            {
+              "@type": "Person",
+              "familyName": "Paiva",
+              "givenName": "M"
+            },
+            {
+              "@type": "Person",
+              "familyName": "Koralsztein",
+              "givenName": "JP"
+            }
+          ]
+        },
+        {
+          "name": "pcbi.1000960-Arrese1",
+          "alternateName": "17",
+          "@type": "ScholarlyArticle",
+          "headline": "Physiological measures associated with marathon running performance in high-level male and female homogeneous groups.",
+          "journal": {
+            "@type": "Journal",
+            "name": "Int J Sports Med"
+          },
+          "volume": 27,
+          "pageStart": 289,
+          "pageEnd": 295,
+          "datePublished": "2005-01-01T00:00:00.000Z",
+          "author": {
+            "@type": "Person",
+            "familyName": "Arrese",
+            "givenName": "LA"
+          },
+          "contributor": [
+            {
+              "@type": "Person",
+              "familyName": "Izquierdo",
+              "givenName": "DM"
+            },
+            {
+              "@type": "Person",
+              "familyName": "Serveto Galindo",
+              "givenName": "JR"
+            }
+          ]
+        },
+        {
+          "name": "pcbi.1000960-Margaria1",
+          "alternateName": "18",
+          "@type": "ScholarlyArticle",
+          "headline": "Energy cost of running.",
+          "journal": {
+            "@type": "Journal",
+            "name": "J Appl Physiol"
+          },
+          "volume": 18,
+          "pageStart": 367,
+          "pageEnd": 370,
+          "datePublished": "1963-01-01T00:00:00.000Z",
+          "pmid": "13932993",
+          "url": "http://www.ncbi.nlm.nih.gov/pubmed/13932993",
+          "author": {
+            "@type": "Person",
+            "familyName": "Margaria",
+            "givenName": "R"
+          },
+          "contributor": [
+            {
+              "@type": "Person",
+              "familyName": "Cerretelli",
+              "givenName": "P"
+            },
+            {
+              "@type": "Person",
+              "familyName": "Aghemo",
+              "givenName": "P"
+            },
+            {
+              "@type": "Person",
+              "familyName": "Sassi",
+              "givenName": "G"
+            }
+          ]
+        },
+        {
+          "name": "pcbi.1000960-Mayhew1",
+          "alternateName": "19",
+          "@type": "ScholarlyArticle",
+          "headline": "Oxygen cost and energy expenditure of running in trained runners.",
+          "journal": {
+            "@type": "Journal",
+            "name": "Br J Sports Med"
+          },
+          "volume": 11,
+          "pageStart": 116,
+          "pageEnd": 121,
+          "datePublished": "1977-01-01T00:00:00.000Z",
+          "pmid": "922272",
+          "url": "http://www.ncbi.nlm.nih.gov/pubmed/922272",
+          "author": {
+            "@type": "Person",
+            "familyName": "Mayhew",
+            "givenName": "JL"
+          }
+        },
+        {
+          "name": "pcbi.1000960-Acheson1",
+          "alternateName": "20",
+          "@type": "ScholarlyArticle",
+          "headline": "Glycogen storage capacity and de novo lipogenesis during massive carbohydrate overfeeding in man.",
+          "journal": {
+            "@type": "Journal",
+            "name": "Am J Clin Nutr"
+          },
+          "volume": 48,
+          "pageStart": 240,
+          "pageEnd": 247,
+          "pmid": "3165600",
+          "url": "http://www.ncbi.nlm.nih.gov/pubmed/3165600",
+          "author": {
+            "@type": "Person",
+            "familyName": "Acheson",
+            "givenName": "KJ"
+          },
+          "contributor": [
+            {
+              "@type": "Person",
+              "familyName": "Schutz",
+              "givenName": "Y"
+            },
+            {
+              "@type": "Person",
+              "familyName": "Bessard",
+              "givenName": "T"
+            },
+            {
+              "@type": "Person",
+              "familyName": "Anantharaman",
+              "givenName": "K"
+            },
+            {
+              "@type": "Person",
+              "familyName": "Flail",
+              "givenName": "JP"
+            }
+          ],
+          "unnamedContributors": true
+        },
+        {
+          "name": "pcbi.1000960-Hultman1",
+          "alternateName": "21",
+          "@type": "ScholarlyArticle",
+          "headline": "Liver glycogen content in man in the postabsorptive state.",
+          "journal": {
+            "@type": "Journal",
+            "name": "Scand J Clin Lab Invest"
+          },
+          "volume": 32,
+          "pageStart": 17,
+          "pageEnd": 23,
+          "datePublished": "1973-01-01T00:00:00.000Z",
+          "author": {
+            "@type": "Person",
+            "familyName": "Hultman",
+            "givenName": "E"
+          },
+          "contributor": [
+            {
+              "@type": "Person",
+              "familyName": "Nilsson",
+              "givenName": "LH"
+            }
+          ]
+        },
+        {
+          "name": "pcbi.1000960-McArdle1",
+          "alternateName": "22",
+          "headline": "Exercise Physiology: Nutrition, Energy, and Human Performance",
+          "datePublished": "2010-01-01T00:00:00.000Z",
+          "author": {
+            "@type": "Person",
+            "familyName": "McArdle",
+            "givenName": "WD"
+          },
+          "contributor": [
+            {
+              "@type": "Person",
+              "familyName": "Katch",
+              "givenName": "FI"
+            },
+            {
+              "@type": "Person",
+              "familyName": "Katch",
+              "givenName": "VL"
+            }
+          ]
+        },
+        {
+          "name": "pcbi.1000960-Fairchild1",
+          "alternateName": "23",
+          "@type": "ScholarlyArticle",
+          "headline": "Rapid carbohydrate loading after a short bout of near maximal-intensity exercise.",
+          "journal": {
+            "@type": "Journal",
+            "name": "Med Sci Sports Exerc"
+          },
+          "volume": 34,
+          "pageStart": 980,
+          "pageEnd": 986,
+          "datePublished": "2002-01-01T00:00:00.000Z",
+          "pmid": "12048325",
+          "url": "http://www.ncbi.nlm.nih.gov/pubmed/12048325",
+          "author": {
+            "@type": "Person",
+            "familyName": "Fairchild",
+            "givenName": "TJ"
+          },
+          "contributor": [
+            {
+              "@type": "Person",
+              "familyName": "Fletcher",
+              "givenName": "S"
+            },
+            {
+              "@type": "Person",
+              "familyName": "Steele",
+              "givenName": "P"
+            },
+            {
+              "@type": "Person",
+              "familyName": "Goodman",
+              "givenName": "C"
+            },
+            {
+              "@type": "Person",
+              "familyName": "Dawson",
+              "givenName": "B"
+            }
+          ],
+          "unnamedContributors": true
+        },
+        {
+          "name": "pcbi.1000960-Romijn1",
+          "alternateName": "24",
+          "@type": "ScholarlyArticle",
+          "headline": "Regulation of endogenous fat and carbohydrate metabolism in relation to exercise intensity and duration.",
+          "journal": {
+            "@type": "Journal",
+            "name": "Am J Physiol"
+          },
+          "volume": 265,
+          "pageStart": null,
+          "pageEnd": null,
+          "datePublished": "1993-01-01T00:00:00.000Z",
+          "pmid": "8214047",
+          "url": "http://www.ncbi.nlm.nih.gov/pubmed/8214047",
+          "author": {
+            "@type": "Person",
+            "familyName": "Romijn",
+            "givenName": "AJ"
+          },
+          "contributor": [
+            {
+              "@type": "Person",
+              "familyName": "Coyle",
+              "givenName": "EF"
+            },
+            {
+              "@type": "Person",
+              "familyName": "Sidossis",
+              "givenName": "LS"
+            },
+            {
+              "@type": "Person",
+              "familyName": "Gastaldelli",
+              "givenName": "A"
+            },
+            {
+              "@type": "Person",
+              "familyName": "Horowitz",
+              "givenName": "JF"
+            }
+          ],
+          "unnamedContributors": true
+        },
+        {
+          "name": "pcbi.1000960-Berg1",
+          "alternateName": "25",
+          "headline": "Biochemistry",
+          "datePublished": "2002-01-01T00:00:00.000Z",
+          "author": {
+            "@type": "Person",
+            "familyName": "Berg",
+            "givenName": "JM"
+          },
+          "contributor": [
+            {
+              "@type": "Person",
+              "familyName": "Tymoczko",
+              "givenName": "JL"
+            },
+            {
+              "@type": "Person",
+              "familyName": "Stryer",
+              "givenName": "L"
+            }
+          ]
+        },
+        {
+          "name": "pcbi.1000960-Karlsson1",
+          "alternateName": "26",
+          "@type": "ScholarlyArticle",
+          "headline": "Diet, muscle glycogen, and endurance performance.",
+          "journal": {
+            "@type": "Journal",
+            "name": "J Appl Physiol"
+          },
+          "volume": 31,
+          "pageStart": 203,
+          "pageEnd": 206,
+          "datePublished": "1971-01-01T00:00:00.000Z",
+          "pmid": "5558241",
+          "url": "http://www.ncbi.nlm.nih.gov/pubmed/5558241",
+          "author": {
+            "@type": "Person",
+            "familyName": "Karlsson",
+            "givenName": "J"
+          },
+          "contributor": [
+            {
+              "@type": "Person",
+              "familyName": "Saltin",
+              "givenName": "B"
+            }
+          ]
+        },
+        {
+          "name": "pcbi.1000960-Sabhapandit1",
+          "alternateName": "27",
+          "@type": "ScholarlyArticle",
+          "headline": "Crowding at the front of marathon packs.",
+          "journal": {
+            "@type": "Journal",
+            "name": "J Stat Mech arXiv"
+          },
+          "pageStart": 802,
+          "datePublished": "2008-01-01T00:00:00.000Z",
+          "author": {
+            "@type": "Person",
+            "familyName": "Sabhapandit",
+            "givenName": "S"
+          },
+          "contributor": [
+            {
+              "@type": "Person",
+              "familyName": "Majumdar",
+              "givenName": "SN"
+            },
+            {
+              "@type": "Person",
+              "familyName": "Redner",
+              "givenName": "S"
+            }
+          ]
+        },
+        {
+          "name": "pcbi.1000960-American1",
+          "alternateName": "28",
+          "headline": "Guidelines for Exercise Testing and Prescription",
+          "datePublished": "2000-01-01T00:00:00.000Z"
+        },
+        {
+          "name": "pcbi.1000960-Pollock1",
+          "alternateName": "29",
+          "@type": "ScholarlyArticle",
+          "headline": "The quantification of endurance training programs.",
+          "journal": {
+            "@type": "Journal",
+            "name": "Exerc Sport Sci Rev"
+          },
+          "volume": 1,
+          "pageStart": 155,
+          "pageEnd": 188,
+          "datePublished": "1973-01-01T00:00:00.000Z",
+          "pmid": "4806376",
+          "url": "http://www.ncbi.nlm.nih.gov/pubmed/4806376",
+          "author": {
+            "@type": "Person",
+            "familyName": "Pollock",
+            "givenName": "ML"
+          }
+        },
+        {
+          "name": "pcbi.1000960-Arkinstall1",
+          "alternateName": "30",
+          "@type": "ScholarlyArticle",
+          "headline": "Regulation of fuel metabolism by preexercise muscle glycogen content and exercise intensity.",
+          "journal": {
+            "@type": "Journal",
+            "name": "J Appl Physiol"
+          },
+          "volume": 97,
+          "pageStart": 2275,
+          "pageEnd": 2283,
+          "datePublished": "2004-01-01T00:00:00.000Z",
+          "pmid": "15286047",
+          "url": "http://www.ncbi.nlm.nih.gov/pubmed/15286047",
+          "author": {
+            "@type": "Person",
+            "familyName": "Arkinstall",
+            "givenName": "MJ"
+          },
+          "contributor": [
+            {
+              "@type": "Person",
+              "familyName": "Bruce",
+              "givenName": "CR"
+            },
+            {
+              "@type": "Person",
+              "familyName": "Clark",
+              "givenName": "SA"
+            },
+            {
+              "@type": "Person",
+              "familyName": "Rickards",
+              "givenName": "CA"
+            },
+            {
+              "@type": "Person",
+              "familyName": "Burke",
+              "givenName": "LM"
+            }
+          ],
+          "unnamedContributors": true
+        },
+        {
+          "name": "pcbi.1000960-Bosch1",
+          "alternateName": "31",
+          "@type": "ScholarlyArticle",
+          "headline": "Influence of carbohydrate loading on fuel substrate turnover and oxidation during prolonged exercise.",
+          "journal": {
+            "@type": "Journal",
+            "name": "J Appl Physiol"
+          },
+          "volume": 74,
+          "pageStart": 1921,
+          "pageEnd": 1927,
+          "datePublished": "1993-01-01T00:00:00.000Z",
+          "pmid": "8514712",
+          "url": "http://www.ncbi.nlm.nih.gov/pubmed/8514712",
+          "author": {
+            "@type": "Person",
+            "familyName": "Bosch",
+            "givenName": "AN"
+          },
+          "contributor": [
+            {
+              "@type": "Person",
+              "familyName": "Dennis",
+              "givenName": "SC"
+            },
+            {
+              "@type": "Person",
+              "familyName": "Noakes",
+              "givenName": "TD"
+            }
+          ]
+        },
+        {
+          "name": "pcbi.1000960-Tsintzas1",
+          "alternateName": "32",
+          "@type": "ScholarlyArticle",
+          "headline": "Carbohydrate ingestion and single muscle fiber glycogen metabolism during prolonged running in men.",
+          "journal": {
+            "@type": "Journal",
+            "name": "J Appl Physiol"
+          },
+          "volume": 81,
+          "pageStart": 801,
+          "pageEnd": 809,
+          "datePublished": "1996-01-01T00:00:00.000Z",
+          "pmid": "8872649",
+          "url": "http://www.ncbi.nlm.nih.gov/pubmed/8872649",
+          "author": {
+            "@type": "Person",
+            "familyName": "Tsintzas",
+            "givenName": "OK"
+          },
+          "contributor": [
+            {
+              "@type": "Person",
+              "familyName": "Williams",
+              "givenName": "C"
+            },
+            {
+              "@type": "Person",
+              "familyName": "Boobis",
+              "givenName": "L"
+            },
+            {
+              "@type": "Person",
+              "familyName": "Greenhaff",
+              "givenName": "P"
+            }
+          ]
+        },
+        {
+          "name": "pcbi.1000960-Thomas1",
+          "alternateName": "33",
+          "@type": "ScholarlyArticle",
+          "headline": "Mechanics and regulation of gastric emptying.",
+          "journal": {
+            "@type": "Journal",
+            "name": "Physiol Rev"
+          },
+          "volume": 37,
+          "pageStart": 453,
+          "pageEnd": 474,
+          "datePublished": "1957-01-01T00:00:00.000Z",
+          "pmid": "13484472",
+          "url": "http://www.ncbi.nlm.nih.gov/pubmed/13484472",
+          "author": {
+            "@type": "Person",
+            "familyName": "Thomas",
+            "givenName": "JE"
+          }
+        },
+        {
+          "name": "pcbi.1000960-Tsintzas2",
+          "alternateName": "34",
+          "@type": "ScholarlyArticle",
+          "headline": "Human muscle glycogen metabolism during exercise: Effect of carbohydrate supplementation.",
+          "journal": {
+            "@type": "Journal",
+            "name": "Sports Med"
+          },
+          "volume": 25,
+          "pageStart": 7,
+          "pageEnd": 23,
+          "datePublished": "1998-01-01T00:00:00.000Z",
+          "pmid": "9458524",
+          "url": "http://www.ncbi.nlm.nih.gov/pubmed/9458524",
+          "author": {
+            "@type": "Person",
+            "familyName": "Tsintzas",
+            "givenName": "K"
+          },
+          "contributor": [
+            {
+              "@type": "Person",
+              "familyName": "Williams",
+              "givenName": "C"
+            }
+          ]
+        },
+        {
+          "name": "pcbi.1000960-Fox1",
+          "alternateName": "35",
+          "@type": "ScholarlyArticle",
+          "headline": "Physical activity and the prevention of coronary heart disease.",
+          "journal": {
+            "@type": "Journal",
+            "name": "Ann Clin Res"
+          },
+          "volume": 3,
+          "pageStart": 404,
+          "pageEnd": 432,
+          "datePublished": "1971-01-01T00:00:00.000Z",
+          "pmid": "4945367",
+          "url": "http://www.ncbi.nlm.nih.gov/pubmed/4945367",
+          "author": {
+            "@type": "Person",
+            "familyName": "Fox",
+            "givenName": "SM"
+          },
+          "contributor": [
+            {
+              "@type": "Person",
+              "familyName": "Haskell",
+              "givenName": "WL"
+            },
+            {
+              "@type": "Person",
+              "familyName": "Naughton",
+              "givenName": "JP"
+            }
+          ]
+        },
+        {
+          "name": "pcbi.1000960-Tanaka1",
+          "alternateName": "36",
+          "@type": "ScholarlyArticle",
+          "headline": "Age-predicted maximal heart rate revisited.",
+          "journal": {
+            "@type": "Journal",
+            "name": "J Am Coll Cardiol"
+          },
+          "volume": 37,
+          "pageStart": 153,
+          "pageEnd": 156,
+          "datePublished": "2001-01-01T00:00:00.000Z",
+          "pmid": "11153730",
+          "url": "http://www.ncbi.nlm.nih.gov/pubmed/11153730",
+          "author": {
+            "@type": "Person",
+            "familyName": "Tanaka",
+            "givenName": "H"
+          },
+          "contributor": [
+            {
+              "@type": "Person",
+              "familyName": "Monahan",
+              "givenName": "KD"
+            },
+            {
+              "@type": "Person",
+              "familyName": "Seals",
+              "givenName": "DR"
+            }
+          ]
+        },
+        {
+          "name": "pcbi.1000960-Valentin1",
+          "alternateName": "37",
+          "headline": "Basic Anatomical and Physiological Data for Use in Radiological Protection: Reference Values, volume 32 of Annals of the International Commission on Radiological Protection",
+          "datePublished": "2003-01-01T00:00:00.000Z",
+          "author": {
+            "@type": "Person",
+            "familyName": "Valentin",
+            "givenName": "J"
+          }
+        },
+        {
+          "name": "pcbi.1000960-Heymsfield1",
+          "alternateName": "38",
+          "@type": "ScholarlyArticle",
+          "headline": "Appendicular skeletal muscle mass: measurement by dual-photon absorptiometry.",
+          "journal": {
+            "@type": "Journal",
+            "name": "Am J Clin Nutr"
+          },
+          "volume": 52,
+          "pageStart": 214,
+          "pageEnd": 218,
+          "datePublished": "1990-01-01T00:00:00.000Z",
+          "pmid": "2375286",
+          "url": "http://www.ncbi.nlm.nih.gov/pubmed/2375286",
+          "author": {
+            "@type": "Person",
+            "familyName": "Heymsfield",
+            "givenName": "SB"
+          },
+          "contributor": [
+            {
+              "@type": "Person",
+              "familyName": "Smith",
+              "givenName": "R"
+            },
+            {
+              "@type": "Person",
+              "familyName": "Aulet",
+              "givenName": "M"
+            },
+            {
+              "@type": "Person",
+              "familyName": "Bensen",
+              "givenName": "B"
+            },
+            {
+              "@type": "Person",
+              "familyName": "Lichtman",
+              "givenName": "S"
+            }
+          ],
+          "unnamedContributors": true
+        },
+        {
+          "name": "pcbi.1000960-Wang1",
+          "alternateName": "39",
+          "@type": "ScholarlyArticle",
+          "headline": "Regional skeletal muscle measurement: evaluation of new dual-energy x-ray absorptiometry model.",
+          "journal": {
+            "@type": "Journal",
+            "name": "J Appl Physiol"
+          },
+          "volume": 87,
+          "pageStart": 1163,
+          "pageEnd": 1171,
+          "datePublished": "1999-01-01T00:00:00.000Z",
+          "pmid": "10484591",
+          "url": "http://www.ncbi.nlm.nih.gov/pubmed/10484591",
+          "author": {
+            "@type": "Person",
+            "familyName": "Wang",
+            "givenName": "W"
+          },
+          "contributor": [
+            {
+              "@type": "Person",
+              "familyName": "Wang",
+              "givenName": "Z"
+            },
+            {
+              "@type": "Person",
+              "familyName": "Faith",
+              "givenName": "MS"
+            },
+            {
+              "@type": "Person",
+              "familyName": "Kotler",
+              "givenName": "D"
+            },
+            {
+              "@type": "Person",
+              "familyName": "Shih",
+              "givenName": "R"
+            }
+          ],
+          "unnamedContributors": true
+        },
+        {
+          "name": "pcbi.1000960-Levine1",
+          "alternateName": "40",
+          "@type": "ScholarlyArticle",
+          "headline": "Measuring leg muscle and fat mass in humans: comparison of CT and dual-energy x-ray absorptiometry.",
+          "journal": {
+            "@type": "Journal",
+            "name": "J Appl Physiol"
+          },
+          "volume": 88,
+          "pageStart": 452,
+          "pageEnd": 456,
+          "datePublished": "2000-01-01T00:00:00.000Z",
+          "pmid": "10658010",
+          "url": "http://www.ncbi.nlm.nih.gov/pubmed/10658010",
+          "author": {
+            "@type": "Person",
+            "familyName": "Levine",
+            "givenName": "JA"
+          },
+          "contributor": [
+            {
+              "@type": "Person",
+              "familyName": "Abboud",
+              "givenName": "L"
+            },
+            {
+              "@type": "Person",
+              "familyName": "Barry",
+              "givenName": "M"
+            },
+            {
+              "@type": "Person",
+              "familyName": "Reed",
+              "givenName": "JE"
+            },
+            {
+              "@type": "Person",
+              "familyName": "Sheedy",
+              "givenName": "PF"
+            }
+          ],
+          "unnamedContributors": true
+        },
+        {
+          "name": "pcbi.1000960-Nybo1",
+          "alternateName": "41",
+          "@type": "ScholarlyArticle",
+          "headline": "CNS fatigue and prolonged exercise: Effect of glucose supplementation.",
+          "journal": {
+            "@type": "Journal",
+            "name": "Med Sci Sports Exerc"
+          },
+          "volume": 35,
+          "pageStart": 589,
+          "pageEnd": 594,
+          "datePublished": "2003-01-01T00:00:00.000Z",
+          "pmid": "12673141",
+          "url": "http://www.ncbi.nlm.nih.gov/pubmed/12673141",
+          "author": {
+            "@type": "Person",
+            "familyName": "Nybo",
+            "givenName": "L"
+          }
+        },
+        {
+          "name": "pcbi.1000960-KentBraun1",
+          "alternateName": "42",
+          "@type": "ScholarlyArticle",
+          "headline": "Central and peripheral contributions to muscle fatigue in humans during sustained maximal effort.",
+          "journal": {
+            "@type": "Journal",
+            "name": "Eur J Appl Physiol Occup Physiol"
+          },
+          "volume": 80,
+          "pageStart": 57,
+          "pageEnd": 63,
+          "datePublished": "1999-01-01T00:00:00.000Z",
+          "pmid": "10367724",
+          "url": "http://www.ncbi.nlm.nih.gov/pubmed/10367724",
+          "author": {
+            "@type": "Person",
+            "familyName": "Kent-Braun",
+            "givenName": "JA"
+          }
+        },
+        {
+          "name": "pcbi.1000960-Brueckner1",
+          "alternateName": "43",
+          "@type": "ScholarlyArticle",
+          "headline": "The energy cost of running increases with the distance covered.",
+          "journal": {
+            "@type": "Journal",
+            "name": "European J Appl Physiol"
+          },
+          "volume": 62,
+          "pageStart": 385,
+          "pageEnd": 389,
+          "datePublished": "1991-01-01T00:00:00.000Z",
+          "author": {
+            "@type": "Person",
+            "familyName": "Brueckner",
+            "givenName": "JC"
+          },
+          "contributor": [
+            {
+              "@type": "Person",
+              "familyName": "Atchou",
+              "givenName": "G"
+            },
+            {
+              "@type": "Person",
+              "familyName": "Capelli",
+              "givenName": "C"
+            },
+            {
+              "@type": "Person",
+              "familyName": "Duvallet",
+              "givenName": "A"
+            },
+            {
+              "@type": "Person",
+              "familyName": "Barrault",
+              "givenName": "D"
+            }
+          ],
+          "unnamedContributors": true
+        },
+        {
+          "name": "pcbi.1000960-Golding1",
+          "alternateName": "44",
+          "headline": "YMCA Fitness Testing and Assessment Manual",
+          "datePublished": "2000-01-01T00:00:00.000Z",
+          "author": {
+            "@type": "Person",
+            "familyName": "Golding",
+            "givenName": "LA"
+          }
+        }
+      ]
+    }
+  ]
+}

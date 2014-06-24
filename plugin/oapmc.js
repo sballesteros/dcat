@@ -6,21 +6,28 @@ var request = require('request')
   , path = require('path')
   , temp = require('temp')
   , tar = require('tar')
+  , zlib = require('zlib')
   , once = require('once')
   , pubmed = require('./pubmed').pubmed
   , Client = require('ftp')
   , DecompressZip = require('decompress-zip')
-  , zlib = require('zlib')
   , recursiveReaddir = require('recursive-readdir')
   , isUrl = require('is-url')
   , DOMParser = require('xmldom').DOMParser
   , XMLSerializer = require('xmldom').XMLSerializer
   , _ = require('underscore')
+  , clone = require('clone')
   , tools = require('./lib/tools');
 
 temp.track();
 
-module.exports = oapmc;
+exports.oapmc = oapmc;
+exports.fetchTargz = fetchTargz;
+exports.getPkg = getPkg;
+exports.readTargzFiles = readTargzFiles;
+exports.parseXml = parseXml;
+exports.files2resources = files2resources;
+exports.mergeTablesAndCaptions = mergeTablesAndCaptions;
 
 /**
  * 'this' is an Ldpm instance
@@ -34,83 +41,81 @@ function oapmc(pmcid, opts, callback){
 
   var that = this;
 
-  fetchTar(pmcid, that, function(err, xml, root, files, mainArticleName, license){
-    console.log('fetchTar');
+  fetchTargz(pmcid, that, function(err, root){
     if(err) return callback(err);
-
-    //    try {
-    var meta = parseXml(xml, pmcid, opts);
-    //    }  catch(err){
-    //      return callback(err);
-    //    }
-
-    if(license && !meta.license){
-      meta.license = {text: license};
-    }
-
-    //    console.log(util.inspect(meta, {depth: null}));
-
-    files2resources(that, root, meta, files, mainArticleName, function(err, resources){
-      console.log('Meta2resources');
-      //        console.log(util.inspect(resources, {depth: null}));
-
-      console.log(util.inspect(meta.resources, {depth: null}), util.inspect(resources, {depth: null}));
-
-      //add tables and captions
-
-      
-      meta.resources.forEach(function(mr){
-
-        var hrefs = [];
-        ['graphic', 'media', 'supplementary-material'].forEach(function(type){
-          if(type in mr){
-            for(var i=0; i<mr[type].length; i++){
-              if(mr[type][i].href){
-                hrefs.push(mr[type][i].href);
-              }
-            }
-          }
-        });
-
-
-        if(hrefs.length){ //match resources and add caption, description and id (as alternateName)
-
-          Object.keys(resources).forEach(function(type){
-            (resources[type] || []).forEach(function(r){
-              if(_match(r, type, hrefs)){
-                if(mr.id) r.alternateName = mr.id;
-                if(mr.label) r.description = mr.label;
-                if(mr.caption){
-                  if(mr.caption.title) r.headline = mr.caption.title;
-                  if(mr.caption.content) r.caption = mr.caption.content;
-                }
-                if(mr.ids && mr.ids.doi) r.doi = mr.ids.doi;
-              }
-            });
-          });
-
-        }
-
-      });
-      
-
-    });
-
-    
+    getPkg(pmcid, that, root, opts, callback);    
   });
 
 };
 
+function getPkg(pmcid, ldpm, root, opts, callback){
+
+  if(arguments.length === 4){
+    callback = opts;
+    opts = {};
+  }
+
+  readTargzFiles(root, function(err, xml, files, mainArticleName, license){
+    if(err) return callback(err);
+
+    try {
+      var meta = parseXml(xml, pmcid, opts);
+    }  catch(err){
+      return callback(err);
+    }
+
+    if(license && !meta.license){
+      meta.license = { text: license };
+    }
+
+    files2resources(ldpm, root, meta, files, mainArticleName, function(err, resources){
+      if(err) return callback(err);
+
+      try {
+        resources = mergeTablesAndCaptions(resources, meta);
+      } catch(err){
+        return callback(err);
+      }        
+      
+      try {
+        var pkg = meta2pkg(resources, meta, mainArticleName, pmcid);
+      } catch(err){
+        return callback(err);
+      }        
+
+      callback(null, pkg);
+
+    });
+
+  });
+};
+
 
 function _match(r, type, hrefs){
-  var typeMap = { 'figure': 'figure', 'audio': 'audio', 'video': 'video', 'code': 'targetProduct', 'dataset': 'distribution', 'article': 'encoding'};
+
+  var typeMap = { 'figure': 'encoding', 'audio': 'encoding', 'video': 'encoding', 'code': 'targetProduct', 'dataset': 'distribution', 'article': 'encoding' };
   
   if(r[typeMap[type]] && r[typeMap[type]].length){
     for(var i=0; i<r[typeMap[type]].length; i++){
-      var mpath = r[typeMap[type]][i].contenPath || r[typeMap[type]][i].filePath || r[typeMap[type]][i].bundlePath;
+      var mpath = r[typeMap[type]][i].contentPath || r[typeMap[type]][i].filePath || r[typeMap[type]][i].bundlePath;
       var mname = path.basename(mpath, path.extname(mpath));
       var mname2 = mname.replace(/ /g, '-');
-      if(mpath && ( (hrefs.indexOf(mpath) > -1) || (hrefs.indexOf(mname) > -1) || (hrefs.indexOf(mname2) > -1) )){
+
+      //in case of compression of a single media file.
+      var mname3 = path.dirname(mpath); 
+      var mname4 = mname3 + '.gz';
+      var mname5 = mname3 + '.gzip';
+      var mname6 = mname3 + '.tgz';
+      var mname7 = mname3 + '.zip';
+
+      if(mpath && ( (hrefs.indexOf(mpath) > -1) || 
+                    (hrefs.indexOf(mname) > -1) || 
+                    (hrefs.indexOf(mname2) > -1) || 
+                    (hrefs.indexOf(mname3) > -1) || 
+                    (hrefs.indexOf(mname4) > -1) || 
+                    (hrefs.indexOf(mname5) > -1) || 
+                    (hrefs.indexOf(mname6) > -1) || 
+                    (hrefs.indexOf(mname7) > -1) )){
         return true;
       }
     }
@@ -713,6 +718,11 @@ function _getRef($ref){
     ref.name = id;
   }
 
+  var $label = $ref.getElementsByTagName('label')[0];
+  if($label && $label.parentNode.tagName === 'ref'){
+    ref.alternateName = tools.cleanText($label.textContent);
+  }
+
   var $mixedCitation = $ref.getElementsByTagName('mixed-citation')[0];
   if($mixedCitation){
 
@@ -726,14 +736,17 @@ function _getRef($ref){
     if(publicationType === 'journal'){
       ref['@type'] = 'ScholarlyArticle';
       if($articleTitle){
-        ref.header = $articleTitle.textContent;
+        ref.headline = $articleTitle.textContent;
       }
       if($source){
-        ref.journal = $source.textContent;
+        ref.journal = {
+          '@type': 'Journal',
+          name: tools.cleanText($source.textContent)
+        };
       }
     } else {
       if($source){
-        ref.header = $source.textContent;
+        ref.header = tools.cleanText($source.textContent);
       }
     }
 
@@ -768,7 +781,7 @@ function _getRef($ref){
 
     if(jsDate){
       try{
-        ref.publicationDate = jsDate.toISOString();
+        ref.datePublished = jsDate.toISOString();
       } catch(e){};
     }
 
@@ -890,7 +903,7 @@ function _extractKeywords($el){
 
 
 /**
- * find figure, tables, supplementary materials and their captions
+ * find figure, tables, supplementary materials and their captions. 
  */ 
 function findResourcesMeta(doc){
   var resources = [];
@@ -905,6 +918,7 @@ function findResourcesMeta(doc){
         id: $el.getAttribute('id')
       };
 
+      //label -> alternateName
       var $label = $el.getElementsByTagName('label')[0];      
       if($label){
         r.label = tools.cleanText($label.textContent);
@@ -915,6 +929,9 @@ function findResourcesMeta(doc){
         }
       }
 
+      //caption
+      //<title> -> description.
+      //<p>s -> caption if and only if it's ONLY plain text i.e does not contain (inline-graphic or formula)
       var $caption = $el.getElementsByTagName('caption')[0];
       if($caption){
         r.caption = {};
@@ -924,88 +941,141 @@ function findResourcesMeta(doc){
         }
 
         var $ps = $caption.getElementsByTagName('p');
-        if($ps && $ps.length){
+        if($ps && $ps.length && _isPlainText($caption)){
+          //TODO replace <xref ref-type="bibr" rid="pcbi.1000960-Romijn1">[24]</xref> by the description of the ref
           r.caption.content = Array.prototype.map.call($ps, function($p){
             return tools.cleanText($p.textContent);
           }).join(' ');
+
           r.caption.content = tools.cleanText(r.caption.content);
         }
       }
 
-
+      //DOI and co.
+      //We only support figure level DOIs: check that parent is ```tag``` if not discard
       var $objectIds = $el.getElementsByTagName('object-id');
       if($objectIds && $objectIds.length){
         r.ids = {};
         Array.prototype.forEach.call($objectIds, function($o){
-          var pubIdType = $o.getAttribute('pub-id-type');
-          if(pubIdType){
-            r.ids[pubIdType] = tools.cleanText($o.textContent);
+          if($o.parentNode.tagName === tag){
+            var pubIdType = $o.getAttribute('pub-id-type');
+            if(pubIdType){
+              r.ids[pubIdType] = tools.cleanText($o.textContent);
+            }
           }
         });
       }
 
-
-      if(tag === 'supplementary-material'){
-        r.si = {
-          id: $el.getAttribute('id'),
-          mimetype: $el.getAttribute('mimetype'),
-          mimeSubtype: $el.getAttribute('mime-subtype'),
-          href: $el.getAttribute('xlink:href')
-        }
-      }
-      
-      //graphic and media      
-      ['graphic', 'media'].forEach(function(mtag){
-        var $mtags = $el.getElementsByTagName(mtag);
-        if($mtags && $mtags.length){
-          r[mtag] = [];
-          Array.prototype.forEach.call($mtags, function($m){
-            r[mtag].push({
-              id: $m.getAttribute('id'),
-              mimetype: $m.getAttribute('mimetype'),
-              mimeSubtype: $m.getAttribute('mime-subtype'),
-              href: $m.getAttribute('xlink:href')
-            });            
-          });
-        }
-      });
-
-      //table (serialize the <table> element)
-      var $table = $el.getElementsByTagName('table')[0];
-      if($table){
-        removeAttributes($table);
-        //TODO replace <bold> and other tags...
-
-        var serializer = new XMLSerializer();
-        r.table = [
-          '<!DOCTYPE html>',
-          '<html>',
-          '<head>',
-          '<meta charset="utf-8">',
-          '</head>',
-          '<body>',
-          serializer.serializeToString($table),
-          '</body>',
-          '</html>'
-        ].join('\n');
-      }
-      
-      //footnote
+      //footnote -> Comment
       var $fns = $el.getElementsByTagName('fn');
       if($fns && $fns.length){
         r.fn = [];
         Array.prototype.forEach.call($fns, function($fn){
-          r.fn.push({
-            id: $fn.getAttribute('id'),
-            content: tools.cleanText($fn.textContent)
-          });
+          if(_isPlainText($fn)){
+            var fn = { id: $fn.getAttribute('id') };
+
+            var $label = $fn.getElementsByTagName('label')[0];
+            if($label){
+              fn.label = tools.cleanText($label.textContent);
+            }
+
+            var $ps = $fn.getElementsByTagName('p');
+            if($ps && $ps.length){
+              fn.content = Array.prototype.map.call($ps, function($p){
+                return tools.cleanText($p.textContent);
+              }).join(' ');
+
+              fn.content = tools.cleanText(fn.content);
+            }
+
+            r.fn.push(fn);
+          }
         });
+      }
+
+      if(tag === 'supplementary-material' && $el.getAttribute('xlink:href')){ //if no ```xlink:href```: => will be taken into account by graphic, media and code in the ```else```. The reason is that for example, a <supplementary-material> element could contain a description of an animation, including the first frame of the animation (tagged as a <graphic> element), a caption describing the animation, and a cross-reference made to the external file that held the full animation.
+
+        r.si = [ _getIdMimeHref($el) ];
+
+      } else {
+        
+        //get figure, media, table or code. <alternatives> first. If no alternative check that only 1 graphic or 1 media or 1 table or 1 code
+        var $alternatives = $el.getElementsByTagName('alternatives');
+        if($alternatives){ //filter to alternatives direct descendant of $el (to avoid the one in caption for instance)
+          $alternatives = Array.prototype.filter.call($alternatives, function($alt){
+            return !! ($alt.parentNode.tagName === tag);
+          });
+        }
+        
+
+        if($alternatives && $alternatives.length){
+          
+          ['graphic', 'media', 'code', 'table'].forEach(function(mtag){
+            var $mtags = $alternatives[0].getElementsByTagName(mtag);
+            if($mtags && $mtags.length){
+              r[mtag] = [];
+              array.prototype.forEach.call($mtags, function($m){
+                if(mtag === 'table'){
+                  if(_isplaintext($m)){
+                    r[mtag].push( _getTable($m) );
+                  }
+                } else if (mtag === 'code') {
+                  r[mtag].push( _getCode($m) );
+                } else {
+                  r[mtag].push( _getIdMimeHref($m) );  
+                }
+              });
+            }
+          });
+          
+        } else { //there must be only 1 graphic, media, table or code
+
+          var mym = [];        
+          //put mtag that direct descendant of ```tag``` in an array and check length == 1
+          ['graphic', 'media', 'code', 'table'].forEach(function(mtag){
+            var $m = $el.getElementsByTagName(mtag);
+            if( $m && $m.length){ 
+              for(var i=0; i<$m.length; i++){
+                if( $m[i].parentNode.tagName === tag ){
+                  mym.push( { mtag: mtag, value: $m[i] } );
+                }
+              }
+            }
+          });
+          
+          if(mym.length === 1){            
+            if(mym[0].mtag === 'table'){
+              if(_isPlainText(mym[0].value)){
+                r[mym[0].mtag] =  [ _getTable(mym[0].value) ];
+              }
+            } else if (mym[0].mtag === 'code'){
+              r[mym[0].mtag] =  [ _getCode(mym[0].value) ];
+            } else {
+              r[mym[0].mtag] = [ _getIdMimeHref(mym[0].value) ];
+            }
+          }
+
+        }
       }
 
       resources.push(r);
     });
 
   });
+
+  //<inline-supplementary-material>
+  //@xlink:title -> description
+  var $inlineSupplementaryMaterials = doc.getElementsByTagName('inline-supplementary-material');
+  if($inlineSupplementaryMaterials && $inlineSupplementaryMaterials.length){
+    Array.prototype.forEach.call($inlineSupplementaryMaterials, function($sup){
+      resources.push({
+        tag: 'inline-supplementary-material',
+        id: $sup.getAttribute('id'),
+        caption: { title: $sup.getattribute('xlink:title') },
+        inlineSi: [ _getIdMimeHref($sup) ]
+      });
+    });
+  }
 
   return resources;
 };
@@ -1016,7 +1086,7 @@ function findResourcesMeta(doc){
  * return the list of files contained in the tar.gz of the article,
  * and move the relevant one (i.e non inline formula or co) into the current directory
  */
-function fetchTar(pmcid, ldpm, callback){
+function fetchTargz(pmcid, ldpm, callback){
 
   callback = once(callback);
 
@@ -1044,64 +1114,29 @@ function fetchTar(pmcid, ldpm, callback){
       return callback(new Error('could not get tar.gz URI'));
     }
 
-    var puri = url.parse(tgzUri);
+    temp.mkdir('__ldpmTmp', function(err, root) {
+      if (err) return callback(err);
 
-    var root = ldpm.root;
-    var c = new Client(); 
-    c.connect({ host: puri.host });
+      var puri = url.parse(tgzUri);
 
-    ldpm.logHttp('GET', tgzUri, 'ftp');
-    c.on('ready', function() {
-      temp.mkdir('__ldpmTmp', function(err, dirPath) {
+      var root = ldpm.root;
+      var c = new Client(); 
+      c.connect({ host: puri.host });
+
+      ldpm.logHttp('GET', tgzUri, 'ftp');
+      c.on('ready', function() {
         c.get(puri.path, function(err, stream) {
           if (err) return callback(err);
           ldpm.logHttp(200, tgzUri, 'ftp');
 
           var s = stream
             .pipe(zlib.Unzip())
-            .pipe(tar.Extract({ path: dirPath, strip: 1 }));
+            .pipe(tar.Extract({ path: root, strip: 1 }));
 
           s.on('error', callback);        
           s.on('end', function() {
-            recursiveReaddir(path.resolve(dirPath), function (err, files) {              
-              if (err) return callback(err);
-
-              c.end();
-
-              //locate nxml file
-              var nxml;
-              for(var i=0; i<files.length; i++){
-                if(path.extname(path.basename(files[i])) === '.nxml'){
-                  nxml = files[i];
-                  break;
-                }
-              }
-              
-              if(!nxml){
-                return callback(new Error('tar.gz does not contain .nxml file'));
-              }
-
-
-              //get the name of the main article: from the name of  nxml file
-              var mainArticleName = path.basename(nxml, path.extname(nxml)).replace(/ /g, '-');
-
-              fs.readFile(nxml, {encoding: 'utf8'}, function(err, xml){
-                if(err) return callback(err);
-
-                var filteredFiles = files.filter(function(x){ return path.basename(x) !== 'license.txt' && path.extname(x) !== '.nxml' ;});              
-                var licensePath = files.filter(function(x){ return path.basename(x) === 'license.txt';})[0];
-
-                if(licensePath){
-                  fs.readFile(licensePath, {encoding: 'utf8'}, function(err, license){
-                    callback(null, xml, dirPath, filteredFiles, mainArticleName, license);                    
-                  });
-                } else {
-                  callback(null, xml, dirPath, filteredFiles, mainArticleName);
-                }
-                
-                
-              });
-            });
+            c.end();
+            callback(null, root);
           });
 
         });
@@ -1109,6 +1144,48 @@ function fetchTar(pmcid, ldpm, callback){
     });
     
   });
+
+};
+
+function readTargzFiles(root, callback){
+
+  recursiveReaddir(root, function (err, files) {              
+    if (err) return callback(err);
+
+    //locate nxml file
+    var nxml;
+    for(var i=0; i<files.length; i++){
+      if(path.extname(path.basename(files[i])) === '.nxml'){
+        nxml = files[i];
+        break;
+      }
+    }
+    
+    if(!nxml){
+      return callback(new Error('tar.gz does not contain .nxml file'));
+    }
+
+
+    //get the name of the main article: from the name of  nxml file
+    var mainArticleName = path.basename(nxml, path.extname(nxml)).replace(/ /g, '-');
+
+    fs.readFile(nxml, {encoding: 'utf8'}, function(err, xml){
+      if(err) return callback(err);
+
+      var filteredFiles = files.filter(function(x){ return path.basename(x) !== 'license.txt' && path.extname(x) !== '.nxml' ;});              
+      var licensePath = files.filter(function(x){ return path.basename(x) === 'license.txt';})[0];
+
+      if(licensePath){
+        fs.readFile(licensePath, {encoding: 'utf8'}, function(err, license){
+          callback(null, xml, filteredFiles, mainArticleName, tools.cleanText(license));   
+        });
+      } else {
+        callback(null, xml, filteredFiles, mainArticleName);
+      }      
+      
+    });
+  });
+  
 
 };
 
@@ -1122,11 +1199,11 @@ function files2resources(ldpm, root, meta, files, mainArticleName, callback){
 
   var inline = meta.inline || [];
   files = _.difference(files, compressedBundles, inline);
+
   //some inline ref have no extension: take care of that...
   files = files.filter(function(file){
-    return !!(inline.indexOf(path.basename(file, path.extname(file))) >-1);
+    return !! (inline.indexOf(path.basename(file, path.extname(file))) === -1);
   });
-
   
   //uncompress bundles so that we can check if truely a code bundle or a compression of a single media file.
   var codeBundles = [];
@@ -1236,9 +1313,465 @@ function removeAttributes($el){
 };
 
 
+function _isPlainText($el){
+  //note: inline-formula contains inline-graphic so no need to check it.
+  var evilTags = ['inline-graphic', 'chem-struct-wrap', 'disp-formula', 'graphic', 'media'];
+  for(var i=0; i<evilTags.length; i++){
+    if ($el.getElementsByTagName(evilTags[i])[0]){
+      return false;
+    }
+  }
 
-function addTablesAndCaptions(meta, resources,  mainArticleName, callback){
+  return true;
+};
+
+
+/**
+ * return undefined if the table contains element that cannot be serialized (e.g graphics, media, formulaes)
+ * TODO replace <bold> and other tags...
+ */
+function _getTable($table){
+  removeAttributes($table);
+
+  var serializer = new XMLSerializer();
+
+  return {
+    id: $table.getAttribute('id'),
+    html: [
+      '<!DOCTYPE html>',
+      '<html>',
+      '<head>',
+      '<meta charset="utf-8">',
+      '</head>',
+      '<body>',
+      serializer.serializeToString($table),
+      '</body>',
+      '</html>'
+    ].join('')
+  };
+};
+
+function _getIdMimeHref($el){
+  return {
+    id: $el.getAttribute('id'),
+    mimetype: $el.getAttribute('mimetype'),
+    mimeSubtype: $el.getAttribute('mime-subtype'),
+    href: $el.getAttribute('xlink:href')
+  };
+};
+
+
+function _getCode($code){
+  return {
+    programmingLanguage: $code.getAttribute('code-type') || $code.getAttribute('language'),
+    runtime: $code.getAttribute('platforms'),    
+    sampeType: $code.textContent
+  };
+};
+
+
+
+/**
+ * add table and caption to resources in place.
+ * Note that some resources match be merged together
+ */ 
+function mergeTablesAndCaptions(resources, meta){
+
+  var typeMap = { 'figure': 'encoding', 'audio': 'encoding', 'video': 'encoding', 'code': 'targetProduct', 'dataset': 'distribution', 'article': 'encoding' };
+
+  var sresources = {};
+  var allMatchedNames = {
+    dataset: [],
+    code: [],
+    figure: [],
+    audio: [],
+    video: [],
+    article: []
+  };
+
+  meta.resources.forEach(function(mr, mrId){ //mr: resource with meta data (hence the m...)
+
+    var hrefs = [];
+    ['graphic', 'media', 'code', 'table', 'si', 'inlineSi'].forEach(function(type){
+      if(type in mr){
+        mr[type].forEach(function(x){
+          if(x.href){
+            hrefs.push(x.href);
+          }
+        });
+      }
+    });
+
+    var matched = [];
+    Object.keys(resources).forEach(function(type){
+      (resources[type] || []).forEach(function(r){
+        var tr = {type: type, value: r};
+
+        if(_match(r, type, hrefs)){
+          matched.push(tr);
+          allMatchedNames[type].push(r.name);
+        }
+      });
+    });
+
+    //get **main** ldpm type (dataset, figure, audio, video or code)
+    var mainLdpmType;
+
+    var mainTypeFromFiles;
+    var typesFromFiles = {};
+    if(matched.length){
+      typesFromFiles = _.countBy(matched, function(x){ return x.type; });
+    }
+    if ('dataset' in typesFromFiles){
+      mainTypeFromFiles = 'dataset';
+    } else if ('code' in typesFromFiles){
+      mainTypeFromFiles = 'code';
+    } else if ('video' in typesFromFiles){
+      mainTypeFromFiles = 'video';
+    } else if ('audio' in typesFromFiles){
+      mainTypeFromFiles = 'audio';
+    } else if ('figure' in typesFromFiles){
+      mainTypeFromFiles = 'figure';
+    } else if ('article' in typesFromFiles){
+      mainTypeFromFiles = 'article';
+    } else {
+      mainTypeFromFiles = 'dataset';
+    }
+
+    //assign ```mainLdpmType```
+    if (mr.tag === 'table-wrap'){
+
+      mainLdpmType = 'dataset';
+
+    } else if ('code' in mr){
+
+      mainLdpmType = 'code';
+
+    } else if ( ('si' in mr) || ('inlineSi' in mr) ){ //if si or inlineSi => only 1 resource (Cf. findResourcesMeta)
+
+      var mymr = (mr.si && mr.si[0]) || (mr.inlineSi && mr.inlineSi[0]);
+      if(mymr.mimetype.indexOf('video') > -1){
+        mainLdpmType = 'video';
+      } else if (mymr.mimetype.indexOf('audio') > -1){
+        mainLdpmType = 'audio';
+      } else if (mymr.mimetype.indexOf('image') > -1){
+        mainLdpmType = 'figure';
+      } else { //rely on typesFronFiles or default to dataset
+        mainLdpmType = mainTypeFromFiles;
+      }
+
+    } else if ('media' in mr){
+      
+      var typesFromMedia = _.countBy(mr.media, function(x){
+        if(x.mimetype.indexOf('video') > -1){
+          return 'video';
+        } else if (x.mimetype.indexOf('audio') > -1){
+          return 'audio';
+        } else if (x.mimetype.indexOf('image') > -1){
+          return 'figure';
+        } else {
+          return '?';
+        }
+      });
+
+      if ('video' in typesFromMedia){
+        mainLdpmType = 'video';
+      } else if ('audio' in typesFromMedia){
+        mainLdpmType = 'audio';
+      } else if ('figure' in typesFromMedia){
+        mainLdpmType = 'figure';
+      } else {
+        mainLdpmType = mainTypeFromFiles;
+      }
+      
+    } else if ('graphic' in mr){
+      
+      mainLdpmType = 'figure';
+
+    } else {
+
+      mainLdpmType = mainTypeFromFiles || 'dataset'; 
+
+    }
+
+
+    var sr = {}; //the new resources we are creating. All matched resource will indeed be different representation of this same resource ```sr```...
+    sr.name = mr.id || (matched.length &&  matched[0].value.name) || ('resource-' + mrId);
+
+    if(mr.label) sr.alternateName = mr.label;
+
+    if(mr.caption){
+      if(mr.caption.title) sr.description = mr.caption.title;
+      if(mr.caption.content){
+        if(mainLdpmType === 'figure' || mainLdpmType === 'video'){
+          sr.caption = mr.caption.content; 
+        } else {
+          sr.description = tools.cleanText([sr.description || '', mr.caption.content].join(' '));
+        }
+      }
+    }
+
+    if(mr.ids){
+      for(var key in mr.ids){
+        sr[key] = mr.ids[key];
+      }
+    }
+    
+    if(mr.fn && mr.fn.length){
+      var comments = [];
+      mr.fn.forEach(function(c){
+        var comment = {'@type': 'Comment'};
+        if(c.id) comment.name = c.id;
+        if(c.label) comment.alternateName = c.alternateName;
+        if(c.content) comment.text = c.content;
+        if(Object.keys(comment).length>1){
+          comments.push(comment);
+        }
+      });
+      if(comments.length){
+        sr.comment = comments;
+      }
+    }
+
+    
+    var encodings = [];
+    if (matched.length) {
+
+      //add type specific props !== encoding infered from ldpm init (e.g about, programmingLanguage...)
+      var props = Object.keys(sr);
+      matched.forEach(function(x){
+        if(x.type === mainLdpmType){          
+          Object.keys(x.value).forEach(function(p){
+            if(p !== typeMap[mainLdpmType] && props.indexOf(p)=== -1){
+              sr[p] = clone(x.value[p]);
+            }
+          });
+        }
+      });
+      
+      //fill encoding
+
+      //special case for pubmed central: 2 representation one .jpg and .gif: in this case: .gif is the thumbnail
+      if (mainLdpmType === 'figure' &&
+          matched[0].type === 'figure' &&
+          matched.length === 1 &&
+          matched[0].value.encoding &&
+          matched[0].value.encoding.length === 2 &&
+          ( ( matched[0].value.encoding[0].encodingFormat === 'image/gif' && matched[0].value.encoding[1].encodingFormat === 'image/jpeg' ) || ( matched[0].value.encoding[0].encodingFormat === 'image/jpeg' && matched[0].value.encoding[1].encodingFormat === 'image/gif') )
+         ){
+
+        encodings = matched[0].value.encoding.filter(function(x){ return x.encodingFormat === 'image/jpeg'; });
+        sr.thumbnailPath = (sr.thumbnailPath || []).concat(
+          matched[0].value.encoding
+            .filter(function(x){ return x.encodingFormat === 'image/gif'; })
+            .map(function(x){ return x.contentPath; })
+        );
+
+      } else {
+
+        matched.forEach(function(x){
+          if(x.type === mainLdpmType){
+
+            encodings = encodings.concat(x.value[typeMap[mainLdpmType]]);
+
+          } else if(x.type === 'figure') { //treats as thumbnailPath -> ldpm will transform thumbnailPath into thumbnailUrl
+
+            var thumbnailPaths = x.value.encoding.map(function(enc){ return enc.contentPath; });
+
+            if(thumbnailPaths.length){
+              sr.thumbnailPath = (sr.thumbnailPath || []).concat(thumbnailPaths);
+            }
+          }
+        });
+      }
+
+    }
+
+    //add HTML representation of a table or code snippet (sampleType)
+    if(mainLdpmType === 'dataset'){
+
+      if (mr.table && mr.table.length){
+        encodings = encodings.concat(mr.table.map(function(t){
+          return {
+            contentData: t.html,
+            encodingFormat: 'text/html'
+          };                
+        }));
+      };
+
+    } else if (mainLdpmType === 'code'){ //code snippet
+
+      if(mr.code && mr.code.length === 1){
+        Object.keys(mr.code[0]).forEach(function(key){
+          if (mr.code[0][key]) {
+            sr[key] = mr.code[0][key];
+          }
+        });
+      }
+
+    }
+
+    if(encodings.length){ 
+      sr[typeMap[mainLdpmType]] = encodings;
+    }
+
+    if(mainLdpmType in sresources){
+      sresources[mainLdpmType].push(sr);
+    } else {
+      sresources[mainLdpmType] = [ sr ];
+    }
+    
+  });
+
+
+  Object.keys(resources).forEach(function(type){
+    resources[type] = resources[type]
+      .filter(function(x){
+        return allMatchedNames[type].indexOf(x.name) === -1;
+      })
+      .concat(sresources[type] || []);
+
+    if(!resources[type].length){
+      delete resources[type];
+    }
+  });
   
+  return resources;
+};
 
 
+function meta2pkg(resources, meta, mainArticleName, pmcid){
+  var pkg = {};
+
+  //idealy name pkg with (journal-)lastname-year
+  var pkgName = [];
+
+  if(meta.journalShortName){
+    pkgName.push(meta.journalShortName);
+  }
+
+  if(meta.author && meta.author.familyName){
+    pkgName.push(tools.removeDiacritics(meta.author.familyName.toLowerCase()).replace(/\W/g, ''));
+  }
+
+  if(meta.year){
+    pkgName.push(meta.year);
+  }
+
+  if(pkgName.length>=2){
+    pkg.name = pkgName.join('-');
+  } else {
+    pkg.name = pmcid;
+  }
+
+  pkg.version = '0.0.0';
+
+  if(meta.keywords && meta.keywords.length){
+    pkg.keywords = meta.keywords;
+  }
+
+  if(meta.title){
+    pkg.description = meta.title;
+  }
+
+  if(meta.license){
+    pkg.license = meta.license;
+  } else if (pkg.license){
+    pkg.license = pkg.license;
+  }
+
+  if(!pkg.sameAs && meta.url){
+    pkg.sameAs = meta.url;
+  }
+
+  pkg.author = meta.author;
+
+  if(meta.contributor.length){
+    pkg.contributor =  meta.contributor;
+  }
+
+  pkg.provider = {
+    '@type': 'Organization',
+    '@id': 'http://www.ncbi.nlm.nih.gov/pmc/',
+    description: 'From PMC®, a database of the U.S. National Library of Medicine.'
+  };
+
+  if(meta.sourceOrganisation){
+    pkg.sourceOrganisation = meta.sourceOrganisation;
+  }
+
+  pkg.accountablePerson = {
+    '@type': 'Organization',
+    name: 'Standard Analytics IO',
+    email: 'contact@standardanalytics.io'
+  };
+
+  if( meta.copyrightYear ){
+    pkg.copyrightYear = meta.copyrightYear;
+  }
+
+  if( meta.copyrightHolder ){
+    pkg.copyrightHolder = meta.copyrightHolder;
+  }
+  
+  Object.keys(resources).forEach(function(type){
+    pkg[type] = resources[type];
+  });
+
+  var mainArticle = (pkg.article || []).filter(function(x){ return x.name === mainArticleName;})[0];
+
+  if(mainArticle){
+    mainArticle['@type'] = 'ScholarlyArticle';
+
+    if(meta.shortTitle){
+      mainArticle.alternateName = meta.shortTitle;
+    }      
+
+    if(meta.publisher){
+      mainArticle.publisher = meta.publisher;
+    }
+
+    if(meta.editor.length){
+      mainArticle.editor = meta.editor;
+    }
+
+    if(meta.accountablePerson){
+      mainArticle.accountablePerson = meta.accountablePerson;
+    }
+    if(meta.journal){
+      mainArticle.journal = meta.journal;
+    }
+    if(meta.doi){
+      mainArticle.doi = meta.doi;
+    }
+    if(meta.pmid){
+      mainArticle.pmid = meta.pmid;
+    }
+    if(meta.pmcid){
+      mainArticle.pmcid = meta.pmcid;
+    }
+    if(meta.title){
+      mainArticle.headline = meta.title;
+    }
+    if (meta.abstract){
+      mainArticle.about = meta.abstract;
+    }
+    if(meta.issue){
+      mainArticle.issue = meta.issue;
+    }
+    if(meta.volume){
+      mainArticle.volume = meta.volume;
+    }
+    if(meta.pageStart){
+      mainArticle.pageStart = meta.pageStart;
+    }
+    if(meta.pageEnd){
+      mainArticle.pageEnd = meta.pageEnd;
+    }
+    if(meta.references){
+      mainArticle.citation = meta.references;
+    }
+  }
+
+  return pkg;
 };

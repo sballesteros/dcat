@@ -229,7 +229,13 @@ Ldpm.prototype.convert = function(id, opts, callback){
       return callback(err);
     }
 
-    body = JSON.parse(body);
+    //if error pubmedcentral display a webpage with 200 return code :( so we are cautious...
+    try{
+      body = JSON.parse(body);
+    } catch(e){
+      return callback(new Error(url.parse(uri).hostname + ' did not returned valid JSON'));
+    }
+
     if(body.records && body.records.length){
       var pmcid = body.records[0].pmcid;
       var pmid = body.records[0].pmid;
@@ -661,7 +667,6 @@ Ldpm.prototype.paths2resources = function(globs, opts, callback){
   //supposes that codeBundles are relative path to code project directories
   var absCodeBundles = (opts.codeBundles || []).map(function(x){return path.resolve(root, x);});
 
-
   async.map(globs, function(pattern, cb){
     glob(path.resolve(root, pattern), {matchBase: true}, cb);
   }.bind(this), function(err, paths){
@@ -823,7 +828,7 @@ Ldpm.prototype.paths2resources = function(globs, opts, callback){
         video: {}
       };
 
-      var typeMap = { 'figure': 'encoding', 'audio': 'encoding', 'video': 'encoding', 'code': 'targetProduct', 'dataset': 'distribution', 'article': 'encoding'};
+      var typeMap = { 'figure': 'encoding', 'audio': 'encoding', 'video': 'encoding', 'code': 'targetProduct', 'dataset': 'distribution', 'article': 'encoding' };
 
       typedResources.forEach(function(r){
         if (r.value.name in byName[r.type]){          
@@ -879,7 +884,16 @@ Ldpm.prototype.paths2resources = function(globs, opts, callback){
         var ws = ignore.pipe(tar.Pack()).pipe(zlib.createGzip()).pipe(fs.createWriteStream(tempPath));
         ws.on('error', cb);
         ws.on('finish', function(){
-          cb(null, {name: path.basename(absPath), targetProduct: [{filePath: tempPath, bundlePath: path.relative(root, absPath), fileFormat:'application/x-gzip'}]});
+          var rb = {
+            name: path.basename(absPath), 
+            targetProduct: [{
+              filePath: tempPath, 
+              bundlePath: path.relative(root, absPath), 
+              fileFormat:'application/x-gzip'
+            }]
+          };
+
+          cb(null, rb);
         }.bind(this));
 
       }.bind(this), function(err, codeResources){

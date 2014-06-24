@@ -51,7 +51,7 @@ function pubmed(pmid, opts, callback){
  */ 
 function parseXml(xml, pmid){
 
-  var article =  { '@type': 'ScholarlyArticle', name: pmid, 'pmid': pmid };
+  var article =  { '@type': 'ScholarlyArticle', name: pmid.toString(), 'pmid': pmid.toString() };
 
   var doc = new DOMParser().parseFromString(xml, 'text/xml');
 
@@ -64,6 +64,7 @@ function parseXml(xml, pmid){
       article.headline = article.headline.replace(/^\[/, '').replace(/\]\.*$/, '');
     }
 
+    var copyrightHolder;
     var $Abstract = $PubmedArticle.getElementsByTagName('Abstract')[0];
     if($Abstract){
       //CF http://www.nlm.nih.gov/bsd/licensee/elements_descriptions.html structured abstract.
@@ -86,6 +87,11 @@ function parseXml(xml, pmid){
       if(abstractTexts.length){
         article.about = abstractTexts;
       }
+
+      var $CopyrightInformation = $Abstract.getElementsByTagName('CopyrightInformation')[0];
+      if($CopyrightInformation){
+        copyrightHolder = { description: tools.cleanText($CopyrightInformation.textContent) };
+      }
     }
 
     var $Journal = $PubmedArticle.getElementsByTagName('Journal')[0];
@@ -96,6 +102,11 @@ function parseXml(xml, pmid){
       var $Title = $Journal.getElementsByTagName('Title')[0];
       if($Title){
         journal.name = tools.cleanText($Title.textContent);
+      }
+
+      var $ISOAbbreviation = $Journal.getElementsByTagName('ISOAbbreviation')[0];
+      if($ISOAbbreviation){
+        journal.alternateName = tools.cleanText($ISOAbbreviation.textContent);
       }
 
       var $ISSN = $Journal.getElementsByTagName('ISSN')[0];
@@ -255,7 +266,7 @@ function parseXml(xml, pmid){
     if(pkgName.length>=2){
       pkg.name = pkgName.join('-');
     } else {
-      pkg.name = pmid;
+      pkg.name = pmid.toString();
     }
 
     pkg.version = '0.0.0';
@@ -275,6 +286,10 @@ function parseXml(xml, pmid){
       });    
     }
 
+    if(article.headline){
+      pkg.description = article.headline;
+    }
+
     if(keywords.length){
       pkg.keywords = _.uniq(keywords);
     }
@@ -285,6 +300,10 @@ function parseXml(xml, pmid){
 
     if(authors.contributor){
       pkg.contributor = authors.contributor;
+    }
+
+    if(copyrightHolder){
+      pkg.copyrightHolder = copyrightHolder;
     }
 
     pkg.provider = {
@@ -300,23 +319,39 @@ function parseXml(xml, pmid){
     };
 
     //<Grant> as sourceOrganization (grantId is added TODO fix...)
-    var sourceOrganizations = [];
     var $GrantList = $PubmedArticle.getElementsByTagName('GrantList')[0];
+    var soMap = {}; //re-aggregate grant entries by organizations
     if($GrantList){
       var $Grants = $GrantList.getElementsByTagName('Grant');
       if($Grants){
-        Array.prototype.forEach.call($Grants, function($Grant){
+        Array.prototype.forEach.call($Grants, function($Grant, gid){
           var $Agency = $Grant.getElementsByTagName('Agency')[0];
           var $GrantID = $Grant.getElementsByTagName('GrantID')[0];
+          var $Acronym = $Grant.getElementsByTagName('Acronym')[0];
           var $Country = $Grant.getElementsByTagName('Country')[0];
+
+          var name;
+          if($Agency){
+            name = tools.cleanText($Agency.textContent);
+          }
+
+          var key = name || gid.toString();
           
           if($Agency || $GrantID){
-            var organization = { '@type': 'Organization' };
-            if($Agency){
-              organization.name = tools.cleanText($Agency.textContent);
+            var organization = soMap[key] || { '@type': 'Organization' };
+            if(name){
+              organization.name = name;
             }
-            if($GrantID){
-              organization.grantId = tools.cleanText($GrantID.textContent);
+            if($Acronym){
+              organization.alternateName = tools.cleanText($Acronym.textContent);
+            }
+            if($GrantID){ //accumulate grantId(s)...
+              var grantId = tools.cleanText($GrantID.textContent);
+              if(organization.grantId){              
+                organization.grantId.push(grantId);
+              } else {
+                organization.grantId = [grantId];
+              }              
             }
             if($Country){
               organization.address = {
@@ -324,11 +359,16 @@ function parseXml(xml, pmid){
                 'addressCountry': tools.cleanText($Country.textContent)
               }
             }
-            sourceOrganizations.push(organization);
+            soMap[key] = organization;
           }
         });
       }
     }
+
+    var sourceOrganizations = [];
+    Object.keys(soMap).forEach(function(key){
+      sourceOrganizations.push(soMap[key]);
+    })
 
     if(sourceOrganizations.length){
       pkg.sourceOrganization = sourceOrganizations;
@@ -371,6 +411,7 @@ function parseXml(xml, pmid){
     }
 
     //dataset: <DataBankList> e.g pmid: 19237716
+    //TODO add description and URI from: http://www.nlm.nih.gov/bsd/medline_databank_source.html
     var datasets = [];
     var $DataBankLists = $PubmedArticle.getElementsByTagName('DataBankList');
     if($DataBankLists){
@@ -513,8 +554,8 @@ function parseXml(xml, pmid){
         }
       ];
     }
-   
+    
   }
 
   return pkg;
-}
+};

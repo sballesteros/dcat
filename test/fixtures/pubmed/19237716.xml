@@ -1,0 +1,594 @@
+<?xml version="1.0"?>
+<!DOCTYPE PubmedArticleSet PUBLIC "-//NLM//DTD PubMedArticle, 1st January 2014//EN" "http://www.ncbi.nlm.nih.gov/corehtml/query/DTD/pubmed_140101.dtd">
+<PubmedArticleSet>
+<PubmedArticle>
+    <MedlineCitation Owner="NLM" Status="MEDLINE">
+        <PMID Version="1">19237716</PMID>
+        <DateCreated>
+            <Year>2009</Year>
+            <Month>02</Month>
+            <Day>24</Day>
+        </DateCreated>
+        <DateCompleted>
+            <Year>2009</Year>
+            <Month>03</Month>
+            <Day>09</Day>
+        </DateCompleted>
+        <DateRevised>
+            <Year>2013</Year>
+            <Month>11</Month>
+            <Day>21</Day>
+        </DateRevised>
+        <Article PubModel="Print">
+            <Journal>
+                <ISSN IssnType="Electronic">1538-3679</ISSN>
+                <JournalIssue CitedMedium="Internet">
+                    <Volume>169</Volume>
+                    <Issue>4</Issue>
+                    <PubDate>
+                        <Year>2009</Year>
+                        <Month>Feb</Month>
+                        <Day>23</Day>
+                    </PubDate>
+                </JournalIssue>
+                <Title>Archives of internal medicine</Title>
+                <ISOAbbreviation>Arch. Intern. Med.</ISOAbbreviation>
+            </Journal>
+            <ArticleTitle>Folic acid, pyridoxine, and cyanocobalamin combination treatment and age-related macular degeneration in women: the Women's Antioxidant and Folic Acid Cardiovascular Study.</ArticleTitle>
+            <Pagination>
+                <MedlinePgn>335-41</MedlinePgn>
+            </Pagination>
+            <ELocationID EIdType="doi" ValidYN="Y">10.1001/archinternmed.2008.574</ELocationID>
+            <Abstract>
+                <AbstractText Label="BACKGROUND" NlmCategory="BACKGROUND">Observational epidemiologic studies indicate a direct association between homocysteine concentration in the blood and the risk of age-related macular degeneration (AMD), but randomized trial data to examine the effect of therapy to lower homocysteine levels in AMD are lacking. Our objective was to examine the incidence of AMD in a trial of combined folic acid, pyridoxine hydrochloride (vitamin B(6)), and cyanocobalamin (vitamin B(12)) therapy.</AbstractText>
+                <AbstractText Label="METHODS" NlmCategory="METHODS">We conducted a randomized, double-blind, placebo-controlled trial including 5442 female health care professionals 40 years or older with preexisting cardiovascular disease or 3 or more cardiovascular disease risk factors. A total of 5205 of these women did not have a diagnosis of AMD at baseline and were included in this analysis. Participants were randomly assigned to receive a combination of folic acid (2.5 mg/d), pyridoxine hydrochloride (50 mg/d), and cyanocobalamin (1 mg/d) or placebo. Our main outcome measures included total AMD, defined as a self-report documented by medical record evidence of an initial diagnosis after randomization, and visually significant AMD, defined as confirmed incident AMD with visual acuity of 20/30 or worse attributable to this condition.</AbstractText>
+                <AbstractText Label="RESULTS" NlmCategory="RESULTS">After an average of 7.3 years of treatment and follow-up, there were 55 cases of AMD in the combination treatment group and 82 in the placebo group (relative risk, 0.66; 95% confidence interval, 0.47-0.93 [P = .02]). For visually significant AMD, there were 26 cases in the combination treatment group and 44 in the placebo group (relative risk, 0.59; 95% confidence interval, 0.36-0.95 [P = .03]).</AbstractText>
+                <AbstractText Label="CONCLUSIONS" NlmCategory="CONCLUSIONS">These randomized trial data from a large cohort of women at high risk of cardiovascular disease indicate that daily supplementation with folic acid, pyridoxine, and cyanocobalamin may reduce the risk of AMD.</AbstractText>
+            </Abstract>
+            <AuthorList CompleteYN="Y">
+                <Author ValidYN="Y">
+                    <LastName>Christen</LastName>
+                    <ForeName>William G</ForeName>
+                    <Initials>WG</Initials>
+                    <Affiliation>Division of Preventive Medicine, Department of Medicine, Brigham and Women's Hospital, Harvard Medical School, 900 Commonwealth Avenue E, Boston, MA 02215-1204, USA. wchristen@rics.bwh.harvard.edu</Affiliation>
+                </Author>
+                <Author ValidYN="Y">
+                    <LastName>Glynn</LastName>
+                    <ForeName>Robert J</ForeName>
+                    <Initials>RJ</Initials>
+                </Author>
+                <Author ValidYN="Y">
+                    <LastName>Chew</LastName>
+                    <ForeName>Emily Y</ForeName>
+                    <Initials>EY</Initials>
+                </Author>
+                <Author ValidYN="Y">
+                    <LastName>Albert</LastName>
+                    <ForeName>Christine M</ForeName>
+                    <Initials>CM</Initials>
+                </Author>
+                <Author ValidYN="Y">
+                    <LastName>Manson</LastName>
+                    <ForeName>Joann E</ForeName>
+                    <Initials>JE</Initials>
+                </Author>
+            </AuthorList>
+            <Language>eng</Language>
+            <DataBankList CompleteYN="Y">
+                <DataBank>
+                    <DataBankName>ClinicalTrials.gov</DataBankName>
+                    <AccessionNumberList>
+                        <AccessionNumber>NCT00000161</AccessionNumber>
+                    </AccessionNumberList>
+                </DataBank>
+            </DataBankList>
+            <GrantList CompleteYN="Y">
+                <Grant>
+                    <GrantID>EY 06633</GrantID>
+                    <Acronym>EY</Acronym>
+                    <Agency>NEI NIH HHS</Agency>
+                    <Country>United States</Country>
+                </Grant>
+                <Grant>
+                    <GrantID>HL 46959</GrantID>
+                    <Acronym>HL</Acronym>
+                    <Agency>NHLBI NIH HHS</Agency>
+                    <Country>United States</Country>
+                </Grant>
+                <Grant>
+                    <GrantID>P30 DK040561-13</GrantID>
+                    <Acronym>DK</Acronym>
+                    <Agency>NIDDK NIH HHS</Agency>
+                    <Country>United States</Country>
+                </Grant>
+                <Grant>
+                    <GrantID>R01 EY006633-11</GrantID>
+                    <Acronym>EY</Acronym>
+                    <Agency>NEI NIH HHS</Agency>
+                    <Country>United States</Country>
+                </Grant>
+                <Grant>
+                    <GrantID>R01 EY006633-12</GrantID>
+                    <Acronym>EY</Acronym>
+                    <Agency>NEI NIH HHS</Agency>
+                    <Country>United States</Country>
+                </Grant>
+                <Grant>
+                    <GrantID>R01 EY006633-13</GrantID>
+                    <Acronym>EY</Acronym>
+                    <Agency>NEI NIH HHS</Agency>
+                    <Country>United States</Country>
+                </Grant>
+                <Grant>
+                    <GrantID>R01 EY006633-14</GrantID>
+                    <Acronym>EY</Acronym>
+                    <Agency>NEI NIH HHS</Agency>
+                    <Country>United States</Country>
+                </Grant>
+                <Grant>
+                    <GrantID>R01 HL046959-07</GrantID>
+                    <Acronym>HL</Acronym>
+                    <Agency>NHLBI NIH HHS</Agency>
+                    <Country>United States</Country>
+                </Grant>
+                <Grant>
+                    <GrantID>R01 HL046959-08</GrantID>
+                    <Acronym>HL</Acronym>
+                    <Agency>NHLBI NIH HHS</Agency>
+                    <Country>United States</Country>
+                </Grant>
+                <Grant>
+                    <GrantID>R01 HL046959-09</GrantID>
+                    <Acronym>HL</Acronym>
+                    <Agency>NHLBI NIH HHS</Agency>
+                    <Country>United States</Country>
+                </Grant>
+                <Grant>
+                    <GrantID>R01 HL046959-10</GrantID>
+                    <Acronym>HL</Acronym>
+                    <Agency>NHLBI NIH HHS</Agency>
+                    <Country>United States</Country>
+                </Grant>
+                <Grant>
+                    <GrantID>R01 HL046959-11</GrantID>
+                    <Acronym>HL</Acronym>
+                    <Agency>NHLBI NIH HHS</Agency>
+                    <Country>United States</Country>
+                </Grant>
+                <Grant>
+                    <GrantID>R01 HL046959-12</GrantID>
+                    <Acronym>HL</Acronym>
+                    <Agency>NHLBI NIH HHS</Agency>
+                    <Country>United States</Country>
+                </Grant>
+                <Grant>
+                    <GrantID>R01 HL046959-13</GrantID>
+                    <Acronym>HL</Acronym>
+                    <Agency>NHLBI NIH HHS</Agency>
+                    <Country>United States</Country>
+                </Grant>
+                <Grant>
+                    <GrantID>Z99 EY999999</GrantID>
+                    <Acronym>EY</Acronym>
+                    <Agency>NEI NIH HHS</Agency>
+                    <Country>United States</Country>
+                </Grant>
+            </GrantList>
+            <PublicationTypeList>
+                <PublicationType>Journal Article</PublicationType>
+                <PublicationType>Randomized Controlled Trial</PublicationType>
+                <PublicationType>Research Support, N.I.H., Extramural</PublicationType>
+                <PublicationType>Research Support, Non-U.S. Gov't</PublicationType>
+            </PublicationTypeList>
+        </Article>
+        <MedlineJournalInfo>
+            <Country>United States</Country>
+            <MedlineTA>Arch Intern Med</MedlineTA>
+            <NlmUniqueID>0372440</NlmUniqueID>
+            <ISSNLinking>0003-9926</ISSNLinking>
+        </MedlineJournalInfo>
+        <ChemicalList>
+            <Chemical>
+                <RegistryNumber>12001-76-2</RegistryNumber>
+                <NameOfSubstance>Vitamin B Complex</NameOfSubstance>
+            </Chemical>
+            <Chemical>
+                <RegistryNumber>65-23-6</RegistryNumber>
+                <NameOfSubstance>Pyridoxine</NameOfSubstance>
+            </Chemical>
+            <Chemical>
+                <RegistryNumber>935E97BOY8</RegistryNumber>
+                <NameOfSubstance>Folic Acid</NameOfSubstance>
+            </Chemical>
+            <Chemical>
+                <RegistryNumber>P6YC3EG204</RegistryNumber>
+                <NameOfSubstance>Vitamin B 12</NameOfSubstance>
+            </Chemical>
+        </ChemicalList>
+        <CitationSubset>AIM</CitationSubset>
+        <CitationSubset>IM</CitationSubset>
+        <CommentsCorrectionsList>
+            <CommentsCorrections RefType="Cites">
+                <RefSource>Am J Ophthalmol. 2004 Jan;137(1):84-9</RefSource>
+                <PMID Version="1">14700648</PMID>
+            </CommentsCorrections>
+            <CommentsCorrections RefType="Cites">
+                <RefSource>J Am Soc Nephrol. 2004 Feb;15(2):420-6</RefSource>
+                <PMID Version="1">14747389</PMID>
+            </CommentsCorrections>
+            <CommentsCorrections RefType="Cites">
+                <RefSource>JAMA. 2004 Feb 4;291(5):565-75</RefSource>
+                <PMID Version="1">14762035</PMID>
+            </CommentsCorrections>
+            <CommentsCorrections RefType="Cites">
+                <RefSource>J Nutr Biochem. 2004 Feb;15(2):64-79</RefSource>
+                <PMID Version="1">14972346</PMID>
+            </CommentsCorrections>
+            <CommentsCorrections RefType="Cites">
+                <RefSource>Int J Cardiol. 2004 Feb;93(2-3):175-9</RefSource>
+                <PMID Version="1">14975544</PMID>
+            </CommentsCorrections>
+            <CommentsCorrections RefType="Cites">
+                <RefSource>Am J Epidemiol. 1995 Aug 15;142(4):404-9</RefSource>
+                <PMID Version="1">7625405</PMID>
+            </CommentsCorrections>
+            <CommentsCorrections RefType="Cites">
+                <RefSource>JAMA. 1996 Oct 9;276(14):1141-6</RefSource>
+                <PMID Version="1">8827966</PMID>
+            </CommentsCorrections>
+            <CommentsCorrections RefType="Cites">
+                <RefSource>JAMA. 1996 Oct 9;276(14):1147-51</RefSource>
+                <PMID Version="1">8827967</PMID>
+            </CommentsCorrections>
+            <CommentsCorrections RefType="Cites">
+                <RefSource>J Biol Chem. 1997 Jul 4;272(27):17012-7</RefSource>
+                <PMID Version="1">9202015</PMID>
+            </CommentsCorrections>
+            <CommentsCorrections RefType="Cites">
+                <RefSource>Arch Neurol. 1997 Oct;54(10):1276-82</RefSource>
+                <PMID Version="1">9341574</PMID>
+            </CommentsCorrections>
+            <CommentsCorrections RefType="Cites">
+                <RefSource>Am J Epidemiol. 1998 Jan 15;147(2):103-10</RefSource>
+                <PMID Version="1">9456998</PMID>
+            </CommentsCorrections>
+            <CommentsCorrections RefType="Cites">
+                <RefSource>Circulation. 1998 Jan 27;97(3):237-41</RefSource>
+                <PMID Version="1">9462523</PMID>
+            </CommentsCorrections>
+            <CommentsCorrections RefType="Cites">
+                <RefSource>Invest Ophthalmol Vis Sci. 1998 Feb;39(2):385-90</RefSource>
+                <PMID Version="1">9477998</PMID>
+            </CommentsCorrections>
+            <CommentsCorrections RefType="Cites">
+                <RefSource>Annu Rev Med. 1998;49:31-62</RefSource>
+                <PMID Version="1">9509248</PMID>
+            </CommentsCorrections>
+            <CommentsCorrections RefType="Cites">
+                <RefSource>N Engl J Med. 1998 Apr 9;338(15):1042-50</RefSource>
+                <PMID Version="1">9535670</PMID>
+            </CommentsCorrections>
+            <CommentsCorrections RefType="Cites">
+                <RefSource>J Cardiovasc Risk. 1998 Aug;5(4):239-47</RefSource>
+                <PMID Version="1">9919472</PMID>
+            </CommentsCorrections>
+            <CommentsCorrections RefType="Cites">
+                <RefSource>Circ Res. 1999 Mar 5;84(4):409-16</RefSource>
+                <PMID Version="1">10066675</PMID>
+            </CommentsCorrections>
+            <CommentsCorrections RefType="Cites">
+                <RefSource>Lancet. 1999 May 8;353(9164):1586-7</RefSource>
+                <PMID Version="1">10334261</PMID>
+            </CommentsCorrections>
+            <CommentsCorrections RefType="Cites">
+                <RefSource>JAMA. 1999 Jun 9;281(22):2113-8</RefSource>
+                <PMID Version="1">10367822</PMID>
+            </CommentsCorrections>
+            <CommentsCorrections RefType="Cites">
+                <RefSource>Ophthalmic Epidemiol. 1999 Jun;6(2):125-43</RefSource>
+                <PMID Version="1">10420212</PMID>
+            </CommentsCorrections>
+            <CommentsCorrections RefType="Cites">
+                <RefSource>N Engl J Med. 2004 Dec 30;351(27):2805-16</RefSource>
+                <PMID Version="1">15625332</PMID>
+            </CommentsCorrections>
+            <CommentsCorrections RefType="Cites">
+                <RefSource>Ophthalmology. 2005 Jun;112(6):1035-47</RefSource>
+                <PMID Version="1">15936441</PMID>
+            </CommentsCorrections>
+            <CommentsCorrections RefType="Cites">
+                <RefSource>Heart. 2005 Sep;91(9):1213-4</RefSource>
+                <PMID Version="1">16103563</PMID>
+            </CommentsCorrections>
+            <CommentsCorrections RefType="Cites">
+                <RefSource>Am J Clin Nutr. 2005 Oct;82(4):806-12</RefSource>
+                <PMID Version="1">16210710</PMID>
+            </CommentsCorrections>
+            <CommentsCorrections RefType="Cites">
+                <RefSource>Arch Ophthalmol. 2005 Nov;123(11):1570-4</RefSource>
+                <PMID Version="1">16286620</PMID>
+            </CommentsCorrections>
+            <CommentsCorrections RefType="Cites">
+                <RefSource>Eur J Ophthalmol. 2005 Nov-Dec;15(6):764-7</RefSource>
+                <PMID Version="1">16329063</PMID>
+            </CommentsCorrections>
+            <CommentsCorrections RefType="Cites">
+                <RefSource>Ophthalmology. 2005 Dec;112(12):2076-80</RefSource>
+                <PMID Version="1">16225921</PMID>
+            </CommentsCorrections>
+            <CommentsCorrections RefType="Cites">
+                <RefSource>Am J Ophthalmol. 2006 Jan;141(1):201-3</RefSource>
+                <PMID Version="1">16387004</PMID>
+            </CommentsCorrections>
+            <CommentsCorrections RefType="Cites">
+                <RefSource>Eye (Lond). 2006 Feb;20(2):203-7</RefSource>
+                <PMID Version="1">15803172</PMID>
+            </CommentsCorrections>
+            <CommentsCorrections RefType="Cites">
+                <RefSource>J Am Coll Cardiol. 2006 Mar 21;47(6):1108-16</RefSource>
+                <PMID Version="1">16545638</PMID>
+            </CommentsCorrections>
+            <CommentsCorrections RefType="Cites">
+                <RefSource>N Engl J Med. 2006 Apr 13;354(15):1567-77</RefSource>
+                <PMID Version="1">16531613</PMID>
+            </CommentsCorrections>
+            <CommentsCorrections RefType="Cites">
+                <RefSource>N Engl J Med. 2006 Apr 13;354(15):1578-88</RefSource>
+                <PMID Version="1">16531614</PMID>
+            </CommentsCorrections>
+            <CommentsCorrections RefType="Cites">
+                <RefSource>Graefes Arch Clin Exp Ophthalmol. 2006 May;244(5):565-9</RefSource>
+                <PMID Version="1">16163497</PMID>
+            </CommentsCorrections>
+            <CommentsCorrections RefType="Cites">
+                <RefSource>Prog Retin Eye Res. 2006 May;25(3):249-76</RefSource>
+                <PMID Version="1">16580242</PMID>
+            </CommentsCorrections>
+            <CommentsCorrections RefType="Cites">
+                <RefSource>Blood Purif. 2006;24(4):379-86</RefSource>
+                <PMID Version="1">16755160</PMID>
+            </CommentsCorrections>
+            <CommentsCorrections RefType="Cites">
+                <RefSource>JAMA. 2006 Dec 13;296(22):2720-6</RefSource>
+                <PMID Version="1">17164458</PMID>
+            </CommentsCorrections>
+            <CommentsCorrections RefType="Cites">
+                <RefSource>Am J Ophthalmol. 2007 Feb;143(2):344-6</RefSource>
+                <PMID Version="1">17258528</PMID>
+            </CommentsCorrections>
+            <CommentsCorrections RefType="Cites">
+                <RefSource>Arch Intern Med. 2007 Aug 13-27;167(15):1610-8</RefSource>
+                <PMID Version="1">17698683</PMID>
+            </CommentsCorrections>
+            <CommentsCorrections RefType="Cites">
+                <RefSource>JAMA. 2008 May 7;299(17):2027-36</RefSource>
+                <PMID Version="1">18460663</PMID>
+            </CommentsCorrections>
+            <CommentsCorrections RefType="Cites">
+                <RefSource>J Am Coll Cardiol. 1999 Dec;34(7):2002-6</RefSource>
+                <PMID Version="1">10588216</PMID>
+            </CommentsCorrections>
+            <CommentsCorrections RefType="Cites">
+                <RefSource>Arterioscler Thromb Vasc Biol. 1999 Dec;19(12):2922-7</RefSource>
+                <PMID Version="1">10591670</PMID>
+            </CommentsCorrections>
+            <CommentsCorrections RefType="Cites">
+                <RefSource>J Nutr. 2000 Feb;130(2S Suppl):369S-372S</RefSource>
+                <PMID Version="1">10721909</PMID>
+            </CommentsCorrections>
+            <CommentsCorrections RefType="Cites">
+                <RefSource>Am J Ophthalmol. 2000 Nov;130(5):658-63</RefSource>
+                <PMID Version="1">11078846</PMID>
+            </CommentsCorrections>
+            <CommentsCorrections RefType="Cites">
+                <RefSource>Arch Ophthalmol. 2001 Feb;119(2):198-207</RefSource>
+                <PMID Version="1">11176980</PMID>
+            </CommentsCorrections>
+            <CommentsCorrections RefType="Cites">
+                <RefSource>Ophthalmology. 2001 Apr;108(4):705-10</RefSource>
+                <PMID Version="1">11297487</PMID>
+            </CommentsCorrections>
+            <CommentsCorrections RefType="Cites">
+                <RefSource>Am J Ophthalmol. 2001 May;131(5):541-60</RefSource>
+                <PMID Version="1">11336929</PMID>
+            </CommentsCorrections>
+            <CommentsCorrections RefType="Cites">
+                <RefSource>Arch Ophthalmol. 2001 Oct;119(10):1417-36</RefSource>
+                <PMID Version="1">11594942</PMID>
+            </CommentsCorrections>
+            <CommentsCorrections RefType="Cites">
+                <RefSource>Circulation. 2001 Nov 20;104(21):2569-75</RefSource>
+                <PMID Version="1">11714652</PMID>
+            </CommentsCorrections>
+            <CommentsCorrections RefType="Cites">
+                <RefSource>Circulation. 2002 Jan 1;105(1):22-6</RefSource>
+                <PMID Version="1">11772871</PMID>
+            </CommentsCorrections>
+            <CommentsCorrections RefType="Cites">
+                <RefSource>Br J Ophthalmol. 2002 Feb;86(2):209-13</RefSource>
+                <PMID Version="1">11815349</PMID>
+            </CommentsCorrections>
+            <CommentsCorrections RefType="Cites">
+                <RefSource>Arterioscler Thromb Vasc Biol. 2002 Apr 1;22(4):587-92</RefSource>
+                <PMID Version="1">11950695</PMID>
+            </CommentsCorrections>
+            <CommentsCorrections RefType="Cites">
+                <RefSource>JAMA. 2002 Aug 28;288(8):973-9</RefSource>
+                <PMID Version="1">12190367</PMID>
+            </CommentsCorrections>
+            <CommentsCorrections RefType="Cites">
+                <RefSource>J Womens Health (Larchmt). 2004 Jan-Feb;13(1):99-117</RefSource>
+                <PMID Version="1">15006283</PMID>
+            </CommentsCorrections>
+            <CommentsCorrections RefType="Cites">
+                <RefSource>Arch Ophthalmol. 2004 Apr;122(4):564-72</RefSource>
+                <PMID Version="1">15078675</PMID>
+            </CommentsCorrections>
+            <CommentsCorrections RefType="Cites">
+                <RefSource>N Engl J Med. 2004 Jun 24;350(26):2673-81</RefSource>
+                <PMID Version="1">15215483</PMID>
+            </CommentsCorrections>
+            <CommentsCorrections RefType="Cites">
+                <RefSource>Arch Ophthalmol. 1973 Jan;89(1):1-2</RefSource>
+                <PMID Version="1">4684894</PMID>
+            </CommentsCorrections>
+            <CommentsCorrections RefType="Cites">
+                <RefSource>Arch Ophthalmol. 1991 Aug;109(8):1109-14</RefSource>
+                <PMID Version="1">1714270</PMID>
+            </CommentsCorrections>
+            <CommentsCorrections RefType="Cites">
+                <RefSource>Arch Ophthalmol. 1992 Mar;110(3):381-7</RefSource>
+                <PMID Version="1">1543458</PMID>
+            </CommentsCorrections>
+            <CommentsCorrections RefType="Cites">
+                <RefSource>Arch Ophthalmol. 1993 Sep;111(9):1200-9</RefSource>
+                <PMID Version="1">7689827</PMID>
+            </CommentsCorrections>
+            <CommentsCorrections RefType="Cites">
+                <RefSource>Clin Chem. 1993 Sep;39(9):1764-79</RefSource>
+                <PMID Version="1">8375046</PMID>
+            </CommentsCorrections>
+            <CommentsCorrections RefType="Cites">
+                <RefSource>Proc Natl Acad Sci U S A. 1994 Jul 5;91(14):6369-73</RefSource>
+                <PMID Version="1">8022789</PMID>
+            </CommentsCorrections>
+            <CommentsCorrections RefType="Cites">
+                <RefSource>Invest Ophthalmol Vis Sci. 1995 Jan;36(1):182-91</RefSource>
+                <PMID Version="1">7822146</PMID>
+            </CommentsCorrections>
+            <CommentsCorrections RefType="Cites">
+                <RefSource>Am J Clin Nutr. 2002 Oct;76(4):897-902</RefSource>
+                <PMID Version="1">12324306</PMID>
+            </CommentsCorrections>
+            <CommentsCorrections RefType="Cites">
+                <RefSource>Ophthalmology. 2002 Oct;109(10):1767-79</RefSource>
+                <PMID Version="1">12359593</PMID>
+            </CommentsCorrections>
+            <CommentsCorrections RefType="Cites">
+                <RefSource>JAMA. 2002 Oct 23-30;288(16):2015-22</RefSource>
+                <PMID Version="1">12387654</PMID>
+            </CommentsCorrections>
+            <CommentsCorrections RefType="Cites">
+                <RefSource>BMJ. 2002 Nov 23;325(7374):1202</RefSource>
+                <PMID Version="1">12446535</PMID>
+            </CommentsCorrections>
+            <CommentsCorrections RefType="Cites">
+                <RefSource>Med Sci Monit. 2003 Apr;9(4):PI19-24</RefSource>
+                <PMID Version="1">12709680</PMID>
+            </CommentsCorrections>
+            <CommentsCorrections RefType="Cites">
+                <RefSource>Brain. 2004 Jan;127(Pt 1):212-9</RefSource>
+                <PMID Version="1">14607791</PMID>
+            </CommentsCorrections>
+            <CommentsCorrections RefType="CommentIn">
+                <RefSource>Arch Intern Med. 2009 Jul 13;169(13):1180-2</RefSource>
+                <PMID Version="1">19597064</PMID>
+            </CommentsCorrections>
+        </CommentsCorrectionsList>
+        <MeshHeadingList>
+            <MeshHeading>
+                <DescriptorName MajorTopicYN="N">Adult</DescriptorName>
+            </MeshHeading>
+            <MeshHeading>
+                <DescriptorName MajorTopicYN="N">Aged</DescriptorName>
+            </MeshHeading>
+            <MeshHeading>
+                <DescriptorName MajorTopicYN="N">Cardiovascular Diseases</DescriptorName>
+                <QualifierName MajorTopicYN="N">complications</QualifierName>
+                <QualifierName MajorTopicYN="Y">prevention &amp; control</QualifierName>
+            </MeshHeading>
+            <MeshHeading>
+                <DescriptorName MajorTopicYN="N">Double-Blind Method</DescriptorName>
+            </MeshHeading>
+            <MeshHeading>
+                <DescriptorName MajorTopicYN="N">Drug Therapy, Combination</DescriptorName>
+            </MeshHeading>
+            <MeshHeading>
+                <DescriptorName MajorTopicYN="N">Endpoint Determination</DescriptorName>
+            </MeshHeading>
+            <MeshHeading>
+                <DescriptorName MajorTopicYN="N">Female</DescriptorName>
+            </MeshHeading>
+            <MeshHeading>
+                <DescriptorName MajorTopicYN="N">Folic Acid</DescriptorName>
+                <QualifierName MajorTopicYN="Y">therapeutic use</QualifierName>
+            </MeshHeading>
+            <MeshHeading>
+                <DescriptorName MajorTopicYN="N">Follow-Up Studies</DescriptorName>
+            </MeshHeading>
+            <MeshHeading>
+                <DescriptorName MajorTopicYN="N">Humans</DescriptorName>
+            </MeshHeading>
+            <MeshHeading>
+                <DescriptorName MajorTopicYN="N">Incidence</DescriptorName>
+            </MeshHeading>
+            <MeshHeading>
+                <DescriptorName MajorTopicYN="N">Macular Degeneration</DescriptorName>
+                <QualifierName MajorTopicYN="N">complications</QualifierName>
+                <QualifierName MajorTopicYN="Y">drug therapy</QualifierName>
+                <QualifierName MajorTopicYN="Y">prevention &amp; control</QualifierName>
+            </MeshHeading>
+            <MeshHeading>
+                <DescriptorName MajorTopicYN="N">Middle Aged</DescriptorName>
+            </MeshHeading>
+            <MeshHeading>
+                <DescriptorName MajorTopicYN="N">Proportional Hazards Models</DescriptorName>
+            </MeshHeading>
+            <MeshHeading>
+                <DescriptorName MajorTopicYN="N">Pyridoxine</DescriptorName>
+                <QualifierName MajorTopicYN="Y">therapeutic use</QualifierName>
+            </MeshHeading>
+            <MeshHeading>
+                <DescriptorName MajorTopicYN="N">Risk Factors</DescriptorName>
+            </MeshHeading>
+            <MeshHeading>
+                <DescriptorName MajorTopicYN="N">Treatment Outcome</DescriptorName>
+            </MeshHeading>
+            <MeshHeading>
+                <DescriptorName MajorTopicYN="N">Vitamin B 12</DescriptorName>
+                <QualifierName MajorTopicYN="Y">therapeutic use</QualifierName>
+            </MeshHeading>
+            <MeshHeading>
+                <DescriptorName MajorTopicYN="N">Vitamin B Complex</DescriptorName>
+                <QualifierName MajorTopicYN="Y">therapeutic use</QualifierName>
+            </MeshHeading>
+        </MeshHeadingList>
+        <OtherID Source="NLM">NIHMS75966</OtherID>
+        <OtherID Source="NLM">PMC2648137</OtherID>
+    </MedlineCitation>
+    <PubmedData>
+        <History>
+            <PubMedPubDate PubStatus="entrez">
+                <Year>2009</Year>
+                <Month>2</Month>
+                <Day>25</Day>
+                <Hour>9</Hour>
+                <Minute>0</Minute>
+            </PubMedPubDate>
+            <PubMedPubDate PubStatus="pubmed">
+                <Year>2009</Year>
+                <Month>2</Month>
+                <Day>25</Day>
+                <Hour>9</Hour>
+                <Minute>0</Minute>
+            </PubMedPubDate>
+            <PubMedPubDate PubStatus="medline">
+                <Year>2009</Year>
+                <Month>3</Month>
+                <Day>10</Day>
+                <Hour>9</Hour>
+                <Minute>0</Minute>
+            </PubMedPubDate>
+        </History>
+        <PublicationStatus>ppublish</PublicationStatus>
+        <ArticleIdList>
+            <ArticleId IdType="pii">169/4/335</ArticleId>
+            <ArticleId IdType="doi">10.1001/archinternmed.2008.574</ArticleId>
+            <ArticleId IdType="pubmed">19237716</ArticleId>
+            <ArticleId IdType="pmc">PMC2648137</ArticleId>
+            <ArticleId IdType="mid">NIHMS75966</ArticleId>
+        </ArticleIdList>
+    </PubmedData>
+</PubmedArticle>
+
+</PubmedArticleSet>

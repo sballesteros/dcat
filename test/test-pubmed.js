@@ -1,34 +1,25 @@
 var path = require('path')
+  , util = require('util')
   , assert = require('assert')
-  , rimraf = require('rimraf')
   , fs = require('fs')
-  , temp = require('temp')
-  , Ldpm = require('..');
+  , pubmed = require('../plugin/pubmed');
 
-
-var root = path.dirname(__filename);
+var root = path.join(path.dirname(__filename), 'fixtures', 'pubmed');
 
 describe('pubmed', function(){
 
-  this.timeout(40000);
-
-  var conf = {
-    protocol: 'http',
-    port: 3000,
-    hostname: 'localhost',
-    strictSSL: false,
-    sha:true,
-    name: "user_a",
-    email: "user@domain.com",
-    password: "user_a"
-  };
-
-  it('should return a pkg with name plosone-haseleu-2014 when asked for finger-wrinkles paper through doi', function(done){
-    var ldpm = new Ldpm(conf,root);
-    ldpm.convert('17642720', function(err,pkg){
-      assert.equal(pkg.name, 'indian-j-med-microbiol-padhi');
-      done();
+  it('should parse a pubmed entry with MeSH (headings and suppl. chemical) and DataBank entries', function(done){
+    var pmid = 19237716;
+    fs.readFile(path.join(root, pmid + '.xml'), {encoding: 'utf8'}, function(err, xml){
+      if(err) throw err;     
+      var pkg = pubmed.parseXml(xml, pmid)
+      //fs.writeFileSync(path.join(root, pmid + '.json'), JSON.stringify(pkg, null, 2));
+      fs.readFile(path.join(root, pmid + '.json'), function(err, expected){
+        assert.deepEqual(pkg, JSON.parse(expected));
+        done();
+      });           
     });
   });
 
 });
+

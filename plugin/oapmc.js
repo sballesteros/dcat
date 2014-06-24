@@ -151,62 +151,80 @@ function parseXml(xml, pmcid, opts){
   if(articleType){
     meta.publicationType = articleType;
   }
-  
-  var $publisherName = $article.getElementsByTagName('publisher-name')[0];
-  if($publisherName){
-    meta.publisher = {
-      '@type': 'Organization',
-      name: $publisherName.textContent
-    };
-  }
 
-  var $publisherLoc = $article.getElementsByTagName('publisher-loc')[0];
-  if($publisherLoc){
-    if(!meta.publisher){
-      meta.publisher = {};
+  var $journalMeta = $article.getElementsByTagName('journal-meta')[0];
+  if($journalMeta){
+    
+    var $publisherName = $journalMeta.getElementsByTagName('publisher-name')[0];
+    if($publisherName){
+      meta.publisher = {
+        '@type': 'Organization',
+        name: $publisherName.textContent
+      };
     }
-    meta.publisher.location = {
-      '@type': 'PostalAddress',
-      description: tools.cleanText($publisherLoc.textContent)
-    }
-  }
 
-  var $journalTitle = $article.getElementsByTagName('journal-title')[0];
-  if($journalTitle){
-    meta.journal = {
-      '@type': 'Journal',
-      name: tools.cleanText($journalTitle.textContent)
+    var $publisherLoc = $journalMeta.getElementsByTagName('publisher-loc')[0];
+    if($publisherLoc){
+      if(!meta.publisher){
+        meta.publisher = {};
+      }
+      meta.publisher.location = {
+        '@type': 'PostalAddress',
+        description: tools.cleanText($publisherLoc.textContent)
+      }
     }
-  }
 
-  //get journalShortName: will be used as a prefix of the pkg name => lover case, no space
-  var $journalId = $article.getElementsByTagName('journal-id');
-  for(i=0; i<$journalId.length; i++){
-    var journalIdType = $journalId[i].getAttribute('journal-id-type');
-    if(journalIdType === 'nlm-ta'){
-      meta.journalShortName = $journalId[i].textContent.split(' ').map(function(x){return x.trim().replace(/\W/g, '').toLowerCase();}).join('-'); 
-      break;
+
+    var journal = { '@type': 'Journal' };
+
+    var $journalTitle = $journalMeta.getElementsByTagName('journal-title')[0];
+    if($journalTitle){
+      journal.name = tools.cleanText($journalTitle.textContent);
     }
-  }
-
-  if(!meta.journalShortName){
-    if(meta.journal && meta.journal.name){
-      meta.journalShortName = meta.journal.name.split(' ').map(function(x){return x.trim().replace(/\W/g, '').toLowerCase();}).join('-');
-    } else {
-      meta.journalShortName = '';
-    }
-  }
-
-  var $issn = $article.getElementsByTagName('issn');
-  if($issn){
-    if(!meta.journal) meta.journal = {};
-    for(i=0; i<$issn.length; i++){ //epub if possible because digital age
-      meta.journal.issn = $issn[i].textContent;
-      if($issn[i].getAttribute('pub-type') === 'epub'){
+    
+    var $journalId = $journalMeta.getElementsByTagName('journal-id');
+    for(i=0; i<$journalId.length; i++){
+      var journalIdType = $journalId[i].getAttribute('journal-id-type');
+      if(journalIdType === 'nlm-ta'){
+        journal.alternateName = tools.cleanText($journalId[i].textContent); 
         break;
       }
     }
+
+    if(!journal.alternateName){ //try again with <abbrev-journal-title>
+      var $abbrevJournalTitle = $journalMeta.getElementsByTagName('abbrev-journal-title');
+      if($abbrevJournalTitle && $abbrevJournalTitle.length){
+        for(i=0; i<$abbrevJournalTitle.length; i++){
+          var abbrevType = $abbrevJournalTitle[i].getAttribute('abbrev-type');
+          if(abbrevType === 'nlm-ta'){
+            journal.alternateName = tools.cleanText($abbrevJournalTitle[i].textContent); 
+            break;
+          }
+        }        
+      }
+    }
+
+    var $issn = $journalMeta.getElementsByTagName('issn');
+    if($issn){
+      for(i=0; i<$issn.length; i++){ //epub if possible because digital age
+        journal.issn = tools.cleanText($issn[i].textContent);
+        if($issn[i].getAttribute('pub-type') === 'epub'){
+          break;
+        }
+      }
+    }
+
+    //get journalShortName: will be used as a prefix of the pkg name => lover case, no space
+    if(journal.alternateName || journal.name){
+      meta.journalShortName = (journal.alternateName || journal.name).split(' ').map(function(x){return x.trim().replace(/\W/g, '').toLowerCase();}).join('-')
+    }
+
+    if(Object.keys(journal).length > 1){
+      meta.journal = journal;
+    }
+
   }
+
 
   var $articleMeta = $article.getElementsByTagName('article-meta')[0];
   
@@ -449,6 +467,7 @@ function parseXml(xml, pmcid, opts){
   meta.contributor = contributor;
   meta.editor = editor;
   meta.accountablePerson = accountablePerson;
+
 
   //Grants are put in http://www.schema.org/sourceOrganization
   var sourceOrganisation = [];  
@@ -1744,7 +1763,7 @@ function meta2pkg(resources, meta, mainArticleName, pmcid){
   }
 
   if( meta.copyrightHolder ){
-    pkg.copyrightHolder = meta.copyrightHolder;
+    pkg.copyrightHolder = { name: meta.copyrightHolder };
   }
   
   Object.keys(resources).forEach(function(type){

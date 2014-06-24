@@ -157,6 +157,7 @@
       "journal": {
         "@type": "Journal",
         "name": "PLoS Computational Biology",
+        "alternateName": "PLoS Comput Biol",
         "issn": "1553-7358"
       },
       "doi": "10.1371/journal.pcbi.1000960",

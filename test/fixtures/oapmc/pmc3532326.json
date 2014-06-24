@@ -63,7 +63,9 @@
     "email": "contact@standardanalytics.io"
   },
   "copyrightYear": 2012,
-  "copyrightHolder": "Vergara et al.; licensee BioMed Central Ltd.",
+  "copyrightHolder": {
+    "name": "Vergara et al.; licensee BioMed Central Ltd."
+  },
   "dataset": [
     {
       "name": "T1",
@@ -89,7 +91,7 @@
       "description": "Additional file 1 CooVar program tarball (version 0.05), including README and test scripts.",
       "targetProduct": [
         {
-          "filePath": "/var/folders/80/myssp1jd1593qqxjk7lhms080000gn/T/ldpm-114524-2710-imc030",
+          "filePath": "/var/folders/80/myssp1jd1593qqxjk7lhms080000gn/T/ldpm-114524-504-jxn990",
           "bundlePath": "1756-0500-5-615-S1",
           "fileFormat": "application/x-gzip"
         }
@@ -158,6 +160,7 @@
       "journal": {
         "@type": "Journal",
         "name": "BMC Research Notes",
+        "alternateName": "BMC Res Notes",
         "issn": "1756-0500"
       },
       "doi": "10.1186/1756-0500-5-615",

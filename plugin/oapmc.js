@@ -17,6 +17,7 @@ var request = require('request')
   , XMLSerializer = require('xmldom').XMLSerializer
   , _ = require('underscore')
   , clone = require('clone')
+  , pubmed = require('./pubmed').pubmed
   , tools = require('./lib/tools');
 
 temp.track();
@@ -31,6 +32,7 @@ exports.mergeTablesAndCaptions = mergeTablesAndCaptions;
 
 /**
  * 'this' is an Ldpm instance
+ * opts: pmid: -> add pubmed annotation
  */
 function oapmc(pmcid, opts, callback){
 
@@ -83,10 +85,35 @@ function getPkg(pmcid, ldpm, root, opts, callback){
         return callback(err);
       }        
 
-      callback(null, pkg);
+      if(opts.pmid){
+        addPubmedAnnotations(pkg, ldpm, opts.pmid, opts, callback);
+      } else {
+        callback(null, pkg);
+      }     
 
     });
 
+  });
+};
+
+function addPubmedAnnotations(pkg, ldpm, pmid, opts, callback){
+  if(arguments.length === 3){
+    callback = opts;
+    opts = {};
+  }
+
+  pubmed.call(ldpm, pmid, opts, function(err, pubmedPkg){
+    if(err) return callback(err);
+
+    if(pubmedPkg.annotation){
+      pkg.annotation = pubmedPkg.annotation;
+    }
+
+    if(pubmedPkg.dataset){
+      pkg.dataset = (pkg.dataset || []).concat(pubmedPkg.dataset);
+    }
+
+    callback(null, pkg);
   });
 };
 
@@ -154,26 +181,11 @@ function parseXml(xml, pmcid, opts){
 
   var $journalMeta = $article.getElementsByTagName('journal-meta')[0];
   if($journalMeta){
-    
-    var $publisherName = $journalMeta.getElementsByTagName('publisher-name')[0];
-    if($publisherName){
-      meta.publisher = {
-        '@type': 'Organization',
-        name: $publisherName.textContent
-      };
-    }
 
-    var $publisherLoc = $journalMeta.getElementsByTagName('publisher-loc')[0];
-    if($publisherLoc){
-      if(!meta.publisher){
-        meta.publisher = {};
-      }
-      meta.publisher.location = {
-        '@type': 'PostalAddress',
-        description: tools.cleanText($publisherLoc.textContent)
-      }
+    var publisher = _getPublisher($journalMeta);
+    if(Object.keys(publisher).length>1){
+      meta.publisher = publisher;
     }
-
 
     var journal = { '@type': 'Journal' };
 
@@ -206,12 +218,7 @@ function parseXml(xml, pmcid, opts){
 
     var $issn = $journalMeta.getElementsByTagName('issn');
     if($issn){
-      for(i=0; i<$issn.length; i++){ //epub if possible because digital age
-        journal.issn = tools.cleanText($issn[i].textContent);
-        if($issn[i].getAttribute('pub-type') === 'epub'){
-          break;
-        }
-      }
+      journal.issn = _getIssn($issn);
     }
 
     //get journalShortName: will be used as a prefix of the pkg name => lover case, no space
@@ -756,22 +763,44 @@ function _getRef($ref){
 
     var $articleTitle = $mixedCitation.getElementsByTagName('article-title')[0];
     var $source = $mixedCitation.getElementsByTagName('source')[0];
-
+    
     if(publicationType === 'journal'){
       ref['@type'] = 'ScholarlyArticle';
       if($articleTitle){
-        ref.headline = $articleTitle.textContent;
+        ref.headline = tools.cleanText($articleTitle.textContent);
       }
+      var journal = { '@type': 'Journal' };
+
       if($source){
-        ref.journal = {
-          '@type': 'Journal',
-          name: tools.cleanText($source.textContent)
-        };
+        journal.name = tools.cleanText($source.textContent);
       }
+
+      var $issn = $mixedCitation.getElementsByTagName('issn')
+      if($issn){
+        journal.issn = _getIssn($issn);
+      }
+
+      if(Object.keys(journal).length >1){
+        ref.journal = journal;
+      }
+
     } else {
+
+      if(publicationType === 'book'){ //TODO more types...
+        ref['@type'] = 'Book';        
+      }
+
       if($source){
         ref.headline = tools.cleanText($source.textContent);
+      } else if($articleTitle){ //try again... sometimes there are no <source> but <article-title>...
+        ref.headline = tools.cleanText($articleTitle.textContent);
       }
+
+    }
+    
+    var publisher = _getPublisher($ref);
+    if(Object.keys(publisher).length>1){
+      ref.publisher = publisher;
     }
 
     var $volume = $mixedCitation.getElementsByTagName('volume')[0];
@@ -802,13 +831,11 @@ function _getRef($ref){
       jsDate = new Date($year.textContent);
     }
 
-
     if(jsDate){
       try{
         ref.datePublished = jsDate.toISOString();
       } catch(e){};
     }
-
 
     var $pubIds = $mixedCitation.getElementsByTagName('pub-id');
     if($pubIds && $pubIds.length){
@@ -819,7 +846,6 @@ function _getRef($ref){
         }
       });
     }
-
 
     //try again to get doi 
     if(!ref.doi){
@@ -1415,8 +1441,40 @@ function _getFn($fn){
   }
 
   return fn;
-}
+};
 
+
+function _getIssn($issns){  
+  var issn;
+  for(var i=0; i<$issns.length; i++){ //epub if possible because digital age
+    issn = tools.cleanText($issns[i].textContent);
+    if($issns[i].getAttribute('pub-type') === 'epub'){
+      return issn;
+    }
+  }
+  return issn;
+};
+
+
+function _getPublisher($container){
+
+  var publisher = { '@type': 'Organization' };
+
+  var $publisherName = $container.getElementsByTagName('publisher-name')[0];
+  if($publisherName){
+    publisher.name = tools.cleanText($publisherName.textContent);
+  }
+
+  var $publisherLoc = $container.getElementsByTagName('publisher-loc')[0];
+  if($publisherLoc){
+    publisher.location = {
+      '@type': 'PostalAddress',
+      description: tools.cleanText($publisherLoc.textContent)
+    }
+  } 
+
+  return publisher;
+};
 
 
 /**

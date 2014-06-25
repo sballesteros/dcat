@@ -750,7 +750,16 @@
         {
           "name": "pcbi.1000960-McArdle1",
           "alternateName": "22",
+          "@type": "Book",
           "headline": "Exercise Physiology: Nutrition, Energy, and Human Performance",
+          "publisher": {
+            "@type": "Organization",
+            "name": "Lippincott Williams and Wilkins, seventh edition",
+            "location": {
+              "@type": "PostalAddress",
+              "description": "New York"
+            }
+          },
           "datePublished": "2010-01-01T00:00:00.000Z",
           "author": {
             "@type": "Person",
@@ -861,7 +870,16 @@
         {
           "name": "pcbi.1000960-Berg1",
           "alternateName": "25",
+          "@type": "Book",
           "headline": "Biochemistry",
+          "publisher": {
+            "@type": "Organization",
+            "name": "W. H. Freeman and Company, fifth edition",
+            "location": {
+              "@type": "PostalAddress",
+              "description": "New York"
+            }
+          },
           "datePublished": "2002-01-01T00:00:00.000Z",
           "author": {
             "@type": "Person",
@@ -941,7 +959,16 @@
         {
           "name": "pcbi.1000960-American1",
           "alternateName": "28",
+          "@type": "Book",
           "headline": "Guidelines for Exercise Testing and Prescription",
+          "publisher": {
+            "@type": "Organization",
+            "name": "Lippincott Williams and Wilkins, sixth edition",
+            "location": {
+              "@type": "PostalAddress",
+              "description": "Philadelphia"
+            }
+          },
           "datePublished": "2000-01-01T00:00:00.000Z"
         },
         {
@@ -1198,7 +1225,16 @@
         {
           "name": "pcbi.1000960-Valentin1",
           "alternateName": "37",
+          "@type": "Book",
           "headline": "Basic Anatomical and Physiological Data for Use in Radiological Protection: Reference Values, volume 32 of Annals of the International Commission on Radiological Protection",
+          "publisher": {
+            "@type": "Organization",
+            "name": "Pergamon Press",
+            "location": {
+              "@type": "PostalAddress",
+              "description": "New York"
+            }
+          },
           "datePublished": "2003-01-01T00:00:00.000Z",
           "author": {
             "@type": "Person",
@@ -1425,13 +1461,248 @@
         {
           "name": "pcbi.1000960-Golding1",
           "alternateName": "44",
+          "@type": "Book",
           "headline": "YMCA Fitness Testing and Assessment Manual",
+          "publisher": {
+            "@type": "Organization",
+            "name": "Human Kinetics, fourth edition",
+            "location": {
+              "@type": "PostalAddress",
+              "description": "Champaign, Illinois"
+            }
+          },
           "datePublished": "2000-01-01T00:00:00.000Z",
           "author": {
             "@type": "Person",
             "familyName": "Golding",
             "givenName": "LA"
           }
+        }
+      ]
+    }
+  ],
+  "annotation": [
+    {
+      "@type": "Annotation",
+      "annotatedBy": {
+        "@id": "http://www.ncbi.nlm.nih.gov/pubmed",
+        "@type": "Organization",
+        "name": "PubMed"
+      },
+      "serializedBy": {
+        "@id": "http://standardanalytics.io",
+        "@type": "Organization",
+        "name": "Standard Analytics IO"
+      },
+      "motivatedBy": "oa:tagging",
+      "hasBody": {
+        "@type": [
+          "Tag",
+          "Mesh"
+        ],
+        "@context": "mesh.jsonld",
+        "@graph": [
+          {
+            "@type": "MeshHeading",
+            "descriptor": {
+              "name": "Athletic Performance",
+              "majorTopic": false
+            },
+            "qualifier": [
+              {
+                "name": "physiology",
+                "majorTopic": true
+              }
+            ]
+          },
+          {
+            "@type": "MeshHeading",
+            "descriptor": {
+              "name": "Blood Glucose",
+              "majorTopic": false
+            },
+            "qualifier": [
+              {
+                "name": "metabolism",
+                "majorTopic": false
+              }
+            ]
+          },
+          {
+            "@type": "MeshHeading",
+            "descriptor": {
+              "name": "Carbohydrate Metabolism",
+              "majorTopic": false
+            }
+          },
+          {
+            "@type": "MeshHeading",
+            "descriptor": {
+              "name": "Computational Biology",
+              "majorTopic": false
+            },
+            "qualifier": [
+              {
+                "name": "methods",
+                "majorTopic": true
+              }
+            ]
+          },
+          {
+            "@type": "MeshHeading",
+            "descriptor": {
+              "name": "Exercise",
+              "majorTopic": false
+            },
+            "qualifier": [
+              {
+                "name": "physiology",
+                "majorTopic": false
+              }
+            ]
+          },
+          {
+            "@type": "MeshHeading",
+            "descriptor": {
+              "name": "Fats",
+              "majorTopic": false
+            },
+            "qualifier": [
+              {
+                "name": "metabolism",
+                "majorTopic": false
+              }
+            ]
+          },
+          {
+            "@type": "MeshHeading",
+            "descriptor": {
+              "name": "Glycogen",
+              "majorTopic": false
+            },
+            "qualifier": [
+              {
+                "name": "metabolism",
+                "majorTopic": false
+              }
+            ]
+          },
+          {
+            "@type": "MeshHeading",
+            "descriptor": {
+              "name": "Humans",
+              "majorTopic": false
+            }
+          },
+          {
+            "@type": "MeshHeading",
+            "descriptor": {
+              "name": "Metabolism",
+              "majorTopic": false
+            }
+          },
+          {
+            "@type": "MeshHeading",
+            "descriptor": {
+              "name": "Muscle, Skeletal",
+              "majorTopic": false
+            },
+            "qualifier": [
+              {
+                "name": "metabolism",
+                "majorTopic": true
+              }
+            ]
+          },
+          {
+            "@type": "MeshHeading",
+            "descriptor": {
+              "name": "Oxygen",
+              "majorTopic": false
+            },
+            "qualifier": [
+              {
+                "name": "metabolism",
+                "majorTopic": false
+              }
+            ]
+          },
+          {
+            "@type": "MeshHeading",
+            "descriptor": {
+              "name": "Physical Endurance",
+              "majorTopic": false
+            },
+            "qualifier": [
+              {
+                "name": "physiology",
+                "majorTopic": true
+              }
+            ]
+          },
+          {
+            "@type": "MeshHeading",
+            "descriptor": {
+              "name": "Running",
+              "majorTopic": false
+            },
+            "qualifier": [
+              {
+                "name": "physiology",
+                "majorTopic": true
+              }
+            ]
+          },
+          {
+            "@type": [
+              "MeshChemical",
+              "Drug"
+            ],
+            "name": "Blood Glucose",
+            "code": {
+              "@type": "MedicalCode",
+              "codeValue": "0"
+            }
+          },
+          {
+            "@type": [
+              "MeshChemical",
+              "Drug"
+            ],
+            "name": "Fats",
+            "code": {
+              "@type": "MedicalCode",
+              "codeValue": "0"
+            }
+          },
+          {
+            "@type": [
+              "MeshChemical",
+              "Drug"
+            ],
+            "name": "Glycogen",
+            "code": {
+              "@type": "MedicalCode",
+              "codeValue": "9005-79-2"
+            }
+          },
+          {
+            "@type": [
+              "MeshChemical",
+              "Drug"
+            ],
+            "name": "Oxygen",
+            "code": {
+              "@type": "MedicalCode",
+              "codeValue": "S88TT14065"
+            }
+          }
+        ]
+      },
+      "hasTarget": [
+        {
+          "@type": "SpecificResource",
+          "hasSource": "ploscomputbiol-rapoport-2009/0.0.0/article/20975938"
         }
       ]
     }

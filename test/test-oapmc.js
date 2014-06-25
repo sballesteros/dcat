@@ -23,7 +23,12 @@ var conf = {
   password: "user_a"
 };
 
-function getPkg(pmcid, callback){
+function getPkg(pmcid, pmid, callback){
+  if(arguments.length === 2){
+    callback = pmid;
+    pmid = undefined;
+  }
+
   temp.mkdir('__tests',function(err, dirPath) {
     if(err) throw err;
     var ldpm = new Ldpm(conf, dirPath);
@@ -33,7 +38,7 @@ function getPkg(pmcid, callback){
       .pipe(tar.Extract({ path: dirPath, strip: 1 }));
     
     tgzStream.on('end', function() {
-      oapmc.getPkg(pmcid, ldpm, dirPath, callback);
+      oapmc.getPkg(pmcid, ldpm, dirPath, {pmid: pmid}, callback);
     });
   });
 };
@@ -41,10 +46,10 @@ function getPkg(pmcid, callback){
 describe('pubmed central', function(){
 
   //http://www.pubmedcentral.nih.gov/oai/oai.cgi?verb=GetRecord&identifier=oai:pubmedcentral.nih.gov:2924383&metadataPrefix=pmc
-  it('should create a package.jsonld for a ms with a movie zipped and not treat it as a code bundle', function(done){
+  it('should create a package.jsonld for a ms with a movie zipped and not treat it as a code bundle AND add pubmed annotation', function(done){
     getPkg('PMC2924383', function(err, pkg){
       if(err) throw err;
-      //fs.writeFileSync(path.join(root, 'pmc2924383.json'), JSON.stringify(pkg, null, 2));
+      fs.writeFileSync(path.join(root, 'pmc2924383.json'), JSON.stringify(pkg, null, 2));
       fs.readFile(path.join(root, 'pmc2924383.json'), function(err, expected){
         if(err) throw err;
         assert.deepEqual(JSON.parse(JSON.stringify(pkg)), JSON.parse(expected)); //JSON.parse(JSON.stringify) so that NaN are taken into account...
@@ -54,7 +59,7 @@ describe('pubmed central', function(){
   });
 
   it('should create a package.jsonld for a ms with a lot of inline formulaes', function(done){
-    getPkg('PMC2958805', function(err, pkg){
+    getPkg('PMC2958805', 20975938, function(err, pkg){
       if(err) throw err;
       //fs.writeFileSync(path.join(root, 'pmc2958805.json'), JSON.stringify(pkg, null, 2));
       fs.readFile(path.join(root, 'pmc2958805.json'), function(err, expected){

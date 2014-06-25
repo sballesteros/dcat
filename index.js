@@ -241,7 +241,7 @@ Ldpm.prototype.convert = function(id, opts, callback){
       var pmid = body.records[0].pmid;
       var doi = body.records[0].doi;
       if (pmcid){
-        oapmc.call(that, pmcid, { pmid: pmid, doi: doi }, callback);
+        oapmc.call(that, pmcid, { pmid: pmid, doi: doi }, callback); //passing a pmid (if not undefined => add pubmed annotation)
       } else if(pmid){
         pubmed.call(that, pmid, opts, callback);
       } else {

@@ -372,6 +372,12 @@
         {
           "name": "pone.0012255-Teramoto1",
           "alternateName": "6",
+          "@type": "Book",
+          "headline": "Visual motion perception induced by sounds in vertical plane.",
+          "publisher": {
+            "@type": "Organization",
+            "name": "Neurosci Lett In press"
+          },
           "datePublished": "2010-01-01T00:00:00.000Z",
           "author": {
             "@type": "Person",

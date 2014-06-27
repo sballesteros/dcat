@@ -46,7 +46,7 @@ function getPkg(pmcid, pmid, callback){
 describe('pubmed central', function(){
 
   //http://www.pubmedcentral.nih.gov/oai/oai.cgi?verb=GetRecord&identifier=oai:pubmedcentral.nih.gov:2924383&metadataPrefix=pmc
-  it('should create a package.jsonld for a ms with a movie zipped and not treat it as a code bundle AND add pubmed annotation', function(done){
+  it('should create a package.jsonld for a ms with a movie zipped and not treat it as a code bundle', function(done){
     getPkg('PMC2924383', function(err, pkg){
       if(err) throw err;
       fs.writeFileSync(path.join(root, 'pmc2924383.json'), JSON.stringify(pkg, null, 2));
@@ -58,7 +58,7 @@ describe('pubmed central', function(){
     });
   });
 
-  it('should create a package.jsonld for a ms with a lot of inline formulaes', function(done){
+  it('should create a package.jsonld for a ms with a lot of inline formulaes AND add pubmed annotation', function(done){
     getPkg('PMC2958805', 20975938, function(err, pkg){
       if(err) throw err;
       //fs.writeFileSync(path.join(root, 'pmc2958805.json'), JSON.stringify(pkg, null, 2));

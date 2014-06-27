@@ -294,6 +294,30 @@ describe('ldpm', function(){
           catalog: { '@type': ['Package', 'DataCatalog'], name: 'req-test', version: '0.0.0', url: 'req-test/0.0.0' }
         }
       ],
+      article: [
+        { 
+          '@id': 'req-test/0.0.0/article/readme',
+          '@type': 'Article',
+          name: 'readme',
+          encoding: [ 
+            { 
+              '@type': 'MediaObject',
+              contentPath: 'README.md',
+              encodingFormat: 'text/x-markdown',
+              contentSize: 48,
+              hashAlgorithm: 'sha1',
+              hashValue: '8f11f94ea46a1c3671ebd570a61b0267e6d6fc1e',
+              contentUrl: 'r/8f11f94ea46a1c3671ebd570a61b0267e6d6fc1e'
+            } 
+          ],          
+          package:  { 
+            '@type': 'Package',
+            name: 'req-test',
+            version: '0.0.0',
+            url: 'req-test/0.0.0' 
+          } 
+        } 
+      ],
       registry: { name: 'Standard Analytics IO', url: 'https://registry.standardanalytics.io/' }
     };
 

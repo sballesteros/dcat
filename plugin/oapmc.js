@@ -252,19 +252,28 @@ function parseXml(xml, pmcid, opts){
     meta.pmcid = pmcid; //always known -> can ensure pkg name in any case
   }
 
-  var $articleCategories = $articleMeta.getElementsByTagName('article-categories');
+  //keywords: we ignore structure (nested kw...) and we ignore <unstructured-kwd-group>, <compound-kwd> and <compound-subject>
+  var keywords = [];
+
+  var $articleCategories = $articleMeta.getElementsByTagName('article-categories')[0];
   if($articleCategories){
-    var keywords = [];
-    Array.prototype.forEach.call($articleCategories, function($ac){
-      Array.prototype.forEach.call($ac.childNodes, function($el){
-        if($el.tagName === 'subj-group'){
-          keywords = keywords.concat(_extractKeywords($el));
-        }
-      });
-    });
-    if(keywords.length){  
-      meta.keywords = keywords; 
+    var $subjects = $articleCategories.getElementsByTagName('subject');
+    if($subjects && $subjects.length){
+      keywords = keywords.concat(Array.prototype.map.call($subjects, function($s){
+        return tools.cleanText($s.textContent);
+      }));
     }
+  }
+
+  var $kws = $article.getElementsByTagName('kw');
+  if($kws && $kws.length){
+    keywords = keywords.concat(Array.prototype.map.call($kws, function($kw){
+      return tools.cleanText($kw.textContent);
+    }));    
+  }
+  
+  if(keywords.length){  
+    meta.keywords = _.uniq(keywords); 
   }
 
   var $articleTitle = $articleMeta.getElementsByTagName('article-title')[0];
@@ -274,7 +283,7 @@ function parseXml(xml, pmcid, opts){
 
   var $altTitle = $articleMeta.getElementsByTagName('alt-title')[0];
   if($altTitle){
-    meta.shortTitle = $altTitle.textContent;
+    meta.shortTitle = tools.cleanText($altTitle.textContent);
   }
 
   var affiliations = {}; // affiliations are generally defined independently of authors, with keys that the author spans point to.
@@ -930,31 +939,6 @@ function _getRef($ref){
 };
 
 
-
-function _extractKeywords($el){
-  var res = [];
-
-  if($el.tagName === 'subj-group'){
-
-    for(var i=0; i<$el.childNodes.length; i++){
-      if($el.childNodes[i].tagName === 'subject'){
-        res.push($el.childNodes[i].textContent);
-      } else if ($el.childNodes[i].tagName === 'subj-group'){
-        res = res.concat(_extractKeywords($el.childNodes[i]));          
-      }
-    }
-    return res;
-
-  } else if($el.tagName === 'subject') {      
-
-    return [$el.textContent];
-
-  }
-
-  return res;
-};
-
-
 /**
  * find figure, tables, supplementary materials and their captions. 
  */ 
@@ -1213,7 +1197,6 @@ function readTargzFiles(root, callback){
       return callback(new Error('tar.gz does not contain .nxml file'));
     }
 
-
     //get the name of the main article: from the name of  nxml file
     var mainArticleName = path.basename(nxml, path.extname(nxml)).replace(/ /g, '-');
 
@@ -1233,7 +1216,6 @@ function readTargzFiles(root, callback){
       
     });
   });
-  
 
 };
 

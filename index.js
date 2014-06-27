@@ -512,14 +512,6 @@ Ldpm.prototype._cache = function(pkg, context, root, callback){
     });
   });
 
-  //add README if exists
-  if(pkg.about && pkg.about.url){
-    toCache.push({
-      url: pkg.about.url,
-      path: pkg.about.name || 'README.md'  //TODO improve
-    });
-  }
-
   async.each(toCache, function(r, cb){
     cb = once(cb);
 
@@ -571,7 +563,7 @@ Ldpm.prototype._cache = function(pkg, context, root, callback){
             resp
               .pipe(fs.createWriteStream(path.resolve(root, dirname, filename)))
               .on('finish', function(){
-                this.emit('log', 'ldpm'.grey + ' save'.green + ' ' + (r.name || 'about') + ' at ' +  path.relative(root, path.resolve(root, dirname, filename)));
+                this.emit('log', 'ldpm'.grey + ' save'.green + ' ' + r.name + ' at ' +  path.relative(root, path.resolve(root, dirname, filename)));
 
                 cb(null);
               }.bind(this));
@@ -1131,6 +1123,7 @@ Ldpm.prototype.addResources = function(pkg, resources){
 
   return pkg;
 };
+
 
 function _expandIri(base, iri){
   if(!isUrl(iri)){

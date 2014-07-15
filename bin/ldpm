@@ -18,9 +18,6 @@ var path = require('path')
   , tree = require('../lib/tree')
   , readdirpSync = require('fs-readdir-recursive')
   , githubUrl = require('github-url')
-  , pubmed = require('../plugin/pubmed').pubmed
-  , oapmc = require('../plugin/oapmc')
-  , annotator = require('../plugin/annotator')
   , os = require('os')
   , colors = require('colors');
 

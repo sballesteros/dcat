@@ -39,7 +39,6 @@ var argv = optimist
       '    - add <user> <package name>',
       '    - rm  <user> <package name>[@<version>]',
       '  - search [search terms]',
-      '  - convert <id>',
       '  - help [command]',
     ].join(os.EOL)
   )
@@ -426,18 +425,6 @@ if (argv._[0] === 'init') {
       }})
       .on('error', _fail)
       .end();
-  })();
-
-} else if (argv._[0] === 'convert'){
-
-  (function(){
-    var id = argv._[1].toString();
-
-    ldpm.convert(id, function(err,pkg){
-      if(err) _fail(err);
-      fs.writeFileSync(path.resolve(ldpm.root, 'package.jsonld'), JSON.stringify(pkg, null, 2));
-    });
-    
   })();
 
 } else if (argv._[0] === 'help'){

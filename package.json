@@ -1,6 +1,6 @@
 {
   "name": "ldpm",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "linked data package manager",
   "main": "index.js",
   "bin": {
@@ -71,10 +71,6 @@
     "underscore": "^1.6.0",
     "xlsjs": "^0.6.17",
     "xlsx": "^0.6.0",
-    "xmldom": "0.1.19",
-    "decompress-zip": "0.0.8",
-    "sax": "~0.6.0",
-    "ftp": "~0.3.7",
     "recursive-readdir": "~1.1.1",
     "fs-readdir-recursive": "0.0.2"
   },

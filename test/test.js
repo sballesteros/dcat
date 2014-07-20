@@ -57,7 +57,7 @@ describe('ldpm', function(){
           about: [ { name: 'a', valueType: 'xsd:integer' }, { name: 'b', valueType: 'xsd:integer' } ]
         }
       ],
-      code: [
+      sourceCode: [
         {
           name: 'C',
           targetProduct: [{
@@ -81,10 +81,10 @@ describe('ldpm', function(){
       exec(path.join(path.dirname(root), 'bin', 'ldpm') + ' init "*.csv" -b C -b scripts --defaults', {cwd: path.join(root, 'fixtures', 'init-test') }, function(err, stdout, stderr){
         var pkg = JSON.parse(fs.readFileSync(path.join(root, 'fixtures', 'init-test', 'package.jsonld'), 'utf8'));
         delete pkg.author; //might not be here
-        assert(pkg.code[0].targetProduct[0].filePath);
-        assert(pkg.code[1].targetProduct[0].filePath);
-        delete pkg.code[0].targetProduct[0].filePath;
-        delete pkg.code[1].targetProduct[0].filePath;
+        assert(pkg.sourceCode[0].targetProduct[0].filePath);
+        assert(pkg.sourceCode[1].targetProduct[0].filePath);
+        delete pkg.sourceCode[0].targetProduct[0].filePath;
+        delete pkg.sourceCode[1].targetProduct[0].filePath;
         assert.deepEqual(pkg, expected);
         done();
       });
@@ -95,8 +95,8 @@ describe('ldpm', function(){
         var pkg = JSON.parse(fs.readFileSync(path.join(root, 'fixtures', 'init-test', 'package.jsonld'), 'utf8'));
 
         delete pkg.author;
-        delete pkg.code[0].targetProduct[0].filePath;
-        delete pkg.code[1].targetProduct[0].filePath;
+        delete pkg.sourceCode[0].targetProduct[0].filePath;
+        delete pkg.sourceCode[1].targetProduct[0].filePath;
 
         var exp = clone(expected);
         exp.article = [{
@@ -433,6 +433,7 @@ describe('ldpm', function(){
       temp.mkdir('test-ldpm-', function(err, dirPath) {
         var ldpm = new Ldpm(conf, dirPath);
         ldpm.install(['mypkg-test@0.0.0'], {top: true, cache: true, require: true}, function(err){
+          if(err) throw err;
           var files = readdirpSync(path.join(dirPath, 'mypkg-test'));
 
           var expected = [

@@ -25,7 +25,7 @@ var argv = optimist
   .usage(
     [
       'Usage: ldpm <command> [options] where command is:',
-      '  - init [globs] [urls] [-d, --defaults] [-b --codebundle <relative/path/to/code/directory>] Interactively create a package.jsonld file and add the files listed as globs (*.csv ... and urls) as dataset. Be sure to double quote the glob so that the shell does not expand them',
+      '  - init [globs] [urls] [-d, --defaults] [-b --codebundle <relative/path/to/sourceCode/directory>] Interactively create a package.jsonld file and add the files listed as globs (*.csv ... and urls) as dataset. Be sure to double quote the glob so that the shell does not expand them',
       '  - cat       <package name>[@<version>] [-e, --expand]',
       '  - install   <package name 1>[@<version>] <package name 2>[@<version>] <package url> ... [-t, --top] [-c, --cache] [-r, --require] [-s, --save]',
       '  - publish',

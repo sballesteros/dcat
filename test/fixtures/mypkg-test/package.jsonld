@@ -42,7 +42,7 @@
     }
   ],
 
-  "code": [
+  "sourceCode": [
     {
       "name": "script",
       "targetProduct": [{
@@ -51,7 +51,7 @@
     }
   ],
 
-  "figure": [
+  "image": [
     {
       "name": "img",
       "encoding": [{

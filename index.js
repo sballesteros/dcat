@@ -432,13 +432,13 @@ Ldpm.prototype._cache = function(pkg, context, root, callback){
     }
   });
 
-  (pkg.code || []).forEach(function(r){
+  (pkg.sourceCode || []).forEach(function(r){
     if(r.targetProduct){
       for(var i=0; i < r.targetProduct.length; i++){
         if(r.targetProduct[i].downloadUrl){
           toCache.push({
             name: r.name,
-            type: 'code',
+            type: 'sourceCode',
             url: r.targetProduct[i].downloadUrl,
             path: r.targetProduct[i].filePath,
             bundlePath: r.targetProduct[i].bundlePath
@@ -448,7 +448,7 @@ Ldpm.prototype._cache = function(pkg, context, root, callback){
     }
   });
 
-  ['article', 'figure', 'video', 'audio'].forEach(function(type){
+  ['article', 'image', 'video', 'audio'].forEach(function(type){
     (pkg[type] || []).forEach(function(r){
       if(r.encoding){
         for(var i=0; i < r.encoding.length; i++){
@@ -609,7 +609,7 @@ Ldpm.prototype.paths2resources = function(globs, opts, callback){
 
   callback = once(callback);
 
-  //supposes that codeBundles are relative path to code project directories
+  //supposes that codeBundles are relative path to sourceCode project directories
   var absCodeBundles = (opts.codeBundles || []).map(function(x){return path.resolve(root, x);});
 
   async.map(globs, function(pattern, cb){
@@ -669,7 +669,7 @@ Ldpm.prototype.paths2resources = function(globs, opts, callback){
 
       } else if (['.png', '.jpg', '.jpeg', '.gif', '.tif', '.tiff', '.eps', '.ppt', '.pptx'].indexOf(ext.toLowerCase()) !== -1){
 
-        var figure = {
+        var image = {
           name: myname,
           encoding: [{
             contentPath: mypath,
@@ -677,11 +677,11 @@ Ldpm.prototype.paths2resources = function(globs, opts, callback){
           }]
         };
 
-        if(figure.encoding[0].contentPath.indexOf('..') !== -1){
-          return cb(new Error('only figure files within ' + root + ' can be added (' + figure.encoding[0].contentPath +')'));
+        if(image.encoding[0].contentPath.indexOf('..') !== -1){
+          return cb(new Error('only image files within ' + root + ' can be added (' + image.encoding[0].contentPath +')'));
         }
 
-        cb(null, {type: 'figure', value: figure});
+        cb(null, {type: 'image', value: image});
 
       } else if (['.pdf', '.odt', '.doc', '.docx', '.html', '.nxml'].indexOf(ext.toLowerCase()) !== -1){
 
@@ -708,7 +708,7 @@ Ldpm.prototype.paths2resources = function(globs, opts, callback){
           '.pl': 'perl'
         }[ext.toLowerCase()];
 
-        var code = {
+        var sourceCode = {
           name: myname,
           programmingLanguage: { name: lang },
           targetProduct: [{
@@ -717,11 +717,11 @@ Ldpm.prototype.paths2resources = function(globs, opts, callback){
           }]
         };
 
-        if(code.targetProduct[0].filePath.indexOf('..') !== -1){
-          return cb(new Error('only standalone scripts within ' + root + ' can be added (' + code.targetProduct[0].filePath +')'));
+        if(sourceCode.targetProduct[0].filePath.indexOf('..') !== -1){
+          return cb(new Error('only standalone scripts within ' + root + ' can be added (' + sourceCode.targetProduct[0].filePath +')'));
         }
 
-        cb(null, {type: 'code', value: code});
+        cb(null, {type: 'sourceCode', value: sourceCode});
 
       } else if (['.wav', '.mp3', '.aif', '.aiff', '.aifc', '.m4a', '.wma', '.aac'].indexOf(ext.toLowerCase()) !== -1) {
 
@@ -766,14 +766,14 @@ Ldpm.prototype.paths2resources = function(globs, opts, callback){
       //for resource with same name merge different encodings      
       var byName = {
         dataset: {},
-        code: {},
-        figure: {},
+        sourceCode: {},
+        image: {},
         article: {},
         audio: {},
         video: {}
       };
 
-      var typeMap = { 'figure': 'encoding', 'audio': 'encoding', 'video': 'encoding', 'code': 'targetProduct', 'dataset': 'distribution', 'article': 'encoding' };
+      var typeMap = { 'image': 'encoding', 'audio': 'encoding', 'video': 'encoding', 'sourceCode': 'targetProduct', 'dataset': 'distribution', 'article': 'encoding' };
 
       typedResources.forEach(function(r){
         if (r.value.name in byName[r.type]){          
@@ -785,8 +785,8 @@ Ldpm.prototype.paths2resources = function(globs, opts, callback){
 
       var resources = {
         dataset: [],
-        code: [],
-        figure: [],
+        sourceCode: [],
+        image: [],
         article: [],
         audio: [],
         video: []
@@ -844,7 +844,7 @@ Ldpm.prototype.paths2resources = function(globs, opts, callback){
       }.bind(this), function(err, codeResources){
         if(err) return callback(err);
 
-        resources.code = resources.code.concat(codeResources);
+        resources.sourceCode = resources.sourceCode.concat(codeResources);
         callback(null, resources, paths);
 
       });
@@ -869,7 +869,7 @@ Ldpm.prototype.urls2resources = function(urls, callback){
     var gh = githubUrl(myurl);
 
     if(gh){ //github URL => code TODO: generalize
-      return cb(null, { value: { name: gh.project, codeRepository: myurl }, type: 'code' });
+      return cb(null, { value: { name: gh.project, codeRepository: myurl }, type: 'sourceCode' });
     }
 
     request.head(myurl, function(err, resp){
@@ -931,7 +931,7 @@ Ldpm.prototype.urls2resources = function(urls, callback){
 
       } else if ([ 'image/png', 'image/jpeg', 'image/tiff', 'image/gif', 'image/svg+xml', 'application/postscript', 'application/vnd.ms-powerpoint' ].indexOf(ctype) !== -1) {
 
-        var figure = {
+        var image = {
           value: {
             name: myname,
             encoding: [{
@@ -939,19 +939,19 @@ Ldpm.prototype.urls2resources = function(urls, callback){
               contentUrl: myurl
             }]
           },
-          type: 'figure'
+          type: 'image'
         };
 
         if('content-encoding' in resp.headers){
-          figure.value.encoding[0].encoding = { encodingFormat: resp.headers['content-encoding']};
+          image.value.encoding[0].encoding = { encodingFormat: resp.headers['content-encoding']};
           if('content-length' in resp.headers){
-            figure.value.encoding[0].encoding.contentSize = parseInt(resp.headers['content-length'], 10);
+            image.value.encoding[0].encoding.contentSize = parseInt(resp.headers['content-length'], 10);
           }
         } else if('content-length' in resp.headers){
-          figure.value.encoding[0].contentSize = parseInt(resp.headers['content-length'], 10);
+          image.value.encoding[0].contentSize = parseInt(resp.headers['content-length'], 10);
         }
 
-        cb(null, figure);
+        cb(null, image);
 
       } else if ([ 'audio/basic', 'audio/L24', 'audio/mp4', 'audio/mpeg', 'audio/ogg', 'audio/opus', 'audio/orbis', 'audio/vorbis', 'audio/vnd.rn-realaudio', 'audio/vnd.wave', 'audio/webl' ].indexOf(ctype) !== -1) {
 
@@ -1038,9 +1038,9 @@ Ldpm.prototype.urls2resources = function(urls, callback){
 
     var resources = {
       dataset: [],
-      code: [],
+      sourceCode: [],
       article: [],
-      figure: [],
+      image: [],
       audio: [],
       video: []
     };
@@ -1061,7 +1061,7 @@ Ldpm.prototype.urls2resources = function(urls, callback){
 /**
  * add resources by taking care of removing previous
  * resources with conflicting names
- * !! resources is {dataset: [], code: [], figure: [], article: [], audio: [], video: []}
+ * !! resources is {dataset: [], sourceCode: [], image: [], article: [], audio: [], video: []}
  */
 Ldpm.prototype.addResources = function(pkg, resources){
 

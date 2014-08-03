@@ -25,18 +25,18 @@ See [here](https://standardanalytics.io/ldpm) for documentation.
         - rm  <user> <package name>[@<version>]
       - search [search terms]
       - help [command]
-    
+
     Options:
-      -f, --force       overwrite previous if exists                                                                                                  
-      -d, --defaults    bypass the promzard prompt                                                                                                    
-      -t, --top         install in the current working directory (and not within ld_packages/)                                                        
-      -e, --expand      expand the JSON-LD document                                                                                                   
-      -s, --save        data packages will appear in your dataDependencies                                                                            
+      -f, --force       overwrite previous if exists
+      -d, --defaults    bypass the promzard prompt
+      -t, --top         install in the current working directory (and not within ld_packages/)
+      -e, --expand      expand the JSON-LD document
+      -s, --save        data packages will appear in your dataDependencies
       -c, --cache       store the dataset content on the disk (inlined data will stay in the package.jsonld see -r, --require to change this behavior)
-      -r, --require     force the inlined dataset (contentData) to be stored in their own file in ld_resources/                                       
-      -b, --codebundle  treat the listed directory as a code project                                                                                  
-      -h, --help        print usage                                                                                                                   
-      -v, --version     print version number                                                                                                          
+      -r, --require     force the inlined dataset (contentData) to be stored in their own file in ld_resources/
+      -b, --codebundle  treat the listed directory as a code project
+      -h, --help        print usage
+      -v, --version     print version number
 
 
 ## Using ldpm programaticaly
@@ -45,7 +45,7 @@ You can also use ```ldpm``` programaticaly.
 
     var Ldpm = require('ldpm');
     var ldpm = new Ldpm(conf);
-    
+
     ldpm.install(['mypkg/0.0.0', 'mydata/1.0.0', 'http://example.com/mydata'], {cache: true}, function(err, pkgs){
     //done!
     });
@@ -65,4 +65,4 @@ hosted on [cloudant](https://sballesteros.cloudant.com).
 License
 =======
 
-MIT
+Apache-2.0.

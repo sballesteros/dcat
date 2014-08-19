@@ -1,0 +1,34 @@
+{
+  "@context": "https://registry.standardanalytics.io/context.jsonld",
+  "@id": "cw-test",
+  "@type": "Dataset",
+  "distribution": { "filePath": "data.csv" },
+  "hasPart": [
+    {
+      "@id": "src",
+      "@type": "Code",
+      "programmingLanguage": { "name": "c" },
+      "encoding": {
+        "hasPart": [
+          { "filePath": "src/lib.h" },
+          { "filePath": "src/main.c" }
+        ]
+      }
+    },
+    {
+      "@id": "pone",
+      "@type": "Article",
+      "encoding": { "filePath": "article/pone.pdf" }
+    },
+    {
+      "@id": "daftpunk",
+      "@type": "ImageObject",
+      "encoding": { "filePath": "img/daftpunk.jpg" }
+    },
+    {
+      "@id": "app",
+      "@type": "SoftwareApplication",
+      "filePath": "app/app.zip"
+    }
+  ]
+}

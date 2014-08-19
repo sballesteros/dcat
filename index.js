@@ -1,4 +1,5 @@
 var crypto = require('crypto')
+  , colors = require('colors')
   , url = require('url')
   , _ = require('underscore')
   , isUrl = require('is-url')
@@ -18,1088 +19,904 @@ var crypto = require('crypto')
   , async = require('async')
   , fs = require('fs')
   , zlib = require('zlib')
-  , tar = require('tar')
+  , tar = require('tar-stream')
   , once = require('once')
   , concat = require('concat-stream')
   , jsonld = require('jsonld')
   , clone = require('clone')
-  , publish = require('./lib/publish')
   , binaryCSV = require('binary-csv')
   , split = require('split')
   , temp = require('temp')
-  , githubUrl = require('github-url')
+  , githubUrlToObject = require('github-url-to-object')
+  , bitbucketUrlToObject = require('bitbucket-url-to-object')
+  , Packager = require('package-jsonld')
   , previewTabularData = require('preview-tabular-data').preview
+  , os = require('os')
   , jsonldContextInfer = require('jsonld-context-infer');
 
-var conf = require('rc')('ldpm', {protocol: 'https', port: 443, hostname: 'registry.standardanalytics.io', strictSSL: false, sha:true});
+request = request.defaults({json:true, strictSSL: false});
+
+var conf = require('rc')('ldpm', {protocol: 'https:', port: 443, hostname: 'registry.standardanalytics.io', strictSSL: false, sha:true});
 
 mime.define({
   'application/ld+json': ['jsonld'],
   'application/x-ldjson': ['ldjson', 'ldj'],
-  'application/x-gzip': ['gz', 'gzip', 'tgz'] //tar.gz won't work
+  'application/x-gzip': ['gz', 'gzip'],
+  'application/x-gtar':['tgz'], //tar.gz won't work
+  'text/x-clojure': ['clj'],
+  'text/x-coffeescript': ['coffee'],
+  'text/x-go': ['go'],
+  'text/x-ocaml': ['ocaml', 'ml', 'mli'],
+  'text/x-scala': ['scala'],
+  'text/x-python': ['py'],
+  'text/x-r': ['r'],
+  'text/x-rust': ['rs'],
+  'text/x-matlab': ['m'],
+  'text/x-erlang': ['erl'],
+  'text/x-julia': ['jl'],
+  'text/x-perl': ['pl'],
+  'text/x-java': ['java']
 });
 
-/**
- * rc is optional
- */
-var Ldpm = module.exports = function(rc, root){
-
-  if(arguments.length <2){
-    root = rc;
-    rc = conf;
-  }
-
+var Ldpm = module.exports = function(rc, root, packager){
   EventEmitter.call(this);
 
   this.root = root || process.cwd();
+  this.rc = rc || conf;
 
-  this.rc = rc;
+  this.packager = packager || new Packager();
 };
 
 util.inherits(Ldpm, EventEmitter);
 
-/**
- * if no pkg is provided, will be read from package.jsonld
- */
-Ldpm.prototype.publish = function(pkg, attachments, callback){
+Ldpm.type = function(mimetype){
+  if (!mimetype || mimetype === 'application/octet-stream') return;
 
-  if(arguments.length === 1){
-    callback = pkg;
-    pkg = undefined;
-    attachments = undefined;
-  } else if(arguments.length === 2) {
-    callback = attachments;
-    attachments = undefined;
+  mimetype = mimetype.split(';')[0].trim();
+
+  if (mimetype.split('/')[0] === 'image' || ~['application/postscript', 'application/vnd.ms-powerpoint'].indexOf(mimetype) ) {
+    return 'ImageObject';
+  } else if (mimetype.split('/')[0] === 'video') {
+    return 'VideoObject';
+  } else if (mimetype.split('/')[0] === 'audio') {
+    return 'AudioObject';
+  } else if (~['application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'text/csv', 'text/tab-separated-values', 'application/json', 'application/ld+json', 'application/x-ldjson', 'application/xml', 'application/rdf+xml', 'text/n3', 'text/turtle'].indexOf(mimetype)) {
+    return 'Dataset';
+  } else if (~['application/javascript', 'application/ecmascript', 'text/x-asm', 'text/x-c', 'text/x-fortran', 'text/x-java', 'text/x-java-source', 'text/x-pascal', 'text/x-clojure', 'text/x-coffeescript', 'text/x-go', 'text/x-ocaml', 'text/x-scala', 'text/x-python', 'text/x-r', 'text/x-rust', 'text/x-erlang', 'text/x-julia', 'text/x-perl'].indexOf(mimetype)) {
+    return 'Code';
+  } else if (~['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.oasis.opendocument.text', 'application/x-latex'].indexOf(mimetype)) {
+    return 'Article';
+  } else if (~['text/html', 'application/xhtml+xml'].indexOf(mimetype)) {
+    return 'WebPage';
+  } else if (mimetype === 'text/x-markdown') {
+    return 'Readme';
   }
-
-  if(pkg){
-    publish.call(this, pkg, attachments, callback);
-  } else {
-    fs.readFile(path.resolve(this.root, 'package.jsonld'), function(err, pkg){
-      if(err) return callback(err);
-      try{
-        pkg = JSON.parse(pkg);
-      } catch(e){
-        return callback(e);
-      }
-      publish.call(this, pkg, attachments, callback);
-    }.bind(this));
-  }
-
 };
 
-Ldpm.prototype.url = function(path, queryObj){
-  return this.rc.protocol + '://'  + this.rc.hostname + ':' + this.rc.port + path + ( (queryObj) ? '?' + querystring.stringify(queryObj): '');
-};
 
-Ldpm.prototype.auth = function(){
+Ldpm.prototype._auth = function(){
   return {user: this.rc.name, pass: this.rc.password};
 };
 
-
-/**
- * create an option object for mikeal/request
- */
-Ldpm.prototype.rOpts = function(myurl, extras){
-  extras = extras || {};
-
-  var opts = {
-    url: myurl,
-    strictSSL: false
+Ldpm.prototype.url = function(pathnameOrCurie){
+  if (isUrl(pathnameOrCurie)) {
+    return pathnameOrCurie;
   }
 
-  for(var key in extras){
-    opts[key] = extras[key];
+  var protocol, hostname, port, pathname;
+  var splt = pathnameOrCurie.split(':');
+
+  if (splt.length === 2) { // CURIE
+    var ctx = Packager.context()['@context'][1];
+    if (splt[0] in ctx) {
+      if (splt[0] === 'sa') {
+        protocol = this.rc.protocol;
+        hostname = this.rc.hostname;
+        port = this.rc.port;
+      } else {
+        var purl = url.parse(ctx[splt[0]]);
+        protocol = purl.protocol;
+        hostname = purl.hostname;
+        port = purl.port;
+      }
+      pathname = splt[1];
+    } else {
+      throw new Error('unsupported CURIE prefix: ' + splt[0]);
+    }
+  } else { //<-pathname
+    protocol = this.rc.protocol;
+    hostname = this.rc.hostname;
+    port = this.rc.port;
+    pathname = pathnameOrCurie;
   }
 
-  return opts;
+  return protocol + '//'  + hostname + ((port && (port !== 80 && port !== 443)) ? (':' + port) : '') + '/' + pathname.replace(/^\/|\/$/g, '');
 };
 
-/**
- * create an option object for mikeal/request **with** basic auth
- */
-Ldpm.prototype.rOptsAuth = function(myurl, extras){
-  var opts = this.rOpts(myurl, extras);
-  opts.auth = this.auth();
+Ldpm.prototype._error = function(msg, code){
+  if (typeof msg === 'object') {
+    msg = msg.reason || msg.error || 'error';
+  }
 
-  return opts;
+  var err = new Error(msg);
+  if (code !== undefined) { err.code = code; }
+  return err;
 };
 
+Ldpm.prototype.log = function(verbOrstatusCode, pathnameOrUrl, protocol){
+  var uri = this.url(pathnameOrUrl);
+  protocol = protocol || url.parse(uri).protocol;
 
-Ldpm.prototype.logHttp = function(methodCode, reqUrl, method){
-  method = method || 'http';
-  this.emit('log', 'ldpm'.grey + ' ' + method.green + ' ' + methodCode.toString().magenta + ' ' + reqUrl.replace(/:80\/|:443\//, '/'));
+  this.emit('log', 'ldpm'.grey + ' ' + protocol.split(':')[0].green + ' ' + verbOrstatusCode.toString().magenta + ' ' + uri.replace(/:80\/|:443\//, '/'));
 };
 
+Ldpm.prototype.addUser = function(callback){
+  //chech that we need to add a user
+  request.get({url: this.url('auth'), auth: this._auth()}, function(err, respCheck, body){
+    if (err) return callback(err, respCheck && respCheck.headers);
 
-Ldpm.prototype.lsOwner = function(pkgName, callback){
-
-  var rurl = this.url('/owner/ls/' + pkgName);
-  this.logHttp('GET', rurl);
-
-  request(this.rOpts(rurl), function(err, res, body){
-    if(err) return callback(err);
-    this.logHttp(res.statusCode, rurl);
-
-    if(res.statusCode >= 400){
-      var err = new Error(body);
-      err.code = res.statusCode;
-      return callback(err);
+    if (respCheck.statusCode === 200) {
+      return callback(null, body);
     }
 
-    callback(null, JSON.parse(body));
-  }.bind(this));
-
-};
-
-/**
- * data: {username, pkgname}
- */
-Ldpm.prototype.addOwner = function(data, callback){
-  var rurl = this.url('/owner/add');
-  this.logHttp('POST', rurl);
-  request.post(this.rOptsAuth(rurl, {json: data}), function(err, res, body){
-    if(err) return callback(err);
-    this.logHttp(res.statusCode, rurl);
-    if(res.statusCode >= 400){
-      var err = new Error(JSON.stringify(body));
-      err.code = res.statusCode;
-      return callback(err);
+    //From here: auth failed: invalid name or password or user does not exists we try to create it
+    var userdata = { name: this.rc.name, email: this.rc.email };
+    if (this.rc.sha) {
+      var salt = crypto.randomBytes(30).toString('hex');
+      userdata.salt = salt;
+      userdata.password_sha = crypto.createHash("sha1").update(this.rc.password + salt).digest("hex");
+    } else {
+      userdata.password = this.rc.password;
     }
-    callback(null, body);
-  }.bind(this));
-};
 
-/**
- * data: {username, pkgname}
- */
-Ldpm.prototype.rmOwner = function(data, callback){
-  var rurl = this.url('/owner/rm');
-  this.logHttp('POST', rurl);
-  request.post(this.rOptsAuth(rurl, {json: data}), function(err, res, body){
-    if(err) return callback(err);
-    this.logHttp(res.statusCode, rurl);
-    if(res.statusCode >= 400){
-      var err = new Error(JSON.stringify(body));
-      err.code = res.statusCode;
-      return callback(err);
-    }
-    callback(null, body);
-  }.bind(this));
-};
+    var rurl = this.url('adduser/' + this.rc.name);
+    this.log('PUT', rurl);
+    request.put({url: rurl, json: userdata, auth: this._auth()}, function(err, resp, body){
+      if (err) return callback(err);
+      this.log(resp.statusCode, rurl);
+      if (resp.statusCode < 400) {
+        callback(null, body);
+      } else if (resp.statusCode === 409) {
+        if (respCheck.statusCode === 401) {
+          err = this._error('invalid password for user: ' + this.rc.name, respCheck.statusCode);
+        } else {
+          err = this._error('username ' + this.rc.name + ' already exists', resp.statusCode);
+        }
+        callback(err, resp.headers);
+      } else {
+        err = this._error('something went wrong', resp.statusCode);
+        callback(err, body);
+      }
+    }.bind(this));
 
-Ldpm.prototype.unpublish = function(pkgId, callback){
-  pkgId = pkgId.replace('@', '/');
-
-  var rurl = this.url('/'+ pkgId);
-  this.logHttp('DELETE', rurl);
-  request.del(this.rOptsAuth(rurl), function(err, res, body){
-    if(err) return callback(err);
-    this.logHttp(res.statusCode, rurl);
-    if(res.statusCode >= 400){
-      var err = new Error(body);
-      err.code = res.statusCode;
-      return callback(err);
-    }
-    callback(null, JSON.parse(body));
   }.bind(this));
 
 };
 
 
-Ldpm.prototype.cat = function(pkgId, opts, callback){
-
-  if(arguments.length === 2){
+Ldpm.prototype.wrap = function(tGlobsOrTurls, opts, callback){
+  if (arguments.length === 2) {
     callback = opts;
     opts = {};
   }
 
-  var rurl;
-  if(isUrl(pkgId)){
+  var myTglobsOrTurls = Array.isArray(tGlobsOrTurls) ? tGlobsOrTurls : [tGlobsOrTurls];
 
-    rurl = pkgId;
-    var prurl = url.parse(rurl, true);
-    if ( (prurl.hostname === 'registry.standardanalytics.io' || prurl.hostname === 'localhost') && (opts.cache && !opts.require) ){
-      prurl.query = prurl.query || {};
-      prurl.query.contentData = true;
-      delete prurl.search;
-      rurl = url.format(prurl);
-    }
+  function _isUrl(tGlobsOrTurl) {
+    var x = (typeof tGlobsOrTurl === 'string') ? tGlobsOrTurl : (tGlobsOrTurl.pattern || tGlobsOrTurl.url);
 
-  } else {
+    return isUrl(x) || githubUrlToObject(x) || bitbucketUrlToObject(x);
+  };
 
-    var splt = pkgId.split( (pkgId.indexOf('@') !==-1) ? '@': '/');
-    var name = splt[0]
-      , version;
+  this._pathToResource(myTglobsOrTurls.filter(function(x){return !_isUrl(x);}), opts , function(err, resourcesFromPath, reservedIds){
+    if(err) return callback(err);
+    this._urlToResource(myTglobsOrTurls.filter(function(x){return _isUrl(x);}), {reservedIds: reservedIds}, function(err, resourcesFromUrls, reservedIds){
+      if(err) return callback(err);
+      callback(null, (resourcesFromPath || []).concat(resourcesFromUrls || []), reservedIds);
+    });
+  }.bind(this));
 
-    if(splt.length === 2){
-      version = semver.valid(splt[1]);
-      if(!version){
-        return callback(new Error('invalid version '+ pkgId.red +' see http://semver.org/'));
-      }
-    } else {
-      version = 'latest'
-    }
+};
 
-    rurl = this.url('/' + name + '/' + version, (opts.cache && !opts.require) ? {contentData: true} : undefined);
-
+Ldpm.prototype._pathToResource = function(globs, opts, callback){
+  if (arguments.length === 2) {
+    callback = opts;
+    opts = {};
   }
 
-  this.logHttp('GET', rurl);
+  var reservedIds = opts.reservedIds || {}; //make sure @ids are unique
 
-  var headers = (opts.expand) ? { headers: {'Accept': 'application/ld+json;profile="http://www.w3.org/ns/json-ld#expanded"'} } :
-  { headers: {'Accept': 'application/ld+json;profile="http://www.w3.org/ns/json-ld#compacted"'} };
+  var globList = Array.isArray(globs) ? globs : [globs];
 
-  request(this.rOpts(rurl, headers), function(err, res, pkg){
-    if(err) return callback(err);
+  globList = globList.map(function(x){
+    return (typeof x === 'string') ? {pattern: x} : x; //a `type` can be specified in addition to `pattern`
+  });
 
-    this.logHttp(res.statusCode, rurl);
-    if (res.statusCode >= 400){
-      var err = new Error('fail');
-      err.code = res.statusCode;
-      return callback(err);
+  async.map(globList, function(tglob, cb){
+    glob(path.resolve(this.root, tglob.pattern), {matchBase: true, mark:true}, function(err, absPaths){
+      if (err) return cb(err);
+
+      absPaths = absPaths.filter(minimatch.filter('!**/JSONLD', {matchBase: true}));
+      //apply custom filter function (if any)
+      absPaths = (opts.fFilter) ? absPaths.filter(opts.fFilter) : absPaths;
+
+
+      //exclude all directories path of directories containing files (if a directory does not contain file => glob was matching the directory and we want to keep it)
+
+      //get the directory paths
+      var isDir = /\/$/;
+      var dirAbsPaths = absPaths.filter(function(p){
+        return isDir.test(p);
+      });
+
+      var dirToExclude = [];
+      dirAbsPaths.forEach(function(d){
+        var re = new RegExp('^'+ d.replace('/', '\/'));
+        var match = absPaths.filter(function(p){return re.test(p)});
+        if (match.length > 1) {
+          dirToExclude.push(d);
+        }
+      });
+      absPaths = _.difference(absPaths, dirToExclude);
+
+      return cb(null, absPaths.map(function(p){ return {absPath: p, type: tglob.type};}));
+    });
+  }.bind(this), function(err, tabsPaths){
+    if(err) return cb(err);
+
+    tabsPaths = _.flatten(tabsPaths);
+    var utabsPaths = _.uniq(tabsPaths, function(x){return x.absPath;});
+    if (utabsPaths.length !== tabsPaths.length) {
+      return callback(new Error('duplicate paths'));
     }
 
-    try{
-      var pkg = JSON.parse(pkg);
-    } catch(e){
-      return callback(e);
-    }
+    //transform abs paths to resources and make source each resource has a unique @id
+    function _getStatsAndParts (tp, cb){
+      fs.stat(tp.absPath, function(err, stats){
+        if (err) return cb(err);
+        if (stats.isDirectory) {
+          glob(path.join(tp.absPath, '**/*'), function(err, dirAbsPaths){
+            if (err) return cb(err);
+            async.map(dirAbsPaths, fs.stat, function(err, dirAbsPathStats){
+              if(err) return cb(err);
+              var parts = dirAbsPathStats
+                .map(function(x, i){ return {stats: x, absPath: dirAbsPaths[i]}; })
+                .filter(function(x){ return x.stats.isFile(); });
+              cb(null, stats, parts);
+            });
+          });
+        } else {
+          return cb(null, stats);
+        }
+      });
+    };
 
-    //JSON-LD get @context from Link Header
-    var contextUrl;
-    if(res.headers.link){
-      var links =  jsonld.parseLinkHeader(res.headers.link);
-      if('http://www.w3.org/ns/json-ld#context' in links){
-        contextUrl = links['http://www.w3.org/ns/json-ld#context'].target;
+    async.map(utabsPaths, function(tp, cb){
+      _getStatsAndParts(tp, function(err, stats, dirAbsPaths){
+        if (err) return cb(err);
+
+        var ext, mymime;
+        if (/\.tar\.gz$/.test(tp.absPath)) {
+          ext = '.tar.gz';
+          mymime = 'application/x-gtar';
+        } else {
+          ext = path.extname(tp.absPath); //if directory -> ''
+          mymime = mime.lookup(ext); //if '' -> 'application/octet-stream'
+        }
+
+        var mypath = path.relative(this.root, tp.absPath)
+          , myid = path.basename(tp.absPath, ext).trim().replace(/ /g, '-').toLowerCase();
+
+        var hasPart;
+        if (stats.isDirectory()) {
+          hasPart = dirAbsPaths.map(function(x){
+            return { '@type': 'MediaObject', 'filePath': path.relative(this.root, x.absPath), 'contentSize': x.stats.size, 'dateModified': x.stats.mtime };
+          }, this);
+        }
+
+        //try to patch MIME
+        if (stats.isFile() && mymime == 'application/octet-stream') {
+          if (~['readme', 'license'].indexOf(path.basename(tp.absPath).trim().toLowerCase())) {
+            mymime = 'text/plain';
+          }
+        }
+
+        var uid = myid, i = 1;
+        while (uid in reservedIds) { uid = myid + '-' + i++; }
+        reservedIds[uid] = true;
+
+        var r = {
+          '@id': uid,
+          '@type': tp.type || Ldpm.type(mymime) || 'CreativeWork'
+        };
+
+        if (this.packager.isClassOrSubClassOf(r['@type'], 'SoftwareApplication')) { //special case
+
+          if (stats.isDirectory()) {
+            return cb(new Error('directories are not supported for SoftwareApplication or subclasses of SoftwareApplication'));
+          }
+          r.fileFormat = mymime;
+          r.filePath = mypath;
+          r.fileSize = stats.size;
+          r.dateModified = stats.mtime.toISOString();
+          r.operatingSystem = os.type() + ' ' + os.release();
+          r.processorRequirements = os.arch();
+
+        } else {
+
+          var encoding = { dateModified: stats.mtime.toISOString() };
+
+          if (stats.isDirectory()) {
+            encoding.encodingFormat = 'application/x-gtar'; //.tar.gz according to http://en.wikipedia.org/wiki/List_of_archive_formats
+            encoding.hasPart = hasPart;
+          } else {
+            encoding.encodingFormat = mymime;
+            encoding.filePath = mypath;
+            encoding.contentSize = stats.size;
+          }
+
+          if (this.packager.isClassOrSubClassOf(r['@type'], 'Dataset')) {
+            //TODO about
+            r.distribution = _.extend({'@type': 'DataDownload'}, encoding);
+          } else if (this.packager.isClassOrSubClassOf(r['@type'], 'Code')) {
+            //try to guess programming language
+            if (stats.isDirectory()) {
+              var langs = [];
+              for (var i=0; i<hasPart.length; i++) {
+                var p = hasPart[i].filePath;
+                var m;
+                if (/\.tar\.gz$/.test(p)) {
+                  m = 'application/x-gtar';
+                } else {
+                  m = mime.lookup(p);
+                }
+
+                var m2 = m.split('/')[1];
+                if (m2 !== 'plain' && m2 !== 'octet-stream') {
+                  langs.push(m2.split('-')[1] || m2);
+                }
+              }
+              if (langs.length){
+                langs = _.uniq(langs).map(function(lang){return {name: lang};});
+                r.programmingLanguage = (langs.length === 1) ? langs[0]: langs;
+              }
+            } else {
+              var m2 = mymime.split('/')[1];
+              if (m2 !== 'plain' && m2 !== 'octet-stream') {
+                r.programmingLanguage = { name: m2.split('-')[1] || m2 };
+              }
+            }
+            r.encoding = _.extend({'@type': 'MediaObject'}, encoding);
+          } else {
+            r.encoding = _.extend({'@type': 'MediaObject'}, encoding);
+          }
+        }
+        cb(null, r);
+      }.bind(this));
+    }.bind(this), function(err, resources){
+      callback(err, resources, reservedIds);
+    });
+  }.bind(this));
+
+};
+
+
+Ldpm.prototype._urlToResource = function(turls, opts, callback){
+  if (arguments.length === 2) {
+    callback = opts;
+    opts = {};
+  }
+  var reservedIds = opts.reservedIds || {}; //make sure @ids are unique
+
+  var turi = Array.isArray(turls) ? turls : [turls];
+  turi = turi.map(function(x){
+    return (typeof x === 'string') ? {url: x} : x; //a `type` can be specified
+  });
+
+  var uturi = _.uniq(turi, function(x){return x.url;});
+  if (uturi.length !== turi.length) {
+    return callback(new Error('duplicated URLs'));
+  }
+
+  async.map(uturi, function(myturi, cb){
+
+    var repo = githubUrlToObject(myturi.url) || bitbucketUrlToObject(myturi.url);
+    if (repo) {
+      var myid = repo.repo;
+      var uid = myid, i = 1;
+      while (uid in reservedIds) { uid = myid + '-' + i++; }
+      reservedIds[uid] = true;
+
+      var r =  {
+        '@id': myid,
+        '@type': myturi.type || 'Code',
       };
-    } else if(isUrl(pkg['@context'])){
-      contextUrl = pkg['@context'];
-    }
 
-    if(!contextUrl){
-      //TODO better handle context free case...
-      return callback(null, pkg, (pkg['@context']) ? {'@context': pkg['@context']}: undefined);
-    }
-
-    this.logHttp('GET', contextUrl);
-    request(contextUrl, function(err, res, context){
-      if(err) return callback(err);
-      this.logHttp(res.statusCode, contextUrl);
-      if (res.statusCode >= 400){
-        var err = new Error('fail');
-        err.code = res.statusCode;
-        return callback(err);
+      if (!this.packager.isClassOrSubClassOf(r['@type'], 'Code')) {
+        return cb(new Error('URL of code repositories must be of @type Code (or a subclass of Code)'));
       }
 
+      r.codeRepository = repo.https_url;
+
+      this.log('HEAD', repo.tarball_url);
+      //see https://developer.github.com/v3/#user-agent-required
+      request.head({url:repo.tarball_url, followAllRedirects:true, headers: {'User-Agent': 'ldpm'}}, function(err, resp){
+        if (err) return cb(err);
+        this.log(resp.statusCode, repo.tarball_url);
+        if (resp.statusCode >= 400) {
+          return cb(this._error('could not HEAD ' + repo.tarball_url), resp.statusCode);
+        }
+
+        r.encoding = {
+          '@type': 'MediaObject',
+          contentUrl: repo.tarball_url,
+          encodingFormat: resp.headers['content-type']
+        };
+        if ('content-length' in resp.headers) {
+          r.encoding.contentSize = parseInt(resp.headers['content-length'], 10);
+        }
+        if ('last-modified' in resp.headers) {
+          r.encoding.dateModified = (new Date(resp.headers['last-modified'])).toISOString();
+        }
+        return cb(null, r);
+
+      }.bind(this));
+    } else {
+
+      this.log('HEAD', myturi.url);
+      request.head({url: myturi.url, followAllRedirects:true}, function(err, resp){
+        if (err) return cb(err);
+        this.log(resp.statusCode, myturi.url);
+        if (resp.statusCode >= 400) {
+          return cb(this._error('could not HEAD ' + myturi.url), resp.statusCode);
+        }
+
+        var mymime = resp.headers['content-type']
+          , mypath = url.parse(myurl).pathname
+          , myid = path.basename(mypath, path.extname(mypath)).trim().replace(/ /g, '-').toLowerCase();
+
+        var uid = myid, i = 1;
+        while (uid in reservedIds) { uid = myid + '-' + i++; }
+        reservedIds[uid] = true;
+
+        var r = { '@id': uid, '@type': myturi.type || Ldpm.type(mymime) || 'CreativeWork' };
+
+        var contentSize;
+        if ('content-length' in resp.headers) {
+          contentSize = parseInt(resp.headers['content-length'], 10);
+        }
+
+        if (this.packager.isClassOrSubClassOf(r['@type'], 'SoftwareApplication')) {
+          r.downloadUrl = myturi.url;
+          r.fileFormat = resp.headers['content-type'];
+          if ('last-modified' in resp.headers) {
+            r.dateModified = (new Date(resp.headers['last-modified'])).toISOString();
+          }
+          if (!('content-encoding' in resp.headers) && (contentSize !== undefined)) {
+            r.fileSize = contentSize;
+          }
+        } else {
+          var encoding = {
+            contentUrl: myturi.url,
+            encodingFormat: mymime
+          };
+          if ('last-modified' in resp.headers) {
+            encoding.dateModified = (new Date(resp.headers['last-modified'])).toISOString();
+          }
+          if ('content-encoding' in resp.headers) {
+            encoding.encoding = { '@type': 'MediaObject',  encodingFormat: resp.headers['content-encoding'] };
+            if ( contentSize !== undefined ) {
+              encoding.encoding.contentSize = contentSize;
+            }
+          } else if (contentSize !== undefined) {
+            encoding.contentSize = contentSize;
+          }
+
+          if (this.packager.isClassOrSubClassOf(r['@type'], 'Dataset')) {
+            r.distribution = _.extend({'@type': 'DataDownload'}, encoding);
+          } else if (this.packager.isClassOrSubClassOf(r['@type'], 'Code')) {
+            r.encoding = _.extend({'@type': 'MediaObject'}, encoding);
+            //try to get programming language for MIME
+            var inferedType = Ldpm.type(mymine);
+            if (inferedType === 'Code') {
+              var m2 = mymime.split('/')[1];
+              if (m2 !== 'plain' && m2 !== 'octet-stream') {
+                r.programmingLanguage = { name: m2.split('-')[1] || m2 };
+              }
+            }
+          } else {
+            r.encoding = _.extend({'@type': 'MediaObject'}, encoding);
+          }
+        }
+        cb(null, r);
+
+      }.bind(this));
+
+    }
+
+  }.bind(this), function(err, resources){
+    callback(err, resources, reservedIds);
+  });
+};
+
+/**
+ * if no doc is provided, will be read from JSONLD
+ * resolve all the CURIES and take into account any potential nested @context
+ */
+Ldpm.prototype.cdoc = function(doc, callback){
+  if (arguments.length === 1) {
+    callback = doc;
+    doc = undefined;
+  }
+
+  var ctxUrl = this.url('context.jsonld');
+
+  if (doc) {
+    //help for testing !!TODO fix: can have side effects
+    if (doc['@context'] === Packager.contextUrl) {
+      doc['@context'] = this.url('context.jsonld');
+    }
+
+    jsonld.compact(doc, ctxUrl, callback);
+  } else {
+    fs.readFile(path.resolve(this.root, 'JSONLD'), function(err, doc){
+      if(err) return callback(err);
       try {
-        context = JSON.parse(context);
+        doc = JSON.parse(doc);
       } catch(e){
         return callback(e);
       }
 
-      if(opts.expand){
-        jsonld.expand(pkg, {expandContext: context}, function(err, pkgExpanded){
-          return callback(err, pkgExpanded, context);
-        });
-      } else {
-        pkg['@context'] = contextUrl;
-
-        return callback(null, pkg, context);
+      //help for testing !!TODO fix: can have side effects
+      if (doc['@context'] === Packager.contextUrl) {
+        doc['@context'] = this.url('context.jsonld');
       }
-
+      jsonld.compact(doc, ctxUrl, callback);
     }.bind(this));
-
-  }.bind(this));
-
-};
-
-
-/**
- * Install a list of pkgIds and their dependencies
- * callback(err)
- */
-Ldpm.prototype.install = function(pkgIds, opts, callback){
-
-  async.map(pkgIds, function(pkgId, cb){
-    this._install(pkgId, opts, function(err, pkg, context, root){
-      if(err) return cb(err);
-      opts = clone(opts);
-      opts.root = root;
-      this._installDep(pkg, opts, context, function(err){
-        return cb(err, pkg);
-      });
-    }.bind(this));
-
-  }.bind(this), callback);
+  }
 
 };
 
+Ldpm.prototype.publish = function(doc, opts, callback){
 
-/**
- * Install a pkg (without dependencies)
- */
-Ldpm.prototype._install = function(pkgId, opts, callback){
-
-  async.waterfall([
-
-    function(cb){
-      this._get(pkgId, opts, function(err, pkg, context, root){
-
-        if(err) return cb(err);
-
-        if(!opts.cache){
-          cb(null, pkg, context, root);
-        } else {
-          this._cache(pkg, context, root, cb);
-        }
-
-      }.bind(this));
-    }.bind(this),
-
-    function(pkg, context, root, cb){
-
-      var dest = path.join(root, 'package.jsonld');
-      fs.writeFile(dest, JSON.stringify(pkg, null, 2), function(err){
-        if(err) return cb(err);
-        cb(null, pkg, context, root);
-      });
-
-    }.bind(this)
-
-  ], callback);
-
-};
-
-
-/**
- * Install dataDependencies
- */
-Ldpm.prototype._installDep = function(pkg, opts, context, callback){
-
-  var deps = pkg.isBasedOnUrl || [];
-  opts = clone(opts);
-  delete opts.top;
-
-  async.each(deps.map(function(iri){return _expandIri(context['@context']['@base'], iri);}), function(pkgId, cb){
-    this._install(pkgId, opts, cb);
-  }.bind(this), callback);
-
-};
-
-
-/**
- * get package.jsonld and create empty directory that will receive package.jsonld
- */
-Ldpm.prototype._get = function(pkgId, opts, callback){
-
-  if(arguments.length === 2){
+  if (arguments.length === 1) {
+    callback = doc;
+    doc = undefined;
+    opts = {};
+  } else if(arguments.length === 2) {
     callback = opts;
     opts = {};
   }
 
-  this.cat(pkgId, opts, function(err, pkg, context){
-    if(err) return callback(err);
 
-    var root = (opts.top) ? path.join(opts.root || this.root, pkg.name) : path.join(opts.root || this.root, 'ld_packages', pkg.name);
-    _createDir(root, opts, function(err){
-      callback(err, pkg, context, root);
-    });
-
-  }.bind(this));
-};
-
-
-/**
- * cache all the resources at their path (when it exists or in ld_resources when they dont)
- */
-Ldpm.prototype._cache = function(pkg, context, root, callback){
-
-  var toCache  = [];
-
-  (pkg.dataset || []).forEach(function(r){
-    if(r.distribution){
-      for(var i=0; i < r.distribution.length; i++){
-        if(r.distribution[i].contentUrl){
-          toCache.push({
-            name: r.name,
-            type: 'dataset',
-            url: r.distribution[i].contentUrl,
-            path: r.distribution[i].contentPath
-          });
-        }
-      }
-    }
-  });
-
-  (pkg.sourceCode || []).forEach(function(r){
-    if(r.targetProduct){
-      for(var i=0; i < r.targetProduct.length; i++){
-        if(r.targetProduct[i].downloadUrl){
-          toCache.push({
-            name: r.name,
-            type: 'sourceCode',
-            url: r.targetProduct[i].downloadUrl,
-            path: r.targetProduct[i].filePath,
-            bundlePath: r.targetProduct[i].bundlePath
-          })
-        }
-      }
-    }
-  });
-
-  ['article', 'image', 'video', 'audio'].forEach(function(type){
-    (pkg[type] || []).forEach(function(r){
-      if(r.encoding){
-        for(var i=0; i < r.encoding.length; i++){
-          if(r.encoding[i].contentUrl){
-            toCache.push({
-              name: r.name,
-              type: type,
-              url: r.encoding[i].contentUrl,
-              path: r.encoding[i].contentPath
-            });
-          }
-        }
-      }
-    });
-  });
-
-  async.each(toCache, function(r, cb){
-    cb = once(cb);
-
-    var dirname;
-    if(r.bundlePath){
-      dirname  = r.bundlePath;
-    } else {
-      dirname  = (r.path) ? path.dirname(r.path) : 'ld_resources';
+  this.cdoc(doc, function(err, cdoc){
+    try {
+      this.packager.validate(cdoc, this.url('context.jsonld'));
+    } catch (e) {
+      return callback(e);
     }
 
-    mkdirp(path.resolve(root, dirname), function(err) {
-
-      if(err) return cb(err);
-
-      var iri = _expandIri(context['@context']['@base'], r.url);
-
-      this.logHttp('GET', iri );
-      var req = request(this.rOpts(iri));
-      req.on('error', cb);
-      req.on('response', function(resp){
-        this.logHttp(resp.statusCode, iri);
-
-        if(resp.statusCode >= 400){
-          resp.pipe(concat(function(body){
-            var err = new Error(body.toString());
-            err.code = resp.statusCode;
-            cb(err);
-          }));
-        } else {
-
-          if(r.bundlePath){
-
-            resp
-              .pipe(zlib.createGunzip())
-              .pipe(new tar.Extract({
-                path: path.resolve(root, r.bundlePath),
-                strip: 1
-              }))
-              .on('error', cb)
-              .on('end', function(){
-                this.emit('log', 'ldpm'.grey + ' mounted'.green + ' ' + r.name + ' at ' +  r.bundlePath);
-                cb(null);
-              }.bind(this));
-
-          } else {
-
-            var filename = (r.path) ? path.basename(r.path) : r.name + '.' + (mime.extension(resp.headers['content-type']) || r.type );
-
-            resp
-              .pipe(fs.createWriteStream(path.resolve(root, dirname, filename)))
-              .on('finish', function(){
-                this.emit('log', 'ldpm'.grey + ' save'.green + ' ' + r.name + ' at ' +  path.relative(root, path.resolve(root, dirname, filename)));
-
-                cb(null);
-              }.bind(this));
-
-          }
-
-        }
-      }.bind(this));
-
-    }.bind(this));
-
-  }.bind(this), function(err){
-    callback(err, pkg, context, root);
-  });
-
-};
-
-
-Ldpm.prototype.adduser = function(callback){
-
-  //chech that we need to add an user
-  request.get(this.rOptsAuth(this.url('/auth')), function(err, resAuth, body){
-    if(err) return callback(err, resAuth && resAuth.headers);
-
-    if(resAuth.statusCode === 200){
-      return callback(null, JSON.parse(body));
-    }
-
-    //auth failed: invalid name or password or user does not exists we try to create it
-
-    var rurl = this.url('/adduser/' + this.rc.name);
-    this.logHttp('PUT', rurl);
-
-    var data = {
-      name: this.rc.name,
-      email: this.rc.email
-    };
-
-    if(this.rc.sha){
-      var salt = crypto.randomBytes(30).toString('hex');
-      data.salt = salt;
-      data.password_sha = crypto.createHash("sha1").update(this.rc.password + salt).digest("hex");
-    } else {
-      data.password = this.rc.password;
-    }
-
-    request.put(this.rOptsAuth(rurl, {json: data}), function(err, res, body){
-
-      if(err) return callback(err);
-
-      this.logHttp(res.statusCode, rurl);
-      if(res.statusCode < 400){
-        callback(null, body);
-      } else if(res.statusCode === 409){
-        if(resAuth.statusCode === 401){
-          err = new Error('invalid password for user: ' + this.rc.name);
-          err.code = resAuth.statusCode;
-        } else {
-          err = new Error('username ' + this.rc.name + ' already exists');
-          err.code = res.statusCode;
-        }
-        callback(err, res.headers);
+    //get a list of nodes to process (computes checksums, sizes... and upload to s3)
+    async.each(this._mnodes(cdoc), function(mnode, cb){
+      if (mnode.node.filePath || (mnode.node.hasPart && mnode.node.hasPart.some(function(x){return x.filePath;}))) {
+        this._archiveFile(mnode, cb);
+      } else if (mnode.node.contentUrl || mnode.node.downloadUrl) {
+        this._archiveUrl(mnode, cb);
       } else {
-        err = new Error(JSON.stringify(body));
-        err.code = res.statusCode;
-        callback(err, res.headers);
+        cb(null);
       }
+    }.bind(this), function(err){
 
+      if (err) return callback(err);
+      //publish cdoc on the registry (now that mnode has been updated/mutated)
+      var rurl = this.url(cdoc['@id']);
+      this.log('PUT', rurl);
+      request.put({url:rurl, json: cdoc, auth: this._auth()}, function(err, resp, body){
+        if (err) return callback(err);
+        this.log(resp.statusCode, rurl);
+
+        if (resp.statusCode === 409) {
+          callback(this._error((cdoc['@id'] + (('version' in cdoc) ? ('@' + cdoc.version) : '') + ' has already been published'), resp.statusCode));
+        } else if (resp.statusCode >= 400) {
+          callback(this._error(body), resp.statusCode);
+        } else {
+          callback(null, body, resp.statusCode);
+        }
+
+      }.bind(this));
     }.bind(this));
 
-
   }.bind(this));
-
 
 };
 
 
-/**
- * from paths expressed as globs (*.csv, ...) to resources
- * opts: { fFilter: function(){}, codeBundles: [], root }
- */
-Ldpm.prototype.paths2resources = function(globs, opts, callback){
+Ldpm.prototype._mnodes = function(cdoc){
+  var mnodes = [];
+  var mprops = ['filePath', 'contentUrl', 'downloadUrl'];
 
-  if(arguments.length === 2){
-    callback = opts;
-    opts = {};
+  var packager = this.packager;
+
+  function _isMnode(node, prop){
+    if (_.intersection(Object.keys(node), mprops).length) {
+      return true;
+    }
+
+    if (prop === 'encoding' && node.hasPart) {
+      var parts = Array.isArray(node.hasPart)? node.hasPart : [node.hasPart];
+      for (var i=0; i<parts.length; i++) {
+        var part = parts[i];
+        if (part.filePath) {
+          return true;
+        }
+      }
+    }
+
+    return false;
+  };
+
+  if (_isMnode(cdoc)) { mnodes.push({node: cdoc, type: packager.getType(cdoc)}); }
+  (function _forEachNode(cdoc){
+    for (var prop in cdoc) {
+      if (prop === '@context' || !cdoc.hasOwnProperty(prop)) continue;
+
+      if (Array.isArray(cdoc[prop])) {
+        for (var i=0; i<cdoc[prop].length; i++) {
+          if (typeof cdoc[prop][i] === 'object') {
+            if (_isMnode(cdoc[prop][i], prop)) {
+              mnodes.push({node: cdoc[prop][i], type: packager.getType(cdoc[prop][i], packager.getRanges(prop))});
+            } else {
+              _forEachNode(cdoc[prop][i]);
+            }
+          }
+        }
+      } else if (typeof cdoc[prop] === 'object') {
+        if (_isMnode(cdoc[prop], prop)) {
+          mnodes.push({node: cdoc[prop], type: packager.getType(cdoc[prop], packager.getRanges(prop))});
+        } else {
+          _forEachNode(cdoc[prop]);
+        }
+      }
+    }
+  })(cdoc);
+
+  return mnodes;
+};
+
+
+Ldpm.prototype._archiveFile = function(mnode, callback){
+  var root = this.root;
+
+  var isSoftwareApplication = this.packager.isClassOrSubClassOf(mnode.type, 'SoftwareApplication');
+  var isMediaObject = this.packager.isClassOrSubClassOf(mnode.type, 'MediaObject');
+
+  var psize, pformat;
+  if (isSoftwareApplication) {
+    psize = 'fileSize';
+    pformat = 'fileFormat';
+  } else if (isMediaObject) {
+    psize = 'contentSize';
+    pformat = 'encodingFormat';
   }
 
-  var root = opts.root || this.root;
+  var packager = this.packager;
 
-  callback = once(callback);
-
-  //supposes that codeBundles are relative path to sourceCode project directories
-  var absCodeBundles = (opts.codeBundles || []).map(function(x){return path.resolve(root, x);});
-
-  async.map(globs, function(pattern, cb){
-    glob(path.resolve(root, pattern), {matchBase: true}, cb);
-  }.bind(this), function(err, paths){
-    if(err) return cb(err);
-
-    //filter (TODO find more elegant way (node_modules|.git) does not seem to work...)
-    paths = _.uniq(_.flatten(paths))
-      .filter(minimatch.filter('!**/.git/**/*', {matchBase: true}))
-      .filter(minimatch.filter('!**/node_modules/**/*', {matchBase: true}))
-      .filter(minimatch.filter('!**/ld_packages/**/*', {matchBase: true}))
-      .filter(minimatch.filter('!**/package.jsonld', {matchBase: true}))
-      .filter(minimatch.filter('!**/README.md', {matchBase: true}));
-
-    absCodeBundles.forEach(function(x){
-      paths = paths.filter(minimatch.filter('!' + path.join(x, '**/*'), {matchBase: true}));
-    });
-
-    paths = paths.filter(function(p){return p.indexOf('.') !== -1;}); //filter out directories, LICENSE...
-
-    var fpaths = (opts.fFilter) ? paths.filter(opts.fFilter) : paths;
-
-    async.map(fpaths, function(p, cb){
-      var ext = path.extname(p)
-        , mypath = path.relative(root, p)
-        , myformat = mime.lookup(ext)
-        , myname = path.basename(p, ext).replace(/ /g, '-');
-
-      if(['.csv', '.tsv', '.xls', '.xlsx', '.ods', '.json', '.jsonld', '.ldjson', '.txt', '.xml', '.ttl', '.rtf'].indexOf(ext.toLowerCase()) !== -1){
-
-        var dataset = {
-          name: myname,
-          distribution: [{
-            contentPath: mypath,
-            encodingFormat: myformat
-          }]
-        };
-
-        if(dataset.distribution[0].contentPath.indexOf('..') !== -1){ //check that all path are within root
-          return cb(new Error('only dataset files within ' + root + ' can be added (' + dataset.distribution[0].contentPath +')'));
-        }
-
-        //about
-        if(['.tsv', '.csv', '.ldjson', '.xls', '.xlsx' ].indexOf(ext.toLowerCase()) !== -1){
-          fs.stat(p, function(err, stats){
-            previewTabularData(fs.createReadStream(p), {'content-type': myformat, 'content-length': stats.size}, {nSample:100}, function(err, preview, about){
-              if(err) return cb(null, {type: 'dataset', value: dataset});
-
-              dataset.about = about;
-              cb(null, {type: 'dataset', value: dataset});
-            });
-          });
-        } else {
-          cb(null, {type: 'dataset', value: dataset});
-        }
-
-      } else if (['.png', '.jpg', '.jpeg', '.gif', '.tif', '.tiff', '.eps', '.ppt', '.pptx'].indexOf(ext.toLowerCase()) !== -1){
-
-        var image = {
-          name: myname,
-          encoding: [{
-            contentPath: mypath,
-            encodingFormat: myformat
-          }]
-        };
-
-        if(image.encoding[0].contentPath.indexOf('..') !== -1){
-          return cb(new Error('only image files within ' + root + ' can be added (' + image.encoding[0].contentPath +')'));
-        }
-
-        cb(null, {type: 'image', value: image});
-
-      } else if (['.pdf', '.odt', '.doc', '.docx', '.html', '.nxml'].indexOf(ext.toLowerCase()) !== -1){
-
-        var article = {
-          name: myname,
-          encoding: [{
-            contentPath: mypath,
-            encodingFormat: myformat
-          }]
-        };
-
-        if(article.encoding[0].contentPath.indexOf('..') !== -1){
-          return cb(new Error('only article files within ' + root + ' can be added (' + article.encoding[0].contentPath +')'));
-        }
-
-        cb(null, {type: 'article', value: article});
-
-      } else if (['.r', '.py', '.m','.pl'].indexOf(ext.toLowerCase()) !== -1) { //standalone executable scripts and that only (all the rest should be code bundle)
-
-        var lang = {
-          '.r': 'r',
-          '.m': 'matlab',
-          '.py': 'python',
-          '.pl': 'perl'
-        }[ext.toLowerCase()];
-
-        var sourceCode = {
-          name: myname,
-          programmingLanguage: { name: lang },
-          targetProduct: [{
-            filePath: mypath,
-            fileFormat: 'text/plain'
-          }]
-        };
-
-        if(sourceCode.targetProduct[0].filePath.indexOf('..') !== -1){
-          return cb(new Error('only standalone scripts within ' + root + ' can be added (' + sourceCode.targetProduct[0].filePath +')'));
-        }
-
-        cb(null, {type: 'sourceCode', value: sourceCode});
-
-      } else if (['.wav', '.mp3', '.aif', '.aiff', '.aifc', '.m4a', '.wma', '.aac'].indexOf(ext.toLowerCase()) !== -1) {
-
-        var audio = {
-          name: myname,
-          encoding: [{
-            contentPath: mypath,
-            encodingFormat: myformat
-          }]
-        };
-
-        if(audio.endoding[0].contentPath.indexOf('..') !== -1){
-          return cb(new Error('only audio files within ' + root + ' can be added (' + audio.encoding[0].contentPath +')'));
-        }
-
-        cb(null, {type: 'audio', value: audio});
-
-      } else if (['.avi', '.mpeg', '.mov','.wmv', '.mpg', '.mp4'].indexOf(ext.toLowerCase()) !== -1) { //TODO mp4 as audio or video??
-
-        var video = {
-          name: myname,
-          encoding: [{
-            contentPath: mypath,
-            encodingFormat: myformat
-          }]
-        };
-
-        if(video.encoding[0].contentPath.indexOf('..') !== -1){
-          return cb(new Error('only video files within ' + root + ' can be added (' + video.encoding[0].contentPath +')'));
-        }
-
-        cb(null, {type: 'video', value: video});
-
-      } else {
-        cb(new Error('non suported file type: ' + path.relative(root, p) + " If it is part of a code project, use --codebundle and the directory to be bundled"));
-      }
-
-    }.bind(this), function(err, typedResources){
-
-      if(err) return callback(err);
-
-      //for resource with same name merge different encodings      
-      var byName = {
-        dataset: {},
-        sourceCode: {},
-        image: {},
-        article: {},
-        audio: {},
-        video: {}
-      };
-
-      var typeMap = { 'image': 'encoding', 'audio': 'encoding', 'video': 'encoding', 'sourceCode': 'targetProduct', 'dataset': 'distribution', 'article': 'encoding' };
-
-      typedResources.forEach(function(r){
-        if (r.value.name in byName[r.type]){          
-          byName[r.type][r.value.name].push(r.value);
-        } else {
-          byName[r.type][r.value.name] = [r.value];
-        }
+  //check that all the files are here and update dateModified and contentSize
+  function _check(mnode, cb){
+    if (mnode.node.filePath) {
+      fs.stat(path.resolve(root, mnode.node.filePath), function(err, stats){
+        if (err) return cb(err);
+        mnode.node.dateModified = stats.mtime.toISOString();
+        if (psize) { mnode.node[psize] = stats.size; }
+        cb(null);
       });
+    } else if (mnode.node.hasPart) {
+      var hasPart = (Array.isArray(mnode.node.hasPart)) ? mnode.node.hasPart : [mnode.node.hasPart];
+      async.each(hasPart, function(part, cb2){
+        if (part.filePath) {
+          fs.stat(path.resolve(root, part.filePath), function(err, stats){
+            if (err) return cb2(err);
+            part.dateModified = stats.mtime.toISOString();
 
-      var resources = {
-        dataset: [],
-        sourceCode: [],
-        image: [],
-        article: [],
-        audio: [],
-        video: []
-      };
+            var type = packager.getType(part, packager.getRanges('hasPart'));
+            var isSoftwareApplication = packager.isClassOrSubClassOf(type, 'SoftwareApplication');
+            var isMediaObject = packager.isClassOrSubClassOf(type, 'MediaObject');
 
-      for(var rtype in byName){
-        for(var rname in byName[rtype]){
-          var r = {};
-          for(var i=0; i< byName[rtype][rname].length; i++){
-            var rr = byName[rtype][rname][i];
-            Object.keys(rr).forEach(function(k){
-              if(k === typeMap[rtype]){
-                if(r[k]){
-                  r[k].push(rr[k][0]);
-                } else {
-                  r[k] = [rr[k][0]];
-                }
-              }else{
-                r[k] = rr[k];
-              }
-            });
-          }
-          resources[rtype].push(r);
-        }
-      }
-
-      if(!absCodeBundles.length){
-        return callback(null, resources, paths);
-      }
-
-      async.map(absCodeBundles, function(absPath, cb){
-
-        var tempPath = temp.path({prefix:'ldpm-'});
-
-        var ignore = new Ignore({
-          path: absPath,
-          ignoreFiles: ['.gitignore', '.npmignore', '.ldpmignore'].map(function(x){return path.resolve(absPath, x)})
-        });
-        ignore.addIgnoreRules(['.git', '__MACOSX', 'ld_packages', 'node_modules'], 'custom-rules');
-        var ws = ignore.pipe(tar.Pack()).pipe(zlib.createGzip()).pipe(fs.createWriteStream(tempPath));
-        ws.on('error', cb);
-        ws.on('finish', function(){
-          var rb = {
-            name: path.basename(absPath), 
-            targetProduct: [{
-              filePath: tempPath, 
-              bundlePath: path.relative(root, absPath), 
-              fileFormat:'application/x-gzip'
-            }]
-          };
-
-          cb(null, rb);
-        }.bind(this));
-
-      }.bind(this), function(err, codeResources){
-        if(err) return callback(err);
-
-        resources.sourceCode = resources.sourceCode.concat(codeResources);
-        callback(null, resources, paths);
-
-      });
-
-    }.bind(this));
-
-  }.bind(this));
-
-};
-
-
-/**
- * from urls to resources
- */
-Ldpm.prototype.urls2resources = function(urls, callback){
-  urls = _.uniq(urls);
-
-  async.map(urls, function(myurl, cb){
-
-    cb = once(cb);
-
-    var gh = githubUrl(myurl);
-
-    if(gh){ //github URL => code TODO: generalize
-      return cb(null, { value: { name: gh.project, codeRepository: myurl }, type: 'sourceCode' });
-    }
-
-    request.head(myurl, function(err, resp){
-      if(err) return cb(err);
-
-      if(resp.statusCode >= 400){
-        return cb(new Error('could not HEAD ' + myurl + ' code (' + resp.statusCode + ')'));
-      }
-
-      var ctype = resp.headers['content-type'].split(';')[0].trim()
-        , mypath = url.parse(myurl).pathname
-        , myname = path.basename(mypath, path.extname(mypath)).replace(/ /g, '-');
-
-      if ( [ 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'text/csv', 'text/tab-separated-values', 'application/json', 'application/ld+json', 'application/x-ldjson', 'text/plain' ].indexOf(ctype) !== -1 ) {
-
-        var dataset = {
-          value: {
-            name: myname,
-            distribution: [{
-              encodingFormat: resp.headers['content-type'],
-              contentUrl: myurl
-            }]
-          },
-          type: 'dataset'
-        };
-
-        if('content-encoding' in resp.headers){
-          dataset.value.distribution[0].encoding = { encodingFormat: resp.headers['content-encoding']};
-          if('content-length' in resp.headers){
-            dataset.value.distribution[0].encoding.contentSize = parseInt(resp.headers['content-length'], 10);
-          }
-        } else if('content-length' in resp.headers){
-          dataset.value.distribution[0].contentSize = parseInt(resp.headers['content-length'], 10);
-        }
-
-        //auto generate about template
-        if([ 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'text/csv', 'text/tab-separated-values', 'application/x-ldjson' ].indexOf(ctype) !== -1){
-          var r = request(myurl);
-          r.on('error', cb);
-          r.on('response', function(respData){
-            if(respData.statusCode >= 400){
-              return cb(new Error('could not GET ' + myurl + ' code (' + respData.statusCode + ')'));
+            if (isSoftwareApplication) {
+              part.fileSize = stats.size;
+            } else if (isMediaObject) {
+              part.contentSize = stats.size;
             }
 
-            previewTabularData(respData, respData.headers, {nSample:100}, function(err, preview, about){
-              if(err) return cb(null, dataset);
-
-              dataset.value.about = about;
-              cb(null, dataset);
-            });
-
+            cb2(null);
           });
-
         } else {
-
-          cb(null, dataset);
-
+          cb2(null);
         }
-
-      } else if ([ 'image/png', 'image/jpeg', 'image/tiff', 'image/gif', 'image/svg+xml', 'application/postscript', 'application/vnd.ms-powerpoint' ].indexOf(ctype) !== -1) {
-
-        var image = {
-          value: {
-            name: myname,
-            encoding: [{
-              encodingFormat: resp.headers['content-type'],
-              contentUrl: myurl
-            }]
-          },
-          type: 'image'
-        };
-
-        if('content-encoding' in resp.headers){
-          image.value.encoding[0].encoding = { encodingFormat: resp.headers['content-encoding']};
-          if('content-length' in resp.headers){
-            image.value.encoding[0].encoding.contentSize = parseInt(resp.headers['content-length'], 10);
-          }
-        } else if('content-length' in resp.headers){
-          image.value.encoding[0].contentSize = parseInt(resp.headers['content-length'], 10);
-        }
-
-        cb(null, image);
-
-      } else if ([ 'audio/basic', 'audio/L24', 'audio/mp4', 'audio/mpeg', 'audio/ogg', 'audio/opus', 'audio/orbis', 'audio/vorbis', 'audio/vnd.rn-realaudio', 'audio/vnd.wave', 'audio/webl' ].indexOf(ctype) !== -1) {
-
-        var audio = {
-          value: {
-            name: myname,
-            encoding: [{
-              encodingFormat: resp.headers['content-type'],
-              contentUrl: myurl
-            }]
-          },
-          type: 'audio'
-        };
-
-        if('content-encoding' in resp.headers){
-          audio.value.encoding[0].encoding = { encodingFormat: resp.headers['content-encoding']};
-          if('content-length' in resp.headers){
-            audio.value.encoding[0].encoding.contentSize = parseInt(resp.headers['content-length'], 10);
-          }
-        } else if('content-length' in resp.headers){
-          audio.value.encoding[0].contentSize = parseInt(resp.headers['content-length'], 10);
-        }
-
-        cb(null, audio);
-
-      } else if ([ 'video/avi', 'video/mpeg', 'video/mp4', 'video/ogg', 'video/quicktime', 'video/webm', 'video/x-matroska', 'video/x-ms-wmv', 'audio/x-flv' ].indexOf(ctype) !== -1) {
-
-        var video = {
-          value: {
-            name: myname,
-            encoding: [{
-              encodingFormat: resp.headers['content-type'],
-              contentUrl: myurl
-            }]
-          },
-          type: 'video'
-        };
-
-        if('content-encoding' in resp.headers){
-          video.value.encoding[0].encoding = { encodingFormat: resp.headers['content-encoding']};
-          if('content-length' in resp.headers){
-            video.value.encoding[0].encoding.contentSize = parseInt(resp.headers['content-length'],10);
-          }
-        } else if('content-length' in resp.headers){
-          video.value.encoding[0].contentSize = parseInt(resp.headers['content-length'],10);
-        }
-
-        cb(null, video);
-
-      } else if ([ 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.oasis.opendocument.text' ].indexOf(ctype) !== -1) {
-
-        var article = {
-          value: {
-            name: myname,
-            encoding: [{
-              encodingFormat: resp.headers['content-type'],
-              contentUrl: myurl
-            }]
-          },
-          type: 'article'
-        };
-
-        if('content-encoding' in resp.headers){
-          article.value.encoding[0].encoding = { encodingFormat: resp.headers['content-encoding']};
-          if('content-length' in resp.headers){
-            article.value.encoding[0].encoding.contentSize = parseInt(resp.headers['content-length'], 10);
-          }
-        } else if('content-length' in resp.headers){
-          article.value.encoding[0].contentSize = parseInt(resp.headers['content-length'], 10);
-        }
-
-        cb(null, article);
-
-      } else {
-
-        cb(new Error('unsuported MIME type (' + resp.headers['content-type'] + '). It might be that the host is not setting MIME type properly'));
-
-      }
-
-    }); //end request.head
-
-  }, function (err, typedResources){
-    if(err) return callback(err);
-
-    var resources = {
-      dataset: [],
-      sourceCode: [],
-      article: [],
-      image: [],
-      audio: [],
-      video: []
-    };
-
-    for(var i=0; i<typedResources.length; i++){
-      var r = typedResources[i];
-      resources[r.type].push(r.value);
-    }
-
-    callback(null, resources);
-
-  });
-
-};
-
-
-
-/**
- * add resources by taking care of removing previous
- * resources with conflicting names
- * !! resources is {dataset: [], sourceCode: [], image: [], article: [], audio: [], video: []}
- */
-Ldpm.prototype.addResources = function(pkg, resources){
-
-  for (var type in resources){
-    if(resources[type].length){
-      var names = resources[type].map(function(r) {return r.name;});
-      pkg[type] = (pkg[type] || [])
-        .filter(function(r){ return names.indexOf(r.name) === -1; })
-        .concat(resources[type]);
-    }
-  }
-
-  return pkg;
-};
-
-
-function _expandIri(base, iri){
-  if(!isUrl(iri)){
-    return url.resolve(base, iri);
-  }
-  return iri;
-};
-
-function _createDir(dirPath, opts, callback){
-
-  fs.exists(dirPath, function(exists){
-    if(exists){
-      if(opts.force) {
-        rimraf(dirPath, function(err){
-          if(err) return callback(err);
-          mkdirp(dirPath, callback);
-        });
-      } else {
-        callback(new Error(dirPath + ' already exists, run with --force to overwrite'));
-      }
+      }, cb);
     } else {
-      mkdirp(dirPath, callback);
+      cb(null);
     }
-  });
+  };
 
+  _check(mnode, function(err){
+    if (err) return this._checkMnodeUrl(mnode, callback);
+
+    var mstream = this._mstream(mnode);
+    this.checksum(mstream, function(err, checksum, size, sha1Hex, md5Base64){
+      if (err) return callback(err);
+
+      var contentType = mnode.node.encodingFormat || mnode.node.fileFormat;
+      if (!contentType) {
+        if ( mstream.isTarGz || (/\.tar\.gz$/.test(mnode.node.filePath)) ) {
+          contentType = 'application/x-gtar';
+        } else {
+          contentType = mime.lookup(mnode.node.filePath || '');
+        }
+
+        if (pformat) {
+          mnode.node[pformat] = contentType;
+        }
+      }
+
+      if (isMediaObject && mstream.isContentEncodingGzip) {
+        mnode.node.encoding = mnode.encoding || {};
+        mnode.node.encoding.contentSize = size;
+        mnode.node.encoding.hasChecksum = checksum;
+        mnode.node.encoding.encodingFormat = 'gzip';
+      } else {
+        if (mstream.isTarGz && psize) {
+          mnode.node[psize] = size;
+        }
+        mnode.node.hasChecksum = checksum;
+      }
+
+      var headers = {
+        'Content-Length': size,
+        'Content-Type': contentType,
+        'Content-MD5': md5Base64
+      };
+      if (mstream.isContentEncodingGzip) {
+        headers['Content-Encoding'] =  'gzip';
+      }
+
+      //PUT resource on S3 via SA registry (the registry will check if it exists already)
+      var rurl = this.url('r/' + sha1Hex);
+      this.log('PUT', rurl);
+      var r = request.put({url: rurl, headers: headers, json:true, auth: this._auth()}, function(err, resp, body){
+        if (err) return callback(err);
+        this.log(resp.statusCode, rurl);
+        if (resp.statusCode >= 400) {
+          return callback(this._error(body, resp.statusCode));
+        }
+
+        //TODO if not isSoftwareApplication and not isMediaObject what to do??? right now we use contentUrl but meh.
+        mnode.node[(isSoftwareApplication)? 'downloadUrl' : 'contentUrl'] = 'r/' + sha1Hex;
+        if (isMediaObject) {
+          mnode.node.uploadDate = (new Date()).toISOString();
+        }
+
+        callback(null);
+      }.bind(this));
+      var x = this._mstream(mnode);
+      x.pipe(r);
+
+    }.bind(this));
+  }.bind(this));
+
+};
+
+
+Ldpm.prototype._checkMnodeUrl = function(mnode, callback) {
+  var murl = mnode.node.contentUrl || mnode.node.downloadUrl;
+  if (!murl) {
+    return callback(new Error('could not find the resource to publish (no file and no valid URL)'));
+  }
+
+  murl = this.url(murl);
+  this.log('HEAD', murl);
+  //see https://developer.github.com/v3/#user-agent-required
+  request.head({url:murl, followAllRedirects:true, headers: {'User-Agent': 'ldpm'}}, function(err, resp){
+    if (err) return callback(err);
+    this.log(resp.statusCode, murl);
+    if (resp.statusCode >= 400) {
+      return callback(this._error('could not HEAD ' + murl), resp.statusCode);
+    }
+
+    callback(null);
+  }.bind(this));
+};
+
+
+Ldpm.prototype._mstream = function(mnode){
+
+  var mymime = mnode.node.encodingFormat || mnode.node.fileFormat;
+  if (mnode.node.filePath) {
+    if (/\.tar\.gz$/.test(mnode.node.filePath)) {
+      mymime = 'application/x-gtar';
+    } else {
+      mymime = mime.lookup(mnode.node.filePath);
+    }
+  } else { //no filePath => hasPart => tar.gz
+    mymime = 'application/x-gtar';
+  }
+
+  var isDirectory = !! (!mnode.node.filePath);
+  var isContentEncodingGzip = !! (mymime.split(';')[0].trim().split('/')[0] === 'text');
+
+  var mstream;
+
+  if (isDirectory) {
+    mstream = zlib.createGzip();
+
+    var pack = tar.pack();
+
+    var parts = Array.isArray(mnode.node.hasPart)? mnode.node.hasPart : [mnode.node.hasPart];
+    var absPaths = parts
+      .filter(function(x){ return x.filePath; })
+      .map(function(x){ return path.resolve(this.root, x.filePath); }, this);
+
+    async.eachSeries(absPaths, function(absPath, cb){
+      fs.stat(absPath, function(err, stats){
+        if(err) return cb(err);
+        var s = pack.entry({
+          name: path.relative(this.root, absPath),
+          size:stats.size,
+          mtime: stats.mtime }, cb);
+        fs.createReadStream(absPath).pipe(s);
+      }.bind(this));
+    }.bind(this), function(err){
+      if (err) {
+        process.nextTick(function(){ pack.emit('error', err); });
+      } else {
+        pack.finalize();
+        pack.pipe(mstream);
+      }
+    });
+
+  } else {
+
+    mstream = fs.createReadStream(path.resolve(this.root, mnode.node.filePath));
+    if (isContentEncodingGzip) {
+      mstream = mstream.pipe(zlib.createGzip());
+    }
+
+  }
+
+  mstream.isTarGz = isDirectory;
+  mstream.isContentEncodingGzip = isContentEncodingGzip;
+
+  return mstream;
+};
+
+
+Ldpm.prototype.checksum = function(s, callback){
+  callback = once(callback);
+
+  var sha1 = crypto.createHash('sha1');
+  var md5 = crypto.createHash('md5');
+  var size = 0;
+  s.on('data', function(d) {
+    size += d.length;
+    sha1.update(d);
+    md5.update(d);
+  });
+  s.on('error', callback);
+  s.on('end', function() {
+    digestSha1 = sha1.digest('base64');
+    digestMd5 = md5.digest('base64');
+
+    var checksum = [
+      { '@type': 'Checksum', checksumAlgorithm: 'SHA-1', checksumValue: digestSha1 },
+      { '@type': 'Checksum', checksumAlgorithm: 'MD5', checksumValue: digestMd5 }
+    ];
+
+    return callback(null, checksum, size, (new Buffer(digestSha1, 'base64')).toString('hex'), digestMd5);
+  });
+};
+
+
+//TODO: implement
+Ldpm.prototype._archiveUrl = function(mnode, callback){
+  callback(null);
 };

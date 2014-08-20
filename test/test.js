@@ -132,7 +132,6 @@ describe('ldpm', function(){
 
   describe('publish', function(){
     var ldpm;
-
     before(function(done){
       ldpm = new Ldpm(conf, path.join(root, 'fixtures', 'cw-test'));
       ldpm.addUser(done);
@@ -154,25 +153,77 @@ describe('ldpm', function(){
     });
 
     it('should publish a document', function(done){
-      var doc = {
-        '@context': 'https://registry.standardanalytics.io/context.jsonld',
-        '@id': 'cw-test',
-        name:'jee',
-        encoding: {filePath: 'scripts/test.r'}
-      }
       ldpm.publish(function(err, body, statusCode){
-        console.log(err, err && err.stack, body, statusCode);
+        assert.equal(statusCode, 201);
         done();
       });
     });
 
     after(function(done){
-      var auth = {user: conf.name, pass: conf.password};
-      request.del({url: rurl('cw-test'), auth:auth}, function(err, resp, body){
-        request.del({ url: rurl('rmuser/' + conf.name), auth: auth }, done);
+      ldpm.unpublish('cw-test', function(){
+        request.del({ url: rurl('rmuser/' + conf.name), auth: {user: conf.name, pass: conf.password} }, done);
       });
     });
 
   });
+
+  describe('cat', function(){
+    var ldpm;
+    before(function(done){
+      var doc = {
+        '@context': 'https://registry.standardanalytics.io/context.jsonld',
+        '@id': 'cat-test',
+        name:'cat'
+      };
+
+      ldpm = new Ldpm(conf);
+      ldpm.addUser(function(){
+        ldpm.publish(doc, done);
+      });
+    });
+
+    it('should cat a document as compacted JSON-LD', function(done){
+      ldpm.cat('cat-test', function(err, doc){
+        assert.deepEqual(doc, { '@context': 'http://localhost:3000/context.jsonld', '@id': 'sa:cat-test', name: 'cat' });
+        done();
+      });
+    });
+
+    it('should cat a document as flattened JSON-LD', function(done){
+      ldpm.cat('cat-test', {profile:'flattened'}, function(err, doc){
+        assert.deepEqual(doc, { '@context': 'http://localhost:3000/context.jsonld', '@graph': [ { '@id': 'sa:cat-test', name: 'cat' } ] });
+        done();
+      });
+    });
+
+    it('should cat a document as expanded JSON-LD', function(done){
+      ldpm.cat('cat-test', {profile:'expanded'}, function(err, doc){
+        assert.deepEqual(doc, [ { '@id': 'https://registry.standardanalytics.io/cat-test', 'http://schema.org/name': [ { '@value': 'cat' } ] } ]);
+        done();
+      });
+    });
+
+    it('should cat a document as normalized JSON-LD', function(done){
+      ldpm.cat('cat-test', {normalize: true}, function(err, doc){
+        assert.equal(doc, '<https://registry.standardanalytics.io/cat-test> <http://schema.org/name> "cat" .\n');
+        done();
+      });
+    });
+
+    it('should error if we cat unexisting pkg', function(done){
+      ldpm.cat('reqxddwdwdw', function(err, doc){
+        assert.equal(err.code, 404);
+        done();
+      });
+    });
+
+    after(function(done){
+      ldpm.unpublish('cat-test', function(){
+        request.del({ url: rurl('rmuser/' + conf.name), auth: {user: conf.name, pass: conf.password} }, done);
+      });
+    });
+
+  });
+
 
 });

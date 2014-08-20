@@ -915,8 +915,87 @@ Ldpm.prototype.checksum = function(s, callback){
   });
 };
 
-
-//TODO: implement
+//TODO: implement (or not) ???
 Ldpm.prototype._archiveUrl = function(mnode, callback){
   callback(null);
+};
+
+
+Ldpm.prototype.unpublish = function(docUri, callback){
+
+  var rurl = this.url(docUri);
+  this.log('DELETE', rurl);
+  request.del({url: rurl, auth: this._auth(), json:true}, function(err, resp, body){
+    if(err) return callback(err);
+    this.log(resp.statusCode, rurl);
+    if(resp.statusCode >= 400){
+      return callback(this._error(body, resp.statusCode));
+    }
+    callback(null, body, resp.statusCode);
+  }.bind(this));
+
+};
+
+
+Ldpm.prototype.cat = function(docUri, opts, callback){
+  if(arguments.length === 2){
+    callback = opts;
+    opts = {};
+  }
+
+  opts.profile = opts.profile || 'compacted';
+  if (opts.normalize) {
+    opts.profile = 'compacted';
+  }
+
+  var uri = this.url(docUri);
+  this.log('GET', uri);
+  request.get({url: uri, headers:{'Accept': 'application/ld+json;profile="http://www.w3.org/ns/json-ld#' + opts.profile +'"'}}, function(err, resp, doc){
+    if(err) return callback(err);
+    this.log(resp.statusCode, uri);
+    if(resp.statusCode >= 400){
+      return callback(this._error(doc, resp.statusCode));
+    }
+
+    //check if the server could satisfy the option and if so return
+    if ( ((opts.profile === 'expanded') && Array.isArray(doc)) ||
+         ((opts.profile === 'flattened') && ('@context' in doc) && ('@graph' in doc)) ||
+         ((opts.profile === 'compacted') && ('@context' in doc))
+       ) {
+
+      if (opts.normalize) {
+        jsonld.normalize(doc, {format: 'application/nquads'}, callback);
+      } else {
+        callback(null, doc);
+      }
+      return;
+    }
+
+    //the server could not satisfy the option we suppose we got a JSON doc
+    var ctxUrl;
+    if(resp.headers.link){
+      var links = jsonld.parseLinkHeader(resp.headers.link);
+      if('http://www.w3.org/ns/json-ld#context' in links){
+        ctxUrl = links['http://www.w3.org/ns/json-ld#context'].target;
+      };
+    }
+
+    if (!ctxUrl && !doc['@context']){
+      return callback(new Error('The server could not provide a valid JSON-LD document. See http://www.w3.org/TR/json-ld/'))
+    } else if (ctxUrl && !doc['@context']) {
+      doc['@context'] = ctxUrl;
+    }
+
+    if (opts.normalize) {
+      console.log('a');
+      jsonld.normalize(doc, {format: 'application/nquads'}, callback);
+    } else if (opts.profile === 'flattened') {
+      jsonld.flatten(doc, doc['@context'], callback);
+    } else if (opts.profile === 'expanded') {
+      jsonld.expand(doc, {expandContext: doc['@context']}, callback);
+    } else {
+      jsonld.compact(doc, doc['@context'], callback);
+    }
+
+  }.bind(this));
 };

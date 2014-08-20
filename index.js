@@ -999,3 +999,128 @@ Ldpm.prototype.cat = function(docUri, opts, callback){
 
   }.bind(this));
 };
+
+
+Ldpm.prototype.clone = function(docUri, opts, callback){
+  if(arguments.length === 2){
+    callback = opts;
+    opts = {};
+  }
+
+  this.cat(docUri, opts, function(err, doc){
+    if (err) return callback(err);
+
+    var purl = url.parse(this.url(doc['@id']));
+    var root = path.join(this.root, purl.hostname, purl.pathname);
+
+    console.log(root)
+    _mkdirp(root, opts, function(err){
+      if (err) return callback(err);
+
+      //write all the files to disk (TODO cache URLs ???)
+      var mnodes = this._mnodes(doc).filter(function(mnode){
+        return (
+          (mnode.node.contentUrl || mnode.node.downloadUrl) &&
+          (mnode.node.filePath || (mnode.node.hasPart && mnode.node.hasPart.some(function(x){return x.filePath;})))
+        );
+      });
+
+      async.each(mnodes, function(mnode, cb){
+        this._mdl(mnode, root, opts, cb);
+      }.bind(this), function(err){
+        if (err) return callback(err);
+        fs.writeFile(path.join(root, 'JSONLD'), JSON.stringify(doc, null, 2), callback);
+      }.bind(this));
+
+    }.bind(this));
+  }.bind(this));
+
+};
+
+
+Ldpm.prototype._mdl = function(mnode, root, opts, callback){
+  callback = once(callback);
+  var uri = this.url(mnode.node.contentUrl || mnode.node.downloadUrl);
+  var ropts = {url: uri, json: null, encoding: null};
+  this.log('GET', uri);
+
+  //create all the dirs first (mikeal/request streaming will break if pipe is not on the same tick :(
+  var paths;
+  if (mnode.node.filePath) {
+    paths = [mnode.node.filePath];
+  } else if (mnode.node.hasPart) {
+    var parts = Array.isArray(mnode.node.hasPart)? mnode.node.hasPart : [mnode.node.hasPart];
+    paths = parts.filter(function(x){ return x.filePath; }).map(function(x){ return x.filePath;});
+  }
+
+  async.each(_.uniq(paths.map(function(p){ return path.join(root, path.dirname(p)); })), mkdirp, function(err){
+    if (err) return callback(err);
+
+    var r = request.get(ropts);
+    r.on('error', callback);
+    r.on('response', function(resp){
+      this.log(resp.statusCode, uri);
+
+      var that = this;
+      if(resp.statusCode >= 400){
+        return resp.pipe(concat(function(body){
+          callback(that._error(JSON.parse(body), resp.statusCode));
+        }));
+      }
+
+      if (mnode.node.filePath) {
+
+        var ws = fs.createWriteStream(path.join(root, mnode.node.filePath));
+        ws.on('error', callback)
+        ws.on('finish', callback);
+
+        var encoding = resp.headers['content-encoding']
+        if (encoding == 'gzip') {
+          resp.pipe(zlib.createGunzip()).pipe(ws)
+        } else if (encoding == 'deflate') {
+          resp.pipe(zlib.createInflate()).pipe(ws)
+        } else {
+          resp.pipe(ws)
+        }
+
+      } else {
+
+        var extract = tar.extract();
+        extract.on('entry', function(header, rs, cb) {
+          var ws = rs.pipe(fs.createWriteStream(path.join(root, header.name)));
+          ws.on('finish', cb);
+        });
+        extract.on('error', callback);
+        extract.on('finish', callback);
+        resp.pipe(zlib.createGunzip()).pipe(extract);
+
+      }
+
+    }.bind(this));
+
+  }.bind(this));
+
+};
+
+
+function _mkdirp(dirPath, opts, callback){
+  if(arguments.length === 2){
+    callback = opts;
+    opts = {};
+  }
+
+  fs.exists(dirPath, function(exists){
+    if(exists){
+      if(opts.force) {
+        rimraf(dirPath, function(err){
+          if(err) return callback(err);
+          mkdirp(dirPath, callback);
+        });
+      } else {
+        callback(new Error(dirPath + ' already exists, run with -f, --force to overwrite'));
+      }
+    } else {
+      mkdirp(dirPath, callback);
+    }
+  });
+};

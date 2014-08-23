@@ -10,6 +10,7 @@ var path = require('path')
   , optimist = require('optimist')
   , read = require('read')
   , async = require('async')
+  , clone = require('clone')
   , rimraf = require('rimraf')
   , validateUser = require('npm-user-validate')
   , semver = require('semver')
@@ -17,7 +18,9 @@ var path = require('path')
   , querystring = require('querystring')
   , tree = require('../lib/tree')
   , readdirpSync = require('fs-readdir-recursive')
-  , githubUrl = require('github-url')
+  , Packager = require('package-jsonld')
+  , githubUrlToObject = require('github-url-to-object')
+  , bitbucketUrlToObject = require('bitbucket-url-to-object')
   , os = require('os')
   , colors = require('colors');
 
@@ -25,47 +28,46 @@ var argv = optimist
   .usage(
     [
       'Usage: ldpm <command> [options] where command is:',
-      '  - init [globs] [urls] [-d, --defaults] [-b --codebundle <relative/path/to/sourceCode/directory>] Interactively create a package.jsonld file and add the files listed as globs (*.csv ... and urls) as dataset. Be sure to double quote the glob so that the shell does not expand them',
-      '  - cat       <package name>[@<version>] [-e, --expand]',
-      '  - install   <package name 1>[@<version>] <package name 2>[@<version>] <package url> ... [-t, --top] [-c, --cache] [-r, --require] [-s, --save]',
+      '  - init [resource] [-i, --id <namespace>] [-m, --main <resource>[::<type>]] [-p, --part <resource>[::<type>]]',
+      '  - cat <CURIE> [-e, --expand] [-f, --flatten] [-c, --compact] [-n, --normalize]',
+      '  - clone <CURIE>',
       '  - publish',
-      '  - unpublish <package name>[@<version>]',
+      '  - unpublish <CURIE>',
       '  - adduser',
-      '  - owner <subcommand> where subcommand is:',
-      '    - ls  <package name>',
-      '    - add <user> <package name>',
-      '    - rm  <user> <package name>[@<version>]',
-      '  - search [search terms]',
-      '  - help [command]',
+//      '  - owner <subcommand> where subcommand is:',
+//      '    - ls  <CURIE>',
+//      '    - add <user> <CURIE>',
+//      '    - rm  <user> <CURIE>',
+      '  - help [command] get help on a comand',
     ].join(os.EOL)
   )
-  .alias('f', 'force').describe('f', 'overwrite previous if exists')
-  .alias('d', 'defaults').describe('d', 'bypass the promzard prompt')
-  .alias('t', 'top').describe('t', 'install in the current working directory (and not within ld_packages/)')
+  .boolean(['c','f','e', 'n', 'q', 'v'])
+  .describe('force', 'overwrite previous if exists')
+  .alias('m', 'main').describe('m', 'import the resource as the core of the document')
+  .alias('p', 'part').describe('p', 'import the resource as a part of the document')
+  .alias('i', 'id').describe('i', 'specify a namespace (@id) and bypass the promzard prompt')
+  .alias('c', 'compact').describe('c', 'compact the JSON-LD document')
+  .alias('f', 'flatten').describe('f', 'flatten the JSON-LD document')
   .alias('e', 'expand').describe('e', 'expand the JSON-LD document')
-  .alias('s', 'save').describe('s', 'data packages will appear in your dataDependencies')
-  .alias('c', 'cache').describe('c', 'store the dataset content on the disk (inlined data will stay in the package.jsonld see -r, --require to change this behavior)')
-  .alias('r', 'require').describe('r', 'force the inlined dataset (contentData) to be stored in their own file in ld_resources/')
-  .alias('b', 'codebundle').describe('b', 'treat the listed directory as a code project')
+  .alias('n', 'normalize').describe('n', 'normalize the JSON-LD document')
+  .alias('q', 'quiet').describe('q', 'no verbose')
   .alias('h', 'help').describe('h', 'print usage')
   .alias('v', 'version').describe('v', 'print version number')
-  .alias('p', 'noPubmed').describe('v', 'turn off the call to pubmed database')
   .argv;
 
-if(argv.h){
+if (argv.h) {
   console.log(optimist.help());
   process.exit(0);
 }
 
-if(argv.v){
+if (argv.v) {
   console.log(require('../package.json').version);
   process.exit(0);
 }
 
-//if cloudant: use sha:true
-var ldpm = new Ldpm(process.cwd());
+var ldpm = new Ldpm(null, process.cwd());
 
-if(argv._[0] !== 'cat'){
+if (!argv.q && (argv._[0] !== 'cat')) {
   ldpm.on('log', console.log);
 }
 
@@ -73,130 +75,178 @@ if (argv._[0] === 'init') {
 
   (function(){
 
-    //taken from https://github.com/maxogden/datapackage-json/blob/master/prompt.js
-    var description;
-    try {
-      var src = fs.readFileSync('README.md', 'utf8');
-      description = src.split('\n').filter(function (line) {
-        return /\s+/.test(line) && !line.trim().match(/^#/)
-        ;
-      })[0]
-        .trim()
-        .replace(/^./, function (c) { return c.toLowerCase() })
-        .replace(/\.$/, '')
-      ;
-    } catch (e) { }
+    //validate argv:
+    if (argv.m && ((typeof argv.m === 'boolean') || Array.isArray(argv.m))) {
+      return _fail(new Error('invalid usage: -m, --main must be invoked only one and be followed by a single resource'));
+    }
+    if (argv.p && typeof argv.p === 'boolean') {
+      return _fail(new Error('invalid usage: -p, --part must be followed by a resource'));
+    }
+    if (typeof argv.id === 'boolean') {
+      return _fail(new Error('invalid usage, -i, --id must be followed by a namespace value'));
+    }
 
-    //taken from https://github.com/maxogden/datapackage-json/blob/master/prompt.js
+    //inspired from https://github.com/maxogden/datapackage-json/blob/master/prompt.js
+    var description;
+    var readme = ['README.md', 'README', 'README.markdown'].filter(fs.existsSync)[0];
+    if (readme) {
+      try {
+        var src = fs.readFileSync('README.md', 'utf8');
+        description = src.split('\n').filter(function (line) {
+          return /\s+/.test(line) && !line.trim().match(/^#/);
+        })[0]
+          .trim()
+          .replace(/^./, function (c) { return c.toLowerCase() })
+          .replace(/\.$/, '');
+      } catch (e) { }
+    }
+
+    var codeRepository, isBasedOnUrl;
     try { var gconf = fs.readFileSync('.git/config').toString() }
     catch (e) { gconf = null }
     if (gconf) {
       gconf = gconf.split(/\r?\n/)
       var i = gconf.indexOf('[remote "origin"]')
-      if (i !== -1) {o
-        var codeRepository = gconf[i + 1]
-        if (!codeRepository.match(/^\s*url =/)) codeRepository = gconf[i + 2]
-        if (!codeRepository.match(/^\s*url =/)) codeRepository = null
-        else codeRepository = codeRepository.replace(/^\s*url = /, '')
+      if (i !== -1) {
+        codeRepository = gconf[i + 1]
+        if (!codeRepository.match(/^\s*url =/)) codeRepository = gconf[i + 2];
+        if (!codeRepository.match(/^\s*url =/)) codeRepository = null;
+        else codeRepository = codeRepository.replace(/^\s*url = /, '');
       }
-      if (codeRepository && codeRepository.match(/^git@github.com:/))
-        codeRepository = codeRepository.replace(/^git@github.com:/, 'git://github.com/')
+    }
+    codeRepository = githubUrlToObject(codeRepository) || bitbucketUrlToObject(codeRepository);
+    if (codeRepository) {
+      isBasedOnUrl = codeRepository.https_url;
     }
 
-    var prompt
-    if(argv.defaults){
+    var prompt;
+    var defaults = {
+      license: 'http://creativecommons.org/publicdomain/zero/1.0/',
+      version: '0.0.0',
+      namespace: path.basename(ldpm.root),
+      description: description,
+      isBasedOnUrl: isBasedOnUrl
+    };
+    if(argv.id){
+      defaults.namespace = argv.id;
       prompt = [
         function(cb){
-          var defaults = {
-            license: 'CC0-1.0',
-            authorName: ldpm.rc.name,
-            authorEmail: ldpm.rc.email,
-            description: description,
-            codeRepository: codeRepository
-          };
           cb(null, defaults);
         }
       ];
     } else {
       prompt = {
-        name: function(cb){
-          read({prompt: 'linked data package name: '}, function(err, prompted, _){cb(err, prompted);});
+        namespace: function(cb){
+          read({prompt: 'namespace (document unique identifier): ', default: defaults.namespace}, function(err, prompted, _){cb(err, prompted);});
         },
         version: function(cb){
-          read({prompt: 'linked data package version: ', default: '0.0.0'}, function(err, prompted, _){cb(err, prompted);});
-        },
-        authorName: function(cb){
-          read({ prompt: 'your name: ', default: ldpm.rc.name }, function(err, prompted, _){cb(err, prompted);});
-        },
-        authorEmail: function(cb){
-          read({ prompt: 'your email: ', default: ldpm.rc.email }, function(err, prompted, _){cb(err, prompted);});
+          read({prompt: 'version: ', default: defaults.version}, function(err, prompted, _){cb(err, prompted);});
         },
         keywords: function(cb){
           read({prompt: 'keywords: '}, function(err, prompted, _){cb(err, prompted.split(/[\s,]+/));});
         },
         description: function(cb){
-          read({ prompt: 'package description: ', default: description }, function(err, prompted, _){cb(err, prompted);});
+          read({ prompt: 'description: ', default: defaults.description }, function(err, prompted, _){cb(err, prompted);});
         },
-        codeRepository: function(cb){
-          read({ prompt: 'code repository URL: ', default: codeRepository }, function(err, prompted, _){cb(err, prompted);});
+        isBasedOnUrl: function(cb){
+          read({ prompt: 'URL of a resource that was used in the creation of this resource: ', default: defaults.isBasedOnUrl }, function(err, prompted, _){cb(err, prompted);});
         },
         license: function(cb){
-          read({ prompt: 'license: ', default: 'CC0-1.0' }, function(err, prompted, _){cb(err, prompted);});
+          read({ prompt: 'license: ', default: 'http://creativecommons.org/publicdomain/zero/1.0/' }, function(err, prompted, _){cb(err, prompted);});
         }
       };
     }
 
     async.series(prompt, function (err, prompted){
-      if(err) _fail(err);
-      prompted = Array.isArray(prompted) ? prompted[0]: prompted;
+      if (err) _fail(err);
+      prompted = Array.isArray(prompted) ? prompted[0] : prompted;
 
-      var pkg = {};
-      [ 'name', 'version', 'description' ].forEach(function(key){
-        if(prompted[key]){
-          pkg[key] = prompted[key];
+      function _untype(x) {
+        var splt = x.split('::');
+        var obj = {id: splt[0]};
+        if (splt[1]) {
+          obj.type = splt[1];
         }
-      });
-
-      if(prompted.license){
-        pkg.license = { name: prompted.license };
+        return obj;
       }
 
-      if(prompted.keywords && (prompted.keywords.filter(function(x){return x;})).length){
-        pkg.keywords = prompted.keywords;
-      }
+      var main = argv.m && _untype(argv.m) || [];
+      var parts = (argv.p || []);
+      parts = (Array.isArray(parts) ? parts : [parts]).map(_untype);
+      parts = parts.concat(argv._.slice(1).map(_untype));
 
-      if(prompted.authorName || prompted.authorEmail){
-        pkg.author = {};
-        if (prompted.authorName) pkg.author.name = prompted.authorName;
-        if (prompted.authorEmail) pkg.author.email = prompted.authorEmail;
-      }
+      var opts = {namespace: prompted.namespace};
 
-      if(prompted.codeRepository){
-        pkg.codeRepository = prompted.codeRepository;
-      }
+      ldpm.wrap(main, opts, function(err, rmain, reservedIds){
+        if (err) _fail(err);
+        opts.reservedIds = reservedIds;
+        ldpm.wrap(parts, opts, function(err, rparts, reservedIds){
+          if (err) _fail(err);
 
-      var inputs = argv._.slice(1);
-      var codeBundles = (Array.isArray(argv.codebundle)) ? argv.codebundle :
-        ((argv.codebundle)? [ argv.codebundle ] : []);
+          var doc = { '@context': Packager.contextUrl, '@id': prompted.namespace };
 
-      ldpm.paths2resources(inputs.filter(function(x){return !(isUrl(x) || githubUrl(x));}), { codeBundles: codeBundles } , function(err, resourcesFromPath){
-        if(err) _fail(err);
+          //keep a nice order
+          if (argv.m) {
+            if (rmain.length !== 1) {
+              return _fail(new Error('only 1 resource can be specified as main'));
+            }
 
-
-        ldpm.urls2resources(inputs.filter(function(x){return ( isUrl(x) || githubUrl(x) );}), function(err, resourcesFromUrls){
-          if(err) _fail(err);
-
-          for (var type in resourcesFromPath){
-            resourcesFromPath[type] = resourcesFromPath[type].concat(resourcesFromUrls[type]); //merge
-            ldpm.addResources(pkg, resourcesFromPath);
+            if (rmain[0]['@type']) {
+              doc['@type'] = rmain[0]['@type'];
+              delete rmain[0]['@id'];
+              delete rmain[0]['@type'];
+            }
           }
 
-          fs.writeFileSync(path.resolve(ldpm.root, 'package.jsonld'), JSON.stringify(pkg, null, 2));
+          if (!doc['@type']) {
+            doc['@type'] = 'CreativeWork';
+          }
+
+          if (prompted.version) {
+            doc.version = prompted.version;
+          }
+
+          if (prompted.description) {
+            doc.description = prompted.description;
+          }
+
+          if (prompted.license) {
+            doc.license = isUrl(prompted.license) ? prompted.license : { name: prompted.license };
+          }
+
+          if (prompted.keywords && (prompted.keywords.filter(function(x){return x;})).length) {
+            doc.keywords = prompted.keywords;
+          }
+
+          if (ldpm.rc.name || ldpm.rc.email) {
+            doc.accountablePerson = {'@type': 'Person'}; //TODO @id with user profile
+            if (ldpm.rc.name) doc.accountablePerson.name = ldpm.rc.name;
+            if (ldpm.rc.email) doc.accountablePerson.email = ldpm.rc.email;
+          }
+
+          if (prompted.isBasedOnUrl) {
+            if ((doc['@type'] === 'Code') && !doc.codeRepository) {
+              doc.codeRepository = prompted.isBasedOnUrl;
+            } else {
+              doc.isBasedOnUrl = prompted.isBasedOnUrl;
+            }
+          }
+
+          if (argv.m) {
+            for (var key in rmain[0]) {
+              doc[key] = rmain[0][key];
+            }
+          }
+
+          if (rparts.length) {
+            doc.hasPart = rparts;
+          }
+
+          ldpm.emit('log', '+'.green + ' JSONLD');
+          fs.writeFileSync(path.resolve(ldpm.root, 'JSONLD'), JSON.stringify(doc, null, 2));
 
         });
       });
-
-
     });
 
   })();
@@ -204,82 +254,65 @@ if (argv._[0] === 'init') {
 } else if (argv._[0] === 'cat') {
 
   (function(){
-    var pkgId = argv._[1];
-    if(!pkgId) _fail(new Error('invalid usage'));
-    ldpm.cat(pkgId, { expand: argv.expand }, function(err, pkg){
-      if(err) return _fail(err);
-      console.log(JSON.stringify(pkg, null, 2));
+    var curie = argv._[1];
+    if (!curie) _fail(new Error('invalid usage: missing CURIE'));
+    var opts = { normalize: argv.n };
+    if ((argv.e + argv.c + argv.f) > 1) {
+      _fail(new Error('invalid usage: select either -e --expand, -c --compact or -f --flatten'));
+    } else if (argv.e) {
+      opts.profile = 'expanded';
+    } else if (argv.f) {
+      opts.profile = 'flattened';
+    } else if (argv.c) {
+      opts.profile = 'compacted';
+    }
+
+    ldpm.cat(curie, opts, function(err, doc){
+      if (err) return _fail(err);
+      console.log((opts.normalize)? doc : JSON.stringify(doc, null, 2));
     });
   })();
 
-} else if(argv._[0] === 'install'){
+} else if(argv._[0] === 'clone'){
 
   (function(){
-    var pkgIds = argv._.slice(1);
-    var pkg;
-    if(!pkgIds.length || argv.save){ //get deps for a package.jsonld
-      try{
-        pkg = JSON.parse(fs.readFileSync(path.join(ldpm.root, 'package.jsonld')));
-      } catch(e){
-        _fail(new Error('could not load '+ path.join(ldpm.root, 'package.jsonld')));
-      }
-    }
+    var curie = argv._[1];
+    if (!curie) _fail(new Error('invalid usage: missing CURIE'));
 
-    if(!pkgIds.length){
-      pkgIds = pkg.isBasedOnUrl || [];
-      delete argv.top;
-    }
-
-    ldpm.install(pkgIds, { top: argv.top, cache: argv.cache, force: argv.force }, function(err, pkgs){
-      if(err) _fail(err);
-
-      if(argv.save){
-        pkg.isBasedOnUrl = _.uniq( pkgs.map(function(x){return x['@id'];}).concat(pkg.isBasedOnUrl || []) );
-        fs.writeFileSync(path.join(ldpm.root, 'package.jsonld'), JSON.stringify(pkg, null, 2));
-      }
-
-      //print tree
-      var pkgNames = pkgs.map(function(x){return x.name;});
-
-      var paths = [];
-      pkgNames.forEach(function(pkgName){
-        var p = (argv.top)? path.join(ldpm.root, pkgName) : path.join(ldpm.root, 'ld_packages', pkgName);
-        var lpaths = readdirpSync(p).map(function(p){
-          var prefix = (argv.top) ? '.': ('.'  + path.sep + 'ld_packages');
-          return prefix + path.sep + pkgName + path.sep + p;
+    ldpm.clone(curie, {force: argv.force}, function(err, doc){
+      if (err) _fail(err);
+      if (doc['@id']) {
+        var root = ldpm.docRoot(doc['@id']);
+        var paths = readdirpSync(root).map(function(p){
+          return path.relative(ldpm.root, path.join(root, p)).replace(/\\/g, '/'); //on windows path.sep is "\\"
         });
-
-        paths = paths.concat(lpaths);
-      });
-
-      if(paths.length){
-        console.log(tree(paths));
+        if (paths.length) {
+          console.log(tree(paths));
+        }
       }
-
     });
-
   })();
 
 } else if (argv._[0] === 'publish') {
-  if(!fs.existsSync(path.resolve(ldpm.root, 'package.jsonld'))){
-    _fail(new Error('no package.jsonld file in '+ ldpm.root));
+
+  if (!fs.existsSync(path.resolve(ldpm.root, 'JSONLD'))){
+    _fail(new Error('no JSONLD file in '+ ldpm.root));
   };
 
   ldpm.publish(function(err, id){
-    if(err) return _fail(err);
-    console.log('+ ' + id);
+    if (err) return _fail(err);
+    console.log('+ ' + curie);
   });
 
 } else if (argv._[0] === 'unpublish') {
 
   (function(){
 
-    var pkgId = argv._[1];
-    if(!pkgId) _fail(new Error('invalid usage'));
-    ldpm.unpublish(pkgId, function(err, body){
-      if(err) _fail(err);
-
-      console.log('- ' + pkgId);
+    var curie = argv._[1];
+    if (!curie) _fail(new Error('invalid usage: missing CURIE'));
+    ldpm.unpublish(curie, function(err, body){
+      if (err) _fail(err);
+      console.log('- ' + curie);
     });
 
   })();
@@ -288,143 +321,58 @@ if (argv._[0] === 'init') {
 
   (function(){
 
-    function readStuff(stuff, cb){
-      var options = {prompt: stuff + ': '};
+    function readInput(input, cb){
+      var options = {prompt: input + ': '};
       var vname;
-      if(stuff === 'password'){
+      if (input === 'password'){
         vname = 'pw';
         options.silent = true;
         options.replace = '*';
       } else {
-        vname = stuff;
+        vname = input;
       }
       read(options, function(err, result){
-        if(err || !result) {
+        if (err || !result) {
           console.error((err && err.message) || (prompt + ' cannot be empty'));
-          return readStuff(stuff, cb);
+          return readInput(input, cb);
         }
         err = validateUser[vname](result);
-        if(err) {
+        if (err) {
           console.error(err.message);
-          return readStuff(stuff, cb);
+          return readInput(input, cb);
         }
         return cb(null, result);
       });
     };
 
     async.series({
-      name: function(cb){
-        readStuff('username', cb);
-      },
-      email: function(cb){
-        readStuff('email', cb);
-      },
-      password: function(cb){
-        readStuff('password', cb);
-      }
+      name: function(cb){ readInput('username', cb); },
+      email: function(cb){ readInput('email', cb); },
+      password: function(cb){ readInput('password', cb); }
     }, function (err, prompted){
-      if(err) _fail(err);
+      if (err) _fail(err);
 
-      for(var key in prompted){
+      for (var key in prompted) {
         ldpm.rc[key] = prompted[key];
       }
 
       var $HOME = process.env.HOME || process.env.HOMEPATH || process.env.USERPROFILE;
       try {
         fs.writeFileSync(path.resolve($HOME, '.ldpmrc'), JSON.stringify(ldpm.rc, function(key, value){
-          if(key.charAt(0) === '_' || key.charAt(0) === '$' || key === 'config'){
+          if (key.charAt(0) === '_' || key.charAt(0) === '$' || key === 'config') {
             return undefined;
           }
           return value;
         }, 2));
-      } catch (e){
+      } catch (e) {
         _fail(e);
       }
-      ldpm.adduser(_fail);
+      ldpm.addUser(_fail);
     });
 
   })();
 
-} else if (argv._[0] === 'owner'){
-
-  (function(){
-    var action = argv._[1];
-    if(!action) _fail(new Error('invalid usage'));
-    var pkgname;
-
-    if(action === 'add'){
-      var granted = argv._[2];
-      if(!granted) _fail(new Error('invalid usage'));
-
-      pkgName = argv._[3];
-      if(!pkgName) _fail(new Error('invalid usage'));
-
-      ldpm.addOwner({username: granted, pkgname: pkgName}, _fail);
-
-    } else if (action === 'ls'){
-
-      pkgName = argv._[2];
-      if(!pkgName) _fail(new Error('invalid usage'));
-
-      ldpm.lsOwner(pkgName, function(err, maintainers){
-        if(err) _fail(err);
-        if(!Array.isArray(maintainers)) _fail(new Error('no maintainers'));
-        maintainers.forEach(function(m){
-          console.log(m.name, m.email);
-        });
-      });
-
-    } else if (action === 'rm') {
-
-      var banned = argv._[2];
-      if(!banned) _fail(new Error('invalid usage'));
-
-      pkgName = argv._[3];
-      if(!pkgName) _fail(new Error('invalid usage'));
-
-      ldpm.rmOwner({username: banned, pkgname: pkgName}, _fail);
-
-    } else {
-      _fail(new Error('invalid usage'));
-    }
-  })();
-
-
-} else if (argv._[0] === 'search'){
-
-  (function(){
-    var keys = argv._.slice(1);
-    var qs = (keys.length) ?  '?keys=' + JSON.stringify(_.flatten(keys.map(function(x){return x.split('-');}))): '';
-
-    //var qs = '?q=' + argv._.slice(1);
-    var rpath = '/search' + qs
-    var rurl = ldpm.url(rpath);
-    ldpm.logHttp('GET', rurl);
-    request(ldpm.rOpts(rurl)).on('response', function(res){
-      ldpm.logHttp(res.statusCode, rurl);
-      if(res.statusCode === 404){
-        res.setEncoding('utf8');
-        var data = '';
-        res.on('data', function(chunk){data += chunk});
-        res.on('end', function(){
-          _fail(new Error(JSON.parse(data).error));
-        });
-      } else {
-        res
-          .pipe(split(function(row){
-            if(row) {
-              row = JSON.parse(row);
-              if('error' in row) return row.error + os.EOL; //no results;
-              return row.value._id.underline + ' [' + row.key.cyan + ']: ' + row.value.description + os.EOL;
-            }
-          }))
-          .pipe(process.stdout);
-      }})
-      .on('error', _fail)
-      .end();
-  })();
-
-} else if (argv._[0] === 'help'){
+} else if (argv._[0] === 'help') {
 
   console.log(optimist.help());
 
@@ -435,7 +383,7 @@ if (argv._[0] === 'init') {
 };
 
 function _fail(err){
-  if(err){
+  if (err) {
     console.error('ldpm'.grey +  ' ERR! '.red + err.message + (('code' in err) ? ' (' + err.code + ')': ''));
     process.exit(1);
   }

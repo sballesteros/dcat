@@ -5,7 +5,7 @@
   "distribution": { "filePath": "data.csv" },
   "hasPart": [
     {
-      "@id": "src",
+      "@id": "cw-test/src",
       "@type": "Code",
       "programmingLanguage": { "name": "c" },
       "encoding": {
@@ -16,17 +16,17 @@
       }
     },
     {
-      "@id": "pone",
+      "@id": "cw-test/pone",
       "@type": "Article",
       "encoding": { "filePath": "article/pone.pdf" }
     },
     {
-      "@id": "daftpunk",
+      "@id": "cw-test/daftpunk",
       "@type": "ImageObject",
       "encoding": { "filePath": "img/daftpunk.jpg" }
     },
     {
-      "@id": "app",
+      "@id": "cw-test/app",
       "@type": "SoftwareApplication",
       "filePath": "app/app.zip"
     }

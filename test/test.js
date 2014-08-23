@@ -143,7 +143,7 @@ describe('ldpm', function(){
           { node: { hasPart: [ { filePath: 'src/lib.h' }, { filePath: 'src/main.c' } ] }, type: 'MediaObject' },
           { node: { filePath: 'article/pone.pdf' }, type: 'MediaObject' },
           { node: { filePath: 'img/daftpunk.jpg' }, type: 'MediaObject' },
-          { node: { '@id': 'sa:app', '@type': 'SoftwareApplication', filePath: 'app/app.zip' }, type: 'SoftwareApplication' },
+          { node: { '@id': 'sa:cw-test/app', '@type': 'SoftwareApplication', filePath: 'app/app.zip' }, type: 'SoftwareApplication' },
           { node: { filePath: 'data.csv' }, type: 'DataDownload' }
         ];
 
@@ -184,14 +184,14 @@ describe('ldpm', function(){
 
     it('should cat a document as compacted JSON-LD', function(done){
       ldpm.cat('cat-test', function(err, doc){
-        assert.deepEqual(doc, { '@context': 'http://localhost:3000/context.jsonld', '@id': 'sa:cat-test', name: 'cat' });
+        assert.deepEqual(doc, { '@context': 'https://registry.standardanalytics.io/context.jsonld', '@id': 'sa:cat-test', name: 'cat' });
         done();
       });
     });
 
     it('should cat a document as flattened JSON-LD', function(done){
       ldpm.cat('cat-test', {profile:'flattened'}, function(err, doc){
-        assert.deepEqual(doc, { '@context': 'http://localhost:3000/context.jsonld', '@graph': [ { '@id': 'sa:cat-test', name: 'cat' } ] });
+        assert.deepEqual(doc, { '@context': 'https://registry.standardanalytics.io/context.jsonld', '@graph': [ { '@id': 'sa:cat-test', name: 'cat' } ] });
         done();
       });
     });
@@ -222,10 +222,31 @@ describe('ldpm', function(){
         request.del({ url: rurl('rmuser/' + conf.name), auth: {user: conf.name, pass: conf.password} }, done);
       });
     });
-
   });
 
 
+  describe('clone', function(){
+    var ldpm;
+    before(function(done){
+      ldpm = new Ldpm(conf, path.join(root, 'fixtures', 'cw-test'));
+      ldpm.addUser(function(){
+        ldpm.publish(done);
+      });
+    });
 
+    it('should clone a document', function(done){
+      ldpm = new Ldpm(conf, '/Users/seb/Desktop');
+      ldpm.clone('cw-test', {force: true}, function(err, doc){
+        console.log(err);
+        done();
+      });
+    });
+
+    after(function(done){
+      ldpm.unpublish('cw-test', function(){
+        request.del({ url: rurl('rmuser/' + conf.name), auth: {user: conf.name, pass: conf.password} }, done);
+      });
+    });
+  });
 
 });

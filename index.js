@@ -193,25 +193,27 @@ Ldpm.prototype.addUser = function(callback){
 
 };
 
-
 Ldpm.prototype.wrap = function(tGlobsOrTurls, opts, callback){
   if (arguments.length === 2) {
     callback = opts;
     opts = {};
+  } else {
+    opts = clone(opts);
   }
 
   var myTglobsOrTurls = Array.isArray(tGlobsOrTurls) ? tGlobsOrTurls : [tGlobsOrTurls];
 
   function _isUrl(tGlobsOrTurl) {
-    var x = (typeof tGlobsOrTurl === 'string') ? tGlobsOrTurl : (tGlobsOrTurl.pattern || tGlobsOrTurl.url);
+    var x = (typeof tGlobsOrTurl === 'string') ? tGlobsOrTurl : tGlobsOrTurl.id;
 
     return isUrl(x) || githubUrlToObject(x) || bitbucketUrlToObject(x);
   };
 
   this._pathToResource(myTglobsOrTurls.filter(function(x){return !_isUrl(x);}), opts , function(err, resourcesFromPath, reservedIds){
-    if(err) return callback(err);
-    this._urlToResource(myTglobsOrTurls.filter(function(x){return _isUrl(x);}), {reservedIds: reservedIds}, function(err, resourcesFromUrls, reservedIds){
-      if(err) return callback(err);
+    if (err) return callback(err);
+    opts.reservedIds = reservedIds;
+    this._urlToResource(myTglobsOrTurls.filter(function(x){return _isUrl(x);}), opts, function(err, resourcesFromUrls, reservedIds){
+      if (err) return callback(err);
       callback(null, (resourcesFromPath || []).concat(resourcesFromUrls || []), reservedIds);
     });
   }.bind(this));
@@ -229,11 +231,11 @@ Ldpm.prototype._pathToResource = function(globs, opts, callback){
   var globList = Array.isArray(globs) ? globs : [globs];
 
   globList = globList.map(function(x){
-    return (typeof x === 'string') ? {pattern: x} : x; //a `type` can be specified in addition to `pattern`
+    return (typeof x === 'string') ? {id: x} : x; //a `type` can be specified in addition to `id` (`id` is a glob or file path)
   });
 
   async.map(globList, function(tglob, cb){
-    glob(path.resolve(this.root, tglob.pattern), {matchBase: true, mark:true}, function(err, absPaths){
+    glob(path.resolve(this.root, tglob.id), {matchBase: true, mark:true}, function(err, absPaths){
       if (err) return cb(err);
 
       absPaths = absPaths.filter(minimatch.filter('!**/JSONLD', {matchBase: true}));
@@ -262,7 +264,7 @@ Ldpm.prototype._pathToResource = function(globs, opts, callback){
       return cb(null, absPaths.map(function(p){ return {absPath: p, type: tglob.type};}));
     });
   }.bind(this), function(err, tabsPaths){
-    if(err) return cb(err);
+    if (err) return cb(err);
 
     tabsPaths = _.flatten(tabsPaths);
     var utabsPaths = _.uniq(tabsPaths, function(x){return x.absPath;});
@@ -278,7 +280,7 @@ Ldpm.prototype._pathToResource = function(globs, opts, callback){
           glob(path.join(tp.absPath, '**/*'), function(err, dirAbsPaths){
             if (err) return cb(err);
             async.map(dirAbsPaths, fs.stat, function(err, dirAbsPathStats){
-              if(err) return cb(err);
+              if (err) return cb(err);
               var parts = dirAbsPathStats
                 .map(function(x, i){ return {stats: x, absPath: dirAbsPaths[i]}; })
                 .filter(function(x){ return x.stats.isFile(); });
@@ -304,8 +306,9 @@ Ldpm.prototype._pathToResource = function(globs, opts, callback){
           mymime = mime.lookup(ext); //if '' -> 'application/octet-stream'
         }
 
+        var prefix = (opts.namespace)? (opts.namespace + '/') : '';
         var mypath = path.relative(this.root, tp.absPath)
-          , myid = path.basename(tp.absPath, ext).trim().replace(/ /g, '-').toLowerCase();
+          , myid = prefix + (path.basename(tp.absPath, ext).trim().replace(/ /g, '-').toLowerCase() || 'p') ;
 
         var hasPart;
         if (stats.isDirectory()) {
@@ -405,22 +408,25 @@ Ldpm.prototype._urlToResource = function(turls, opts, callback){
   if (arguments.length === 2) {
     callback = opts;
     opts = {};
+  } else {
+    opts = clone(opts);
   }
+
   var reservedIds = opts.reservedIds || {}; //make sure @ids are unique
 
   var turi = Array.isArray(turls) ? turls : [turls];
   turi = turi.map(function(x){
-    return (typeof x === 'string') ? {url: x} : x; //a `type` can be specified
+    return (typeof x === 'string') ? {id: x} : x; //a `type` can be specified (id is an URL)
   });
 
-  var uturi = _.uniq(turi, function(x){return x.url;});
+  var uturi = _.uniq(turi, function(x){return x.id;});
   if (uturi.length !== turi.length) {
     return callback(new Error('duplicated URLs'));
   }
 
   async.map(uturi, function(myturi, cb){
 
-    var repo = githubUrlToObject(myturi.url) || bitbucketUrlToObject(myturi.url);
+    var repo = githubUrlToObject(myturi.id) || bitbucketUrlToObject(myturi.id);
     if (repo) {
       var myid = repo.repo;
       var uid = myid, i = 1;
@@ -463,17 +469,18 @@ Ldpm.prototype._urlToResource = function(turls, opts, callback){
       }.bind(this));
     } else {
 
-      this.log('HEAD', myturi.url);
-      request.head({url: myturi.url, followAllRedirects:true}, function(err, resp){
+      this.log('HEAD', myturi.id);
+      request.head({url: myturi.id, followAllRedirects:true}, function(err, resp){
         if (err) return cb(err);
-        this.log(resp.statusCode, myturi.url);
+        this.log(resp.statusCode, myturi.id);
         if (resp.statusCode >= 400) {
-          return cb(this._error('could not HEAD ' + myturi.url), resp.statusCode);
+          return cb(this._error('could not HEAD ' + myturi.id), resp.statusCode);
         }
 
+        var prefix = (opts.namespace)? (opts.namespace + '/') : '';
         var mymime = resp.headers['content-type']
-          , mypath = url.parse(myurl).pathname
-          , myid = path.basename(mypath, path.extname(mypath)).trim().replace(/ /g, '-').toLowerCase();
+          , mypath = url.parse(myturi.id).pathname
+          , myid = prefix + (path.basename(mypath, path.extname(mypath)).trim().replace(/ /g, '-').toLowerCase() || 'p');
 
         var uid = myid, i = 1;
         while (uid in reservedIds) { uid = myid + '-' + i++; }
@@ -487,7 +494,7 @@ Ldpm.prototype._urlToResource = function(turls, opts, callback){
         }
 
         if (this.packager.isClassOrSubClassOf(r['@type'], 'SoftwareApplication')) {
-          r.downloadUrl = myturi.url;
+          r.downloadUrl = myturi.id;
           r.fileFormat = resp.headers['content-type'];
           if ('last-modified' in resp.headers) {
             r.dateModified = (new Date(resp.headers['last-modified'])).toISOString();
@@ -497,7 +504,7 @@ Ldpm.prototype._urlToResource = function(turls, opts, callback){
           }
         } else {
           var encoding = {
-            contentUrl: myturi.url,
+            contentUrl: myturi.id,
             encodingFormat: mymime
           };
           if ('last-modified' in resp.headers) {
@@ -539,6 +546,63 @@ Ldpm.prototype._urlToResource = function(turls, opts, callback){
   });
 };
 
+Ldpm.prototype.add = function(doc, tGlobsOrTurls, opts, callback){
+
+  if (arguments.length === 3) {
+    callback = opts;
+    opts = {};
+  } else {
+    opts = clone(opts);
+  }
+
+  //flatten the doc to get all the @id and generate opts.reservedIds
+  var tdoc = clone(doc);
+  var ctx;
+  if (tdoc['@context'] === Packager.contextUrl) {
+    tdoc['@context'] = Packager.context()['@context']; //offline
+    ctx = tdoc['@context'];
+  }
+
+  jsonld.flatten(tdoc, ctx || tdoc['@context'], function(err, fdoc){
+    if (err) return callback(err);
+
+    var saIds = fdoc['@graph']
+      .filter(function(x){
+        return x['@id'] && x['@id'].split(':')[0] === 'sa';
+      })
+      .map(function(x){
+        return x['@id'].split(':')[1]
+      });
+
+    opts.reservedIds = opts.reservedIds || {};
+    saIds.forEach(function(id){ opts.reservedIds[id] = true; });
+
+    //get namespace
+    if (doc['@id']) {
+      var purl = url.parse(this.url(doc['@id']));
+      if (purl.hostname === url.parse(Packager.contextUrl).hostname || purl.hostname === this.rc.hostname) {
+        opts.namespace = opts.namespace || purl.pathname.replace(/^\/|\/$/g, '').split('/')[0];
+      }
+    }
+
+    this.wrap(tGlobsOrTurls, opts, function(err, parts){
+      if (err) return callback(err);
+
+      if (!doc.hasPart) {
+        doc.hasPart = [];
+      } else {
+        doc.hasPart = Array.isArray(doc.hasPart) ? doc.hasPart : [doc.hasPart];
+      }
+
+      doc.hasPart = doc.hasPart.concat(parts);
+      callback(null, doc, opts.reservedIds);
+
+    }.bind(this));
+  }.bind(this));
+
+};
+
+
 /**
  * if no doc is provided, will be read from JSONLD
  * resolve all the CURIES and take into account any potential nested @context
@@ -551,28 +615,29 @@ Ldpm.prototype.cdoc = function(doc, callback){
 
   var ctxUrl = this.url('context.jsonld');
 
-  if (doc) {
-    //help for testing !!TODO fix: can have side effects
-    if (doc['@context'] === Packager.contextUrl) {
-      doc['@context'] = this.url('context.jsonld');
+  function _next(err, doc){
+    if (err) return callback(err);
+
+    var ctx;
+    if (doc['@context'] === Packager.contextUrl) {//help for testing
+      ctx = doc['@context'];
+      doc['@context'] = ctxUrl;
     }
 
-    jsonld.compact(doc, ctxUrl, callback);
-  } else {
-    fs.readFile(path.resolve(this.root, 'JSONLD'), function(err, doc){
-      if(err) return callback(err);
-      try {
-        doc = JSON.parse(doc);
-      } catch(e){
-        return callback(e);
-      }
+    jsonld.compact(doc, ctxUrl, function(err, cdoc){
+      if (err) return callback(err);
 
-      //help for testing !!TODO fix: can have side effects
       if (doc['@context'] === Packager.contextUrl) {
-        doc['@context'] = this.url('context.jsonld');
+        doc['@context'] = ctx;
       }
-      jsonld.compact(doc, ctxUrl, callback);
-    }.bind(this));
+      callback(null, cdoc);
+    });
+  };
+
+  if (doc) {
+    _next(null, doc);
+  } else {
+    fs.readFile(path.resolve(this.root, 'JSONLD'), _next);
   }
 
 };
@@ -583,7 +648,7 @@ Ldpm.prototype.publish = function(doc, opts, callback){
     callback = doc;
     doc = undefined;
     opts = {};
-  } else if(arguments.length === 2) {
+  } else if (arguments.length === 2) {
     callback = opts;
     opts = {};
   }
@@ -858,7 +923,7 @@ Ldpm.prototype._mstream = function(mnode){
 
     async.eachSeries(absPaths, function(absPath, cb){
       fs.stat(absPath, function(err, stats){
-        if(err) return cb(err);
+        if (err) return cb(err);
         var s = pack.entry({
           name: path.relative(this.root, absPath),
           size:stats.size,
@@ -926,9 +991,9 @@ Ldpm.prototype.unpublish = function(docUri, callback){
   var rurl = this.url(docUri);
   this.log('DELETE', rurl);
   request.del({url: rurl, auth: this._auth(), json:true}, function(err, resp, body){
-    if(err) return callback(err);
+    if (err) return callback(err);
     this.log(resp.statusCode, rurl);
-    if(resp.statusCode >= 400){
+    if (resp.statusCode >= 400){
       return callback(this._error(body, resp.statusCode));
     }
     callback(null, body, resp.statusCode);
@@ -938,9 +1003,11 @@ Ldpm.prototype.unpublish = function(docUri, callback){
 
 
 Ldpm.prototype.cat = function(docUri, opts, callback){
-  if(arguments.length === 2){
+  if (arguments.length === 2){
     callback = opts;
     opts = {};
+  } else {
+    opts = clone(opts);
   }
 
   opts.profile = opts.profile || 'compacted';
@@ -951,9 +1018,9 @@ Ldpm.prototype.cat = function(docUri, opts, callback){
   var uri = this.url(docUri);
   this.log('GET', uri);
   request.get({url: uri, headers:{'Accept': 'application/ld+json;profile="http://www.w3.org/ns/json-ld#' + opts.profile +'"'}}, function(err, resp, doc){
-    if(err) return callback(err);
+    if (err) return callback(err);
     this.log(resp.statusCode, uri);
-    if(resp.statusCode >= 400){
+    if (resp.statusCode >= 400){
       return callback(this._error(doc, resp.statusCode));
     }
 
@@ -973,9 +1040,9 @@ Ldpm.prototype.cat = function(docUri, opts, callback){
 
     //the server could not satisfy the option we suppose we got a JSON doc
     var ctxUrl;
-    if(resp.headers.link){
+    if (resp.headers.link){
       var links = jsonld.parseLinkHeader(resp.headers.link);
-      if('http://www.w3.org/ns/json-ld#context' in links){
+      if ('http://www.w3.org/ns/json-ld#context' in links){
         ctxUrl = links['http://www.w3.org/ns/json-ld#context'].target;
       };
     }
@@ -1001,8 +1068,16 @@ Ldpm.prototype.cat = function(docUri, opts, callback){
 };
 
 
+/**
+ * abs path where a document at the CURIE is being stored
+ */
+Ldpm.prototype.docRoot = function(curie){
+  var purl = url.parse(this.url(curie));
+  return path.join(this.root, purl.hostname, purl.pathname);
+};
+
 Ldpm.prototype.clone = function(docUri, opts, callback){
-  if(arguments.length === 2){
+  if (arguments.length === 2){
     callback = opts;
     opts = {};
   }
@@ -1010,10 +1085,8 @@ Ldpm.prototype.clone = function(docUri, opts, callback){
   this.cat(docUri, opts, function(err, doc){
     if (err) return callback(err);
 
-    var purl = url.parse(this.url(doc['@id']));
-    var root = path.join(this.root, purl.hostname, purl.pathname);
+    var root = this.docRoot(doc['@id']);
 
-    console.log(root)
     _mkdirp(root, opts, function(err){
       if (err) return callback(err);
 
@@ -1029,7 +1102,9 @@ Ldpm.prototype.clone = function(docUri, opts, callback){
         this._mdl(mnode, root, opts, cb);
       }.bind(this), function(err){
         if (err) return callback(err);
-        fs.writeFile(path.join(root, 'JSONLD'), JSON.stringify(doc, null, 2), callback);
+        fs.writeFile(path.join(root, 'JSONLD'), JSON.stringify(doc, null, 2), function(err){
+          callback(err, doc);
+        });
       }.bind(this));
 
     }.bind(this));
@@ -1062,7 +1137,7 @@ Ldpm.prototype._mdl = function(mnode, root, opts, callback){
       this.log(resp.statusCode, uri);
 
       var that = this;
-      if(resp.statusCode >= 400){
+      if (resp.statusCode >= 400) {
         return resp.pipe(concat(function(body){
           callback(that._error(JSON.parse(body), resp.statusCode));
         }));
@@ -1076,19 +1151,24 @@ Ldpm.prototype._mdl = function(mnode, root, opts, callback){
 
         var encoding = resp.headers['content-encoding']
         if (encoding == 'gzip') {
-          resp.pipe(zlib.createGunzip()).pipe(ws)
+          resp.pipe(zlib.createGunzip()).pipe(ws);
         } else if (encoding == 'deflate') {
-          resp.pipe(zlib.createInflate()).pipe(ws)
+          resp.pipe(zlib.createInflate()).pipe(ws);
         } else {
-          resp.pipe(ws)
+          resp.pipe(ws);
         }
 
       } else {
 
         var extract = tar.extract();
         extract.on('entry', function(header, rs, cb) {
-          var ws = rs.pipe(fs.createWriteStream(path.join(root, header.name)));
-          ws.on('finish', cb);
+          if (~paths.indexOf(header.name)) {
+            var ws = rs.pipe(fs.createWriteStream(path.join(root, header.name)));
+            ws.on('finish', cb);
+          } else {
+            rs.resume(); // auto drain the stream
+            rs.on('end', cb);
+          }
         });
         extract.on('error', callback);
         extract.on('finish', callback);
@@ -1104,20 +1184,20 @@ Ldpm.prototype._mdl = function(mnode, root, opts, callback){
 
 
 function _mkdirp(dirPath, opts, callback){
-  if(arguments.length === 2){
+  if (arguments.length === 2){
     callback = opts;
     opts = {};
   }
 
   fs.exists(dirPath, function(exists){
-    if(exists){
-      if(opts.force) {
+    if (exists){
+      if (opts.force) {
         rimraf(dirPath, function(err){
-          if(err) return callback(err);
+          if (err) return callback(err);
           mkdirp(dirPath, callback);
         });
       } else {
-        callback(new Error(dirPath + ' already exists, run with -f, --force to overwrite'));
+        callback(new Error(dirPath + ' already exists, run with --force to overwrite'));
       }
     } else {
       mkdirp(dirPath, callback);

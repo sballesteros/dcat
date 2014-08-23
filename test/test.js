@@ -64,7 +64,7 @@ describe('ldpm', function(){
   describe('paths and URLs to resources', function(){
     var ldpm = new Ldpm(conf, path.join(root, 'fixtures', 'cw-test'));
     it('should convert paths to resources', function(done){
-      ldpm.wrap(['**/*.csv', {pattern:'src', type:'Code'}], function(err, resources){
+      ldpm.wrap(['**/*.csv', {id:'src', type:'Code'}], function(err, resources){
 
         var expected = [
           {
@@ -121,7 +121,7 @@ describe('ldpm', function(){
             //contentSize: 690980
           }
         }];
-        assert(typeof resources[0].encoding.contentSize === 'number');
+        assert.equal(typeof resources[0].encoding.contentSize, 'number');
         delete resources[0].encoding.contentSize;
         assert.deepEqual(resources, expected);
         done();
@@ -237,7 +237,6 @@ describe('ldpm', function(){
     it('should clone a document', function(done){
       ldpm = new Ldpm(conf, '/Users/seb/Desktop');
       ldpm.clone('cw-test', {force: true}, function(err, doc){
-        console.log(err);
         done();
       });
     });

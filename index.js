@@ -615,9 +615,7 @@ Ldpm.prototype.cdoc = function(doc, callback){
 
   var ctxUrl = this.url('context.jsonld');
 
-  function _next(err, doc){
-    if (err) return callback(err);
-
+  function _next(doc){
     var ctx;
     if (doc['@context'] === Packager.contextUrl) {//help for testing
       ctx = doc['@context'];
@@ -627,17 +625,25 @@ Ldpm.prototype.cdoc = function(doc, callback){
     jsonld.compact(doc, ctxUrl, function(err, cdoc){
       if (err) return callback(err);
 
-      if (doc['@context'] === Packager.contextUrl) {
-        doc['@context'] = ctx;
+      if (ctx && cdoc['@context'] === ctxUrl) {
+        cdoc['@context'] = ctx;
       }
       callback(null, cdoc);
     });
   };
 
   if (doc) {
-    _next(null, doc);
+    _next(doc);
   } else {
-    fs.readFile(path.resolve(this.root, 'JSONLD'), _next);
+    fs.readFile(path.resolve(this.root, 'JSONLD'), function(err, doc){
+      if (err) return callback(err);
+      try {
+        doc = JSON.parse(doc);
+      } catch (e) {
+        return callback(e);
+      }
+      _next(doc);
+    });
   }
 
 };
@@ -655,8 +661,9 @@ Ldpm.prototype.publish = function(doc, opts, callback){
 
 
   this.cdoc(doc, function(err, cdoc){
+
     try {
-      this.packager.validate(cdoc, this.url('context.jsonld'));
+      this.packager.validate(cdoc);
     } catch (e) {
       return callback(e);
     }
@@ -1024,6 +1031,8 @@ Ldpm.prototype.cat = function(docUri, opts, callback){
       return callback(this._error(doc, resp.statusCode));
     }
 
+    var ctxUrl = this.url('context.jsonld');
+
     //check if the server could satisfy the option and if so return
     if ( ((opts.profile === 'expanded') && Array.isArray(doc)) ||
          ((opts.profile === 'flattened') && ('@context' in doc) && ('@graph' in doc)) ||
@@ -1031,6 +1040,9 @@ Ldpm.prototype.cat = function(docUri, opts, callback){
        ) {
 
       if (opts.normalize) {
+        if (doc['@context'] === Packager.contextUrl) {
+          doc['@context'] = ctxUrl;
+        }
         jsonld.normalize(doc, {format: 'application/nquads'}, callback);
       } else {
         callback(null, doc);
@@ -1039,29 +1051,45 @@ Ldpm.prototype.cat = function(docUri, opts, callback){
     }
 
     //the server could not satisfy the option we suppose we got a JSON doc
-    var ctxUrl;
+    var ctxUrlFromLink;
     if (resp.headers.link){
       var links = jsonld.parseLinkHeader(resp.headers.link);
       if ('http://www.w3.org/ns/json-ld#context' in links){
-        ctxUrl = links['http://www.w3.org/ns/json-ld#context'].target;
+        ctxUrlFromLink = links['http://www.w3.org/ns/json-ld#context'].target;
       };
     }
 
-    if (!ctxUrl && !doc['@context']){
+    if (!ctxUrlFromLink && !doc['@context']){
       return callback(new Error('The server could not provide a valid JSON-LD document. See http://www.w3.org/TR/json-ld/'))
-    } else if (ctxUrl && !doc['@context']) {
+    } else if (ctxUrlFromLink && !doc['@context']) {
+      doc['@context'] = ctxUrlFromLink;
+    }
+
+    var ctx;
+    if (doc['@context'] === Packager.contextUrl) {//context transfo to help for testing
+      ctx = doc['@context'];
       doc['@context'] = ctxUrl;
     }
 
+    function _next(err, pdoc) {
+      if (err) return callback(err);
+
+      //reverse @context transfo
+      if (ctx && pdoc['@context'] === ctxUrl) {
+        pdoc['@context'] = ctx;
+      }
+
+      callback(null, pdoc);
+    };
+
     if (opts.normalize) {
-      console.log('a');
-      jsonld.normalize(doc, {format: 'application/nquads'}, callback);
+      jsonld.normalize(doc, {format: 'application/nquads'}, _next);
     } else if (opts.profile === 'flattened') {
-      jsonld.flatten(doc, doc['@context'], callback);
+      jsonld.flatten(doc, doc['@context'], _next);
     } else if (opts.profile === 'expanded') {
-      jsonld.expand(doc, {expandContext: doc['@context']}, callback);
+      jsonld.expand(doc, {expandContext: doc['@context']}, _next);
     } else {
-      jsonld.compact(doc, doc['@context'], callback);
+      jsonld.compact(doc, doc['@context'], _next);
     }
 
   }.bind(this));

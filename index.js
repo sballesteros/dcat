@@ -3,7 +3,6 @@ var crypto = require('crypto')
   , url = require('url')
   , _ = require('underscore')
   , isUrl = require('is-url')
-  , Ignore = require("fstream-ignore")
   , semver = require('semver')
   , glob = require('glob')
   , minimatch = require('minimatch')
@@ -133,6 +132,13 @@ Ldpm.prototype.url = function(pathnameOrCurie){
   return protocol + '//'  + hostname + ((port && (port !== 80 && port !== 443)) ? (':' + port) : '') + '/' + pathname.replace(/^\/|\/$/g, '');
 };
 
+Ldpm.prototype.namespace = function(curie){
+  var purl = url.parse(this.url(curie));
+  if ((purl.hostname === url.parse(Packager.contextUrl).hostname) || (purl.hostname === this.rc.hostname)) {
+    return purl.pathname.replace(/^\/|\/$/g, '').split('/')[0];
+  }
+}
+
 Ldpm.prototype._error = function(msg, code){
   if (typeof msg === 'object') {
     msg = msg.reason || msg.error || 'error';
@@ -152,7 +158,7 @@ Ldpm.prototype.log = function(verbOrstatusCode, pathnameOrUrl, protocol){
 
 Ldpm.prototype.addUser = function(callback){
   //chech that we need to add a user
-  request.get({url: this.url('auth'), auth: this._auth()}, function(err, respCheck, body){
+  request.get({url: this.url('session'), auth: this._auth()}, function(err, respCheck, body){
     if (err) return callback(err, respCheck && respCheck.headers);
 
     if (respCheck.statusCode === 200) {
@@ -579,10 +585,7 @@ Ldpm.prototype.add = function(doc, tGlobsOrTurls, opts, callback){
 
     //get namespace
     if (doc['@id']) {
-      var purl = url.parse(this.url(doc['@id']));
-      if (purl.hostname === url.parse(Packager.contextUrl).hostname || purl.hostname === this.rc.hostname) {
-        opts.namespace = opts.namespace || purl.pathname.replace(/^\/|\/$/g, '').split('/')[0];
-      }
+      opts.namespace = opts.namespace || this.namespace(doc['@id']);
     }
 
     this.wrap(tGlobsOrTurls, opts, function(err, parts){
@@ -661,7 +664,6 @@ Ldpm.prototype.publish = function(doc, opts, callback){
 
 
   this.cdoc(doc, function(err, cdoc){
-
     try {
       this.packager.validate(cdoc);
     } catch (e) {
@@ -692,7 +694,7 @@ Ldpm.prototype.publish = function(doc, opts, callback){
         } else if (resp.statusCode >= 400) {
           callback(this._error(body), resp.statusCode);
         } else {
-          callback(null, body, resp.statusCode);
+          callback(null, cdoc, resp.statusCode);
         }
 
       }.bind(this));
@@ -1210,6 +1212,58 @@ Ldpm.prototype._mdl = function(mnode, root, opts, callback){
 
 };
 
+Ldpm.prototype.lsMaintainers = function(curie, callback){
+  var namespace = this.namespace(curie);
+  var rurl = this.url('maintainers/ls/' + namespace);
+  this.log('GET', rurl);
+  request.get(rurl, function(err, resp, body){
+    if(err) return callback(err);
+    this.log(resp.statusCode, rurl);
+
+    if(resp.statusCode >= 400){
+      return callback(this._error(body, resp.statusCode));
+    }
+
+    callback(null, body);
+  }.bind(this));
+};
+
+Ldpm.prototype.addMaintainers = function(data, callback){
+  data = clone(data);
+  data.namespace = this.namespace(data.namespace); //if CURIE was provided
+  if (!data.username && !data.namespace) {
+    return callback(new Error('invalid data, data must contain username and namespace properties'));
+  }
+
+  var rurl = this.url('maintainers/add');
+  this.log('POST', rurl);
+  request.post({url: rurl, json: data, auth: this._auth()}, function(err, resp, body){
+    if(err) return callback(err);
+    this.log(resp.statusCode, rurl);
+    if(resp.statusCode >= 400){
+      return callback(this._error(body, resp.statusCode));
+    }
+    callback(null, body);
+  }.bind(this));
+};
+
+Ldpm.prototype.rmMaintainers = function(data, callback){
+  data = clone(data);
+  data.namespace = this.namespace(data.namespace); //if CURIE was provided
+  if (!data.username && !data.namespace) {
+    return callback(new Error('invalid data, data must contain username and namespace properties'));
+  }
+  var rurl = this.url('/maintainers/rm');
+  this.log('POST', rurl);
+  request.post({url: rurl, json: data, auth: this._auth()}, function(err, resp, body){
+    if(err) return callback(err);
+    this.log(resp.statusCode, rurl);
+    if(resp.statusCode >= 400){
+      return callback(this._error(body, resp.statusCode));
+    }
+    callback(null, body);
+  }.bind(this));
+};
 
 function _mkdirp(dirPath, opts, callback){
   if (arguments.length === 2){

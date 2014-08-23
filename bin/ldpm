@@ -34,10 +34,10 @@ var argv = optimist
       '  - publish',
       '  - unpublish <CURIE>',
       '  - adduser',
-//      '  - owner <subcommand> where subcommand is:',
-//      '    - ls  <CURIE>',
-//      '    - add <user> <CURIE>',
-//      '    - rm  <user> <CURIE>',
+      '  - maintainers <subcommand> where subcommand is:',
+      '    - ls  <CURIE>',
+      '    - add <user> <CURIE>',
+      '    - rm  <user> <CURIE>',
       '  - help [command] get help on a comand',
     ].join(os.EOL)
   )
@@ -299,9 +299,9 @@ if (argv._[0] === 'init') {
     _fail(new Error('no JSONLD file in '+ ldpm.root));
   };
 
-  ldpm.publish(function(err, id){
+  ldpm.publish(function(err, doc){
     if (err) return _fail(err);
-    console.log('+ ' + curie);
+    console.log('+ '.green + doc['@id']);
   });
 
 } else if (argv._[0] === 'unpublish') {
@@ -312,7 +312,7 @@ if (argv._[0] === 'init') {
     if (!curie) _fail(new Error('invalid usage: missing CURIE'));
     ldpm.unpublish(curie, function(err, body){
       if (err) _fail(err);
-      console.log('- ' + curie);
+      console.log('- '.red + curie);
     });
 
   })();
@@ -370,6 +370,45 @@ if (argv._[0] === 'init') {
       ldpm.addUser(_fail);
     });
 
+  })();
+
+} else if (argv._[0] === 'maintainers'){
+
+  (function(){
+    var action = argv._[1];
+    if(!action) _fail(new Error('invalid usage'));
+
+    var username, namespace;
+    if(action === 'add' || action === 'rm'){
+      var msg = 'invalid usage: ldpm maintainers ' + action + ' <username> <CURIE>'
+
+      var username = argv._[2];
+      if(!username) _fail(new Error(msg));
+
+      namespace = argv._[3];
+      if(!namespace) _fail(new Error(msg));
+
+      ldpm[action + 'Maintainers']({username: username, namespace: namespace}, function(err){
+        if (err) return _fail(err);
+        console.log(((action === 'add') ? '+ '.green : '- '.red) + username);
+      });
+
+    } else if (action === 'ls'){
+
+      namespace = argv._[2];
+      if(!namespace) _fail(new Error('invalid usage: ldpm maintainers ls <CURIE>'));
+
+      ldpm.lsMaintainers(namespace, function(err, maintainers){
+        if(err) _fail(err);
+        if(!Array.isArray(maintainers)) _fail(new Error('no maintainers'));
+        maintainers.forEach(function(m){
+          console.log(m.name, m.email);
+        });
+      });
+
+    } else {
+      _fail(new Error('invalid usage'));
+    }
   })();
 
 } else if (argv._[0] === 'help') {

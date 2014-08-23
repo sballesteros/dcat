@@ -1,58 +1,18 @@
 ldpm
 ====
 
-Linked Data package manager.
+```ldpm```: Linked Data package manager, ```robots.txt``` transformer.
+
+Gives [schema.org](http://schema.org) access to your files and links.
+
 
 [![NPM](https://nodei.co/npm/ldpm.png)](https://nodei.co/npm/ldpm/)
 
-Usage:
-======
 
-See [here](https://standardanalytics.io/ldpm) for documentation.
+History
+=======
 
-##CLI
-
-    Usage: ldpm <command> [options] where command is:
-      - init [globs] [urls] [-d, --defaults] [-b --codebundle <relative/path/to/code/directory>] Interactively create a package.jsonld file and add the files listed as globs (*.csv ... and urls) as dataset. Be sure to double quote the glob so that the shell does not expand them
-      - cat       <package name>[@<version>] [-e, --expand]
-      - install   <package name 1>[@<version>] <package name 2>[@<version>] <package url> ... [-t, --top] [-c, --cache] [-r, --require] [-s, --save]
-      - publish
-      - unpublish <package name>[@<version>]
-      - adduser
-      - owner <subcommand> where subcommand is:
-        - ls  <package name>
-        - add <user> <package name>
-        - rm  <user> <package name>[@<version>]
-      - search [search terms]
-      - help [command]
-
-    Options:
-      -f, --force       overwrite previous if exists
-      -d, --defaults    bypass the promzard prompt
-      -t, --top         install in the current working directory (and not within ld_packages/)
-      -e, --expand      expand the JSON-LD document
-      -s, --save        data packages will appear in your dataDependencies
-      -c, --cache       store the dataset content on the disk (inlined data will stay in the package.jsonld see -r, --require to change this behavior)
-      -r, --require     force the inlined dataset (contentData) to be stored in their own file in ld_resources/
-      -b, --codebundle  treat the listed directory as a code project
-      -h, --help        print usage
-      -v, --version     print version number
-
-
-## Using ldpm programaticaly
-
-You can also use ```ldpm``` programaticaly.
-
-    var Ldpm = require('ldpm');
-    var ldpm = new Ldpm(conf);
-
-    ldpm.install(['mypkg/0.0.0', 'mydata/1.0.0', 'http://example.com/mydata'], {cache: true}, function(err, pkgs){
-    //done!
-    });
-    ldpm.on('log', console.log); //if you like stuff on stdout
-
-
-See ```bin/ldpm``` for examples.
+[```package.json```](http://wiki.commonjs.org/wiki/Packages/1.1) -> [```datapackage.json```](http://dataprotocols.org/data-packages/) -> ```package.jsonld``` -> [```JSON-LD```](http://json-ld.org/) + [schema.org](http://schema.org) + [hydra](http://www.hydra-cg.com/) + [linked data fragment](http://www.hydra-cg.com/).
 
 
 Registry
@@ -60,7 +20,7 @@ Registry
 
 By default, ```ldpm``` uses [Standard Analytics IO](http://standardanalytics.io)
 [linked data registry](https://github.com/standard-analytics/linked-data-registry)
-hosted on [cloudant](https://sballesteros.cloudant.com).
+hosted on [cloudant](https://standardanalytics.cloudant.com).
 
 License
 =======

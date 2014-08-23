@@ -23,15 +23,10 @@ var crypto = require('crypto')
   , concat = require('concat-stream')
   , jsonld = require('jsonld')
   , clone = require('clone')
-  , binaryCSV = require('binary-csv')
-  , split = require('split')
-  , temp = require('temp')
   , githubUrlToObject = require('github-url-to-object')
   , bitbucketUrlToObject = require('bitbucket-url-to-object')
   , Packager = require('package-jsonld')
-  , previewTabularData = require('preview-tabular-data').preview
-  , os = require('os')
-  , jsonldContextInfer = require('jsonld-context-infer');
+  , os = require('os');
 
 request = request.defaults({json:true, strictSSL: false});
 

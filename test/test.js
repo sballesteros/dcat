@@ -8,6 +8,7 @@ var util = require('util')
   , readdirpSync = require('fs-readdir-recursive')
   , _ = require('underscore')
   , exec = require('child_process').exec
+  , SaSchemaOrg = require('sa-schema-org')
   , path = require('path');
 
 temp.track();
@@ -121,7 +122,6 @@ describe('ldpm', function(){
             //contentSize: 690980
           }
         }];
-        assert.equal(typeof resources[0].encoding.contentSize, 'number');
         delete resources[0].encoding.contentSize;
         assert.deepEqual(resources, expected);
         done();
@@ -171,7 +171,7 @@ describe('ldpm', function(){
     var ldpm;
     before(function(done){
       var doc = {
-        '@context': 'https://registry.standardanalytics.io/context.jsonld',
+        '@context': SaSchemaOrg.contextUrl,
         '@id': 'cat-test',
         name:'cat'
       };
@@ -184,14 +184,14 @@ describe('ldpm', function(){
 
     it('should cat a document as compacted JSON-LD', function(done){
       ldpm.cat('cat-test', function(err, doc){
-        assert.deepEqual(doc, { '@context': 'https://registry.standardanalytics.io/context.jsonld', '@id': 'sa:cat-test', name: 'cat' });
+        assert.deepEqual(doc, { '@context': SaSchemaOrg.contextUrl, '@id': 'sa:cat-test', name: 'cat' });
         done();
       });
     });
 
     it('should cat a document as flattened JSON-LD', function(done){
       ldpm.cat('cat-test', {profile:'flattened'}, function(err, doc){
-        assert.deepEqual(doc, { '@context': 'https://registry.standardanalytics.io/context.jsonld', '@graph': [ { '@id': 'sa:cat-test', name: 'cat' } ] });
+        assert.deepEqual(doc, { '@context': SaSchemaOrg.contextUrl, '@graph': [ { '@id': 'sa:cat-test', name: 'cat' } ] });
         done();
       });
     });
@@ -235,9 +235,22 @@ describe('ldpm', function(){
     });
 
     it('should clone a document', function(done){
-      ldpm = new Ldpm(conf, '/Users/seb/Desktop');
-      ldpm.clone('cw-test', {force: true}, function(err, doc){
-        done();
+      temp.mkdir('test-ldpm-', function(err, dirPath) {
+        ldpm = new Ldpm(conf, dirPath);
+        ldpm.clone('cw-test', {force: true}, function(err, doc){
+          var files = readdirpSync(path.join(dirPath, 'localhost', 'cw-test'));
+          var expected =  [
+            'JSONLD',
+            'app/app.zip',
+            'article/pone.pdf',
+            'data.csv',
+            'img/daftpunk.jpg',
+            'src/lib.h',
+            'src/main.c'
+          ];
+          assert(files.length && _.difference(files, expected).length === 0);
+          done();
+        });
       });
     });
 
@@ -246,6 +259,68 @@ describe('ldpm', function(){
         request.del({ url: rurl('rmuser/' + conf.name), auth: {user: conf.name, pass: conf.password} }, done);
       });
     });
+  });
+
+
+  describe('maintainers', function(){
+
+    var accountablePersons =  [
+      { '@type': 'Person', name: 'user_a', email: 'mailto:user@domain.com' },
+      { '@type': 'Person', name: 'user_b', email: 'mailto:user@domain.com' }
+    ];
+
+    var doc = { '@context': SaSchemaOrg.contextUrl, '@id': 'maintainer-test', name:'maintainer' };
+    var conf2 = clone(conf);
+    conf2.name = 'user_b';
+    var ldpm1 = new Ldpm(conf);
+    var ldpm2 = new Ldpm(conf2);
+
+    before(function(done){
+      ldpm1.addUser(function(err, body){
+        ldpm2.addUser(function(err, body){
+          ldpm1.publish(doc, function(err, body){
+            done();
+          });
+        });
+      });
+    });
+
+    it('should list the maintainers', function(done){
+      ldpm1.lsMaintainer(doc['@id'], function(err, body){
+        assert.deepEqual(body.accountablePerson, accountablePersons.slice(0, 1));
+        done();
+      });
+    });
+
+    it('should add a maintainer then remove it', function(done){
+      ldpm1.addMaintainer({username: 'user_b', namespace: doc['@id']}, function(err){
+        ldpm1.lsMaintainer(doc['@id'], function(err, maintainers){
+          assert.deepEqual(maintainers.accountablePerson, accountablePersons);
+          ldpm1.rmMaintainer({username: 'user_b', namespace: doc['@id']}, function(err){
+            ldpm1.lsMaintainer(doc['@id'], function(err, maintainers){
+              assert.deepEqual(maintainers.accountablePerson, accountablePersons.slice(0, 1));
+              done();
+            });
+          });
+        });
+      });
+    });
+
+    it("should err if a non registered user is added as a maintainer", function(done){
+      ldpm1.addMaintainer({username: 'user_c', namespace: doc['@id']}, function(err){
+        assert.equal(err.code, 404);
+        done();
+      })
+    });
+
+    after(function(done){
+      ldpm1.unpublish(doc['@id'], function(){
+        request.del({ url: rurl('rmuser/' + conf.name), auth: {user: conf.name, pass: conf.password} }, function(){
+          request.del({ url: rurl('rmuser/' + conf2.name), auth: {user: conf2.name, pass: conf2.password} }, done);
+        });
+      });
+    });
+
   });
 
 });

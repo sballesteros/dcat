@@ -17,6 +17,7 @@ var crypto = require('crypto')
   , mkdirp = require('mkdirp')
   , async = require('async')
   , fs = require('fs')
+  , stream = require('stream')
   , zlib = require('zlib')
   , tar = require('tar-stream')
   , once = require('once')
@@ -25,7 +26,7 @@ var crypto = require('crypto')
   , clone = require('clone')
   , githubUrlToObject = require('github-url-to-object')
   , bitbucketUrlToObject = require('bitbucket-url-to-object')
-  , Packager = require('package-jsonld')
+  , SaSchemaOrg = require('sa-schema-org')
   , os = require('os');
 
 request = request.defaults({json:true, strictSSL: false});
@@ -58,7 +59,7 @@ var Ldpm = module.exports = function(rc, root, packager){
   this.root = root || process.cwd();
   this.rc = rc || conf;
 
-  this.packager = packager || new Packager();
+  this.packager = packager || new SaSchemaOrg();
 };
 
 util.inherits(Ldpm, EventEmitter);
@@ -101,7 +102,7 @@ Ldpm.prototype.url = function(pathnameOrCurie){
   var splt = pathnameOrCurie.split(':');
 
   if (splt.length === 2) { // CURIE
-    var ctx = Packager.context()['@context'][1];
+    var ctx = SaSchemaOrg.context()['@context'][1];
     if (splt[0] in ctx) {
       if (splt[0] === 'sa') {
         protocol = this.rc.protocol;
@@ -129,7 +130,7 @@ Ldpm.prototype.url = function(pathnameOrCurie){
 
 Ldpm.prototype.namespace = function(curie){
   var purl = url.parse(this.url(curie));
-  if ((purl.hostname === url.parse(Packager.contextUrl).hostname) || (purl.hostname === this.rc.hostname)) {
+  if ((purl.hostname === url.parse(SaSchemaOrg.contextUrl).hostname) || (purl.hostname === this.rc.hostname)) {
     return purl.pathname.replace(/^\/|\/$/g, '').split('/')[0];
   }
 }
@@ -559,8 +560,8 @@ Ldpm.prototype.add = function(doc, tGlobsOrTurls, opts, callback){
   //flatten the doc to get all the @id and generate opts.reservedIds
   var tdoc = clone(doc);
   var ctx;
-  if (tdoc['@context'] === Packager.contextUrl) {
-    tdoc['@context'] = Packager.context()['@context']; //offline
+  if (tdoc['@context'] === SaSchemaOrg.contextUrl) {
+    tdoc['@context'] = SaSchemaOrg.context()['@context']; //offline
     ctx = tdoc['@context'];
   }
 
@@ -615,7 +616,7 @@ Ldpm.prototype.cdoc = function(doc, callback){
 
   function _next(doc){
     var ctx;
-    if (doc['@context'] === Packager.contextUrl) {//help for testing
+    if (doc['@context'] === SaSchemaOrg.contextUrl) {//help for testing
       ctx = doc['@context'];
       doc['@context'] = ctxUrl;
     }
@@ -788,8 +789,8 @@ Ldpm.prototype._archiveFile = function(mnode, callback){
             part.dateModified = stats.mtime.toISOString();
 
             var type = packager.getType(part, packager.getRanges('hasPart'));
-            var isSoftwareApplication = packager.isClassOrSubClassOf(type, 'SoftwareApplication');
-            var isMediaObject = packager.isClassOrSubClassOf(type, 'MediaObject');
+            var isSoftwareApplication = type && packager.isClassOrSubClassOf(type, 'SoftwareApplication');
+            var isMediaObject = type && packager.isClassOrSubClassOf(type, 'MediaObject');
 
             if (isSoftwareApplication) {
               part.fileSize = stats.size;
@@ -1037,7 +1038,7 @@ Ldpm.prototype.cat = function(docUri, opts, callback){
        ) {
 
       if (opts.normalize) {
-        if (doc['@context'] === Packager.contextUrl) {
+        if (doc['@context'] === SaSchemaOrg.contextUrl) {
           doc['@context'] = ctxUrl;
         }
         jsonld.normalize(doc, {format: 'application/nquads'}, callback);
@@ -1063,7 +1064,7 @@ Ldpm.prototype.cat = function(docUri, opts, callback){
     }
 
     var ctx;
-    if (doc['@context'] === Packager.contextUrl) {//context transfo to help for testing
+    if (doc['@context'] === SaSchemaOrg.contextUrl) {//context transfo to help for testing
       ctx = doc['@context'];
       doc['@context'] = ctxUrl;
     }
@@ -1207,7 +1208,7 @@ Ldpm.prototype._mdl = function(mnode, root, opts, callback){
 
 };
 
-Ldpm.prototype.lsMaintainers = function(curie, callback){
+Ldpm.prototype.lsMaintainer = function(curie, callback){
   var namespace = this.namespace(curie);
   var rurl = this.url('maintainers/ls/' + namespace);
   this.log('GET', rurl);
@@ -1223,7 +1224,7 @@ Ldpm.prototype.lsMaintainers = function(curie, callback){
   }.bind(this));
 };
 
-Ldpm.prototype.addMaintainers = function(data, callback){
+Ldpm.prototype.addMaintainer = function(data, callback){
   data = clone(data);
   data.namespace = this.namespace(data.namespace); //if CURIE was provided
   if (!data.username && !data.namespace) {
@@ -1242,13 +1243,13 @@ Ldpm.prototype.addMaintainers = function(data, callback){
   }.bind(this));
 };
 
-Ldpm.prototype.rmMaintainers = function(data, callback){
+Ldpm.prototype.rmMaintainer = function(data, callback){
   data = clone(data);
   data.namespace = this.namespace(data.namespace); //if CURIE was provided
   if (!data.username && !data.namespace) {
     return callback(new Error('invalid data, data must contain username and namespace properties'));
   }
-  var rurl = this.url('/maintainers/rm');
+  var rurl = this.url('maintainers/rm');
   this.log('POST', rurl);
   request.post({url: rurl, json: data, auth: this._auth()}, function(err, resp, body){
     if(err) return callback(err);
@@ -1259,6 +1260,7 @@ Ldpm.prototype.rmMaintainers = function(data, callback){
     callback(null, body);
   }.bind(this));
 };
+
 
 function _mkdirp(dirPath, opts, callback){
   if (arguments.length === 2){

@@ -1,6 +1,6 @@
 {
   "name": "ldpm",
-  "version": "0.10.0",
+  "version": "0.10.1",
   "description": "linked data package manager",
   "main": "index.js",
   "bin": {
@@ -35,7 +35,7 @@
   },
   "homepage": "https://github.com/standard-analytics/ldpm",
   "dependencies": {
-    "package-jsonld": "*",
+    "sa-schema-org": "0.0.0",
     "colors": "~0.6.2",
     "concat-stream": "^1.4.5",
     "cookie": "^0.1.2",
@@ -63,7 +63,8 @@
     "optimist": "~0.6.1",
     "rc": "~0.5.0",
     "clone": "~0.1.18",
-    "archy": "0.0.2"
+    "archy": "0.0.2",
+    "oboe": "~1.15.1"
   },
   "devDependencies": {
     "mocha": "~1.15.1"

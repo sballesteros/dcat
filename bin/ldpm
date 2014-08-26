@@ -17,10 +17,11 @@ var path = require('path')
   , querystring = require('querystring')
   , tree = require('../lib/tree')
   , readdirpSync = require('fs-readdir-recursive')
-  , Packager = require('package-jsonld')
+  , SaSchemaOrg = require('sa-schema-org')
   , githubUrlToObject = require('github-url-to-object')
   , bitbucketUrlToObject = require('bitbucket-url-to-object')
   , os = require('os')
+  , oboe = require('oboe')
   , colors = require('colors');
 
 var argv = optimist
@@ -33,10 +34,11 @@ var argv = optimist
       '  - publish',
       '  - unpublish <CURIE>',
       '  - adduser',
-      '  - maintainers <subcommand> where subcommand is:',
+      '  - maintainer <subcommand> where subcommand is:',
       '    - ls  <CURIE>',
       '    - add <user> <CURIE>',
       '    - rm  <user> <CURIE>',
+      '    - search <keywords>',
       '  - help [command] get help on a comand',
     ].join(os.EOL)
   )
@@ -182,7 +184,7 @@ if (argv._[0] === 'init') {
         ldpm.wrap(parts, opts, function(err, rparts, reservedIds){
           if (err) _fail(err);
 
-          var doc = { '@context': Packager.contextUrl, '@id': prompted.namespace };
+          var doc = { '@context': SaSchemaOrg.contextUrl, '@id': prompted.namespace };
 
           //keep a nice order
           if (argv.m) {
@@ -220,7 +222,7 @@ if (argv._[0] === 'init') {
           if (ldpm.rc.name || ldpm.rc.email) {
             doc.accountablePerson = {'@type': 'Person'}; //TODO @id with user profile
             if (ldpm.rc.name) doc.accountablePerson.name = ldpm.rc.name;
-            if (ldpm.rc.email) doc.accountablePerson.email = ldpm.rc.email;
+            if (ldpm.rc.email) doc.accountablePerson.email = 'mailto:' + ldpm.rc.email;
           }
 
           if (prompted.isBasedOnUrl) {
@@ -371,7 +373,7 @@ if (argv._[0] === 'init') {
 
   })();
 
-} else if (argv._[0] === 'maintainers'){
+} else if (argv._[0] === 'maintainer'){
 
   (function(){
     var action = argv._[1];
@@ -379,7 +381,7 @@ if (argv._[0] === 'init') {
 
     var username, namespace;
     if(action === 'add' || action === 'rm'){
-      var msg = 'invalid usage: ldpm maintainers ' + action + ' <username> <CURIE>'
+      var msg = 'invalid usage: ldpm maintainer ' + action + ' <username> <CURIE>'
 
       var username = argv._[2];
       if(!username) _fail(new Error(msg));
@@ -387,7 +389,7 @@ if (argv._[0] === 'init') {
       namespace = argv._[3];
       if(!namespace) _fail(new Error(msg));
 
-      ldpm[action + 'Maintainers']({username: username, namespace: namespace}, function(err){
+      ldpm[action + 'Maintainer']({username: username, namespace: namespace}, function(err){
         if (err) return _fail(err);
         console.log(((action === 'add') ? '+ '.green : '- '.red) + username);
       });
@@ -395,19 +397,62 @@ if (argv._[0] === 'init') {
     } else if (action === 'ls'){
 
       namespace = argv._[2];
-      if(!namespace) _fail(new Error('invalid usage: ldpm maintainers ls <CURIE>'));
+      if(!namespace) _fail(new Error('invalid usage: ldpm maintainer ls <CURIE>'));
 
-      ldpm.lsMaintainers(namespace, function(err, maintainers){
+      ldpm.lsMaintainer(namespace, function(err, body){
         if(err) _fail(err);
-        if(!Array.isArray(maintainers)) _fail(new Error('no maintainers'));
-        maintainers.forEach(function(m){
-          console.log(m.name, m.email);
+        if(!body.accountablePerson) _fail(new Error('no maintainers'));
+        body.accountablePerson.forEach(function(m){
+          console.log('-', m.name, m.email.split('mailto:')[1]);
         });
       });
 
     } else {
       _fail(new Error('invalid usage'));
     }
+  })();
+
+} else if (argv._[0] === 'search') {
+
+  (function(){
+    var keywords = argv._.slice(1)
+      .map(function(x){return x.trim().toLowerCase()})
+      .map(function(x){return x;});
+
+    if (!keywords.length) {
+      return _fail(new Error('invalid usage: search must be followed by one or several keywords'));
+    }
+
+    var rurl = ldpm.url('search?' + querystring.stringify({keywords: keywords}));
+    ldpm.log('GET', rurl);
+    var cnt = 0;
+    oboe(rurl)
+      .start(function(statusCode, headers){
+        ldpm.log(statusCode, rurl);
+      })
+      .node('itemListElement.*', function(node){
+        cnt++;
+        var s = '- ' + '@id '.magenta  + node['@id'];
+        ['@type', 'name', 'version', 'description'].forEach(function(x){
+          if (x in node) {
+            s += ' ' + x.grey + ' ' + node[x];
+          }
+        });
+        console.log(s);
+      })
+      .done(function(){
+        console.log(cnt.toString().green + ' results');
+      })
+      .fail(function(errorReport) {
+        if (errorReport.thrown) {
+          _fail(errorReport.thrown);
+        } else if (errorReport.statusCode === 404) {
+          console.log(errorReport.jsonBody.error);
+        } else {
+          _fail(ldpm._error(errorReport.jsonBody, errorReport.statusCode));
+        }
+      });
+
   })();
 
 } else if (argv._[0] === 'help') {

@@ -1,6 +1,6 @@
 {
   "name": "ldpm",
-  "version": "0.10.1",
+  "version": "0.10.2",
   "description": "linked data package manager",
   "main": "index.js",
   "bin": {
@@ -15,6 +15,8 @@
     "url": "git://github.com/standard-analytics/ldpm.git"
   },
   "keywords": [
+    "hypertext",
+    "hypermedia",
     "package",
     "publishing",
     "hyperdata",
@@ -23,10 +25,10 @@
     "client",
     "data",
     "registry",
-    "science",
     "schema.org",
     "CreativeWork",
-    "JSON-LD"
+    "JSON-LD",
+    "schema.org"
   ],
   "author": "Sebastien Ballesteros",
   "license": "Apache-2.0",
@@ -35,7 +37,7 @@
   },
   "homepage": "https://github.com/standard-analytics/ldpm",
   "dependencies": {
-    "sa-schema-org": "0.0.0",
+    "sa-schema-org": "0.1.0",
     "colors": "~0.6.2",
     "concat-stream": "^1.4.5",
     "cookie": "^0.1.2",
@@ -67,6 +69,6 @@
     "oboe": "~1.15.1"
   },
   "devDependencies": {
-    "mocha": "~1.15.1"
+    "mocha": "~1.21.4"
   }
 }

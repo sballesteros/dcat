@@ -368,7 +368,10 @@ if (argv._[0] === 'init') {
       } catch (e) {
         _fail(e);
       }
-      ldpm.addUser(_fail);
+      ldpm.addUser(function(err, body){
+        if (err) return _fail(err);
+        console.log('+'.green, body.agent || body['@id']);
+      });
     });
 
   })();
@@ -391,7 +394,7 @@ if (argv._[0] === 'init') {
 
       ldpm[action + 'Maintainer']({username: username, namespace: namespace}, function(err){
         if (err) return _fail(err);
-        console.log(((action === 'add') ? '+ '.green : '- '.red) + username);
+        console.log(((action === 'add') ? '+ '.green : '- '.red) + 'sa:user/' + username);
       });
 
     } else if (action === 'ls'){
@@ -403,7 +406,7 @@ if (argv._[0] === 'init') {
         if(err) _fail(err);
         if(!body.accountablePerson) _fail(new Error('no maintainers'));
         body.accountablePerson.forEach(function(m){
-          console.log('-', m.name, m.email.split('mailto:')[1]);
+          console.log('-', m['@id'], m.email);
         });
       });
 

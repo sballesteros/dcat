@@ -5,9 +5,7 @@ ldpm
 
 Gives [schema.org](http://schema.org) access to your files and links.
 
-
 [![NPM](https://nodei.co/npm/ldpm.png)](https://nodei.co/npm/ldpm/)
-
 
 History
 =======
@@ -21,6 +19,14 @@ Registry
 By default, ```ldpm``` uses [Standard Analytics IO](http://standardanalytics.io)
 [linked data registry](https://github.com/standard-analytics/linked-data-registry)
 hosted on [cloudant](https://standardanalytics.cloudant.com).
+
+Tests
+=====
+
+You need a local instance of the [linked data registry](https://github.com/standard-analytics/linked-data-registry) running on your machine on port 3000. Then, run:
+
+    npm test
+
 
 License
 =======

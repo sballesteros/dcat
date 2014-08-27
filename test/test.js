@@ -42,7 +42,7 @@ describe('ldpm', function(){
 
     it('should return auth token if user already registered but addUser is called with correct username and password', function(done){
       ldpm.addUser(function(err, auth){
-        assert(auth.name, conf.name);
+        assert(auth['@id'], 'sa:users/' + conf.name);
         done()
       });
     });
@@ -57,7 +57,7 @@ describe('ldpm', function(){
     });
 
     after(function(done){
-      request.del({ url: rurl('rmuser/' + conf.name), auth: {user: conf.name, pass: conf.password} }, done);
+      request.del({ url: rurl('users/' + conf.name), auth: {user: conf.name, pass: conf.password} }, done);
     });
 
   });
@@ -161,7 +161,7 @@ describe('ldpm', function(){
 
     after(function(done){
       ldpm.unpublish('cw-test', function(){
-        request.del({ url: rurl('rmuser/' + conf.name), auth: {user: conf.name, pass: conf.password} }, done);
+        request.del({ url: rurl('users/' + conf.name), auth: {user: conf.name, pass: conf.password} }, done);
       });
     });
 
@@ -219,7 +219,7 @@ describe('ldpm', function(){
 
     after(function(done){
       ldpm.unpublish('cat-test', function(){
-        request.del({ url: rurl('rmuser/' + conf.name), auth: {user: conf.name, pass: conf.password} }, done);
+        request.del({ url: rurl('users/' + conf.name), auth: {user: conf.name, pass: conf.password} }, done);
       });
     });
   });
@@ -256,7 +256,7 @@ describe('ldpm', function(){
 
     after(function(done){
       ldpm.unpublish('cw-test', function(){
-        request.del({ url: rurl('rmuser/' + conf.name), auth: {user: conf.name, pass: conf.password} }, done);
+        request.del({ url: rurl('users/' + conf.name), auth: {user: conf.name, pass: conf.password} }, done);
       });
     });
   });
@@ -265,8 +265,8 @@ describe('ldpm', function(){
   describe('maintainers', function(){
 
     var accountablePersons =  [
-      { '@type': 'Person', name: 'user_a', email: 'mailto:user@domain.com' },
-      { '@type': 'Person', name: 'user_b', email: 'mailto:user@domain.com' }
+      { '@id': 'sa:users/user_a', '@type': 'Person', email: 'mailto:user@domain.com' },
+      { '@id': 'sa:users/user_b', '@type': 'Person', email: 'mailto:user@domain.com' }
     ];
 
     var doc = { '@context': SaSchemaOrg.contextUrl, '@id': 'maintainer-test', name:'maintainer' };
@@ -315,8 +315,8 @@ describe('ldpm', function(){
 
     after(function(done){
       ldpm1.unpublish(doc['@id'], function(){
-        request.del({ url: rurl('rmuser/' + conf.name), auth: {user: conf.name, pass: conf.password} }, function(){
-          request.del({ url: rurl('rmuser/' + conf2.name), auth: {user: conf2.name, pass: conf2.password} }, done);
+        request.del({ url: rurl('users/' + conf.name), auth: {user: conf.name, pass: conf.password} }, function(){
+          request.del({ url: rurl('users/' + conf2.name), auth: {user: conf2.name, pass: conf2.password} }, done);
         });
       });
     });

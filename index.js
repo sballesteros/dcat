@@ -31,7 +31,7 @@ var crypto = require('crypto')
 
 request = request.defaults({json:true, strictSSL: false});
 
-var conf = require('rc')('ldpm', {protocol: 'https:', port: 443, hostname: 'registry.standardanalytics.io', strictSSL: false, sha:true});
+var conf = require('rc')('ldpm', {protocol: 'https:', port: 443, hostname: 'registry.standardanalytics.io', strictSSL: false});
 
 mime.define({
   'application/ld+json': ['jsonld'],
@@ -79,7 +79,7 @@ Ldpm.type = function(mimetype){
     return 'Dataset';
   } else if (~['application/javascript', 'application/ecmascript', 'text/x-asm', 'text/x-c', 'text/x-fortran', 'text/x-java', 'text/x-java-source', 'text/x-pascal', 'text/x-clojure', 'text/x-coffeescript', 'text/x-go', 'text/x-ocaml', 'text/x-scala', 'text/x-python', 'text/x-r', 'text/x-rust', 'text/x-erlang', 'text/x-julia', 'text/x-perl'].indexOf(mimetype)) {
     return 'Code';
-  } else if (~['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.oasis.opendocument.text', 'application/x-latex'].indexOf(mimetype)) {
+  } else if (~['application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.oasis.opendocument.text', 'application/x-latex'].indexOf(mimetype)) {
     return 'Article';
   } else if (~['text/html', 'application/xhtml+xml'].indexOf(mimetype)) {
     return 'WebPage';
@@ -137,7 +137,7 @@ Ldpm.prototype.namespace = function(curie){
 
 Ldpm.prototype._error = function(msg, code){
   if (typeof msg === 'object') {
-    msg = msg.reason || msg.error || 'error';
+    msg = msg.description || msg.reason || msg.error || 'error';
   }
 
   var err = new Error(msg);
@@ -162,16 +162,15 @@ Ldpm.prototype.addUser = function(callback){
     }
 
     //From here: auth failed: invalid name or password or user does not exists we try to create it
-    var userdata = { name: this.rc.name, email: this.rc.email };
-    if (this.rc.sha) {
-      var salt = crypto.randomBytes(30).toString('hex');
-      userdata.salt = salt;
-      userdata.password_sha = crypto.createHash("sha1").update(this.rc.password + salt).digest("hex");
-    } else {
-      userdata.password = this.rc.password;
-    }
+    var userdata = {
+      '@context': SaSchemaOrg.contextUrl,
+      '@id': 'sa:users/' + this.rc.name,
+      '@type': ['Person', 'Role'],
+      email: 'mailto:' + this.rc.email,
+      password: this.rc.password
+    };
 
-    var rurl = this.url('adduser/' + this.rc.name);
+    var rurl = this.url('users/' + this.rc.name);
     this.log('PUT', rurl);
     request.put({url: rurl, json: userdata, auth: this._auth()}, function(err, resp, body){
       if (err) return callback(err);
@@ -184,9 +183,9 @@ Ldpm.prototype.addUser = function(callback){
         } else {
           err = this._error('username ' + this.rc.name + ' already exists', resp.statusCode);
         }
-        callback(err, resp.headers);
+        callback(err, body);
       } else {
-        err = this._error('something went wrong', resp.statusCode);
+        err = this._error(body, resp.statusCode);
         callback(err, body);
       }
     }.bind(this));
@@ -1138,7 +1137,9 @@ Ldpm.prototype.clone = function(docUri, opts, callback){
 
 };
 
-
+/**
+ * download and write raw data of mnode on disk
+ */
 Ldpm.prototype._mdl = function(mnode, root, opts, callback){
   callback = once(callback);
   var uri = this.url(mnode.node.contentUrl || mnode.node.downloadUrl);
@@ -1231,9 +1232,9 @@ Ldpm.prototype.addMaintainer = function(data, callback){
     return callback(new Error('invalid data, data must contain username and namespace properties'));
   }
 
-  var rurl = this.url('maintainers/add');
+  var rurl = this.url('maintainers/add/' + data.username + '/' + data.namespace);
   this.log('POST', rurl);
-  request.post({url: rurl, json: data, auth: this._auth()}, function(err, resp, body){
+  request.post({url: rurl, auth: this._auth()}, function(err, resp, body){
     if(err) return callback(err);
     this.log(resp.statusCode, rurl);
     if(resp.statusCode >= 400){
@@ -1249,9 +1250,9 @@ Ldpm.prototype.rmMaintainer = function(data, callback){
   if (!data.username && !data.namespace) {
     return callback(new Error('invalid data, data must contain username and namespace properties'));
   }
-  var rurl = this.url('maintainers/rm');
+  var rurl = this.url('maintainers/rm/' + data.username + '/' + data.namespace);
   this.log('POST', rurl);
-  request.post({url: rurl, json: data, auth: this._auth()}, function(err, resp, body){
+  request.post({url: rurl, auth: this._auth()}, function(err, resp, body){
     if(err) return callback(err);
     this.log(resp.statusCode, rurl);
     if(resp.statusCode >= 400){

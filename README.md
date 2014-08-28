@@ -51,8 +51,7 @@ directory containing it run:
 
     dcat publish
 
-After publication the document will be available at
-```https://dcat.io/mydoc```.
+After publication the document will be available at ```https://dcat.io/mydoc```.
 
 Documents can contains any properties from
 [schema.org](http://schema.org) or from any other ontologies as long

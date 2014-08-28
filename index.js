@@ -625,6 +625,7 @@ Dcat.prototype.cdoc = function(doc, callback){
       if (ctx && cdoc['@context'] === ctxUrl) {
         cdoc['@context'] = ctx;
       }
+
       callback(null, cdoc);
     });
   };
@@ -674,7 +675,6 @@ Dcat.prototype.publish = function(doc, opts, callback){
         cb(null);
       }
     }.bind(this), function(err){
-
       if (err) return callback(err);
       //publish cdoc on the registry (now that mnode has been updated/mutated)
       var rurl = this.url(cdoc['@id']);
@@ -686,7 +686,7 @@ Dcat.prototype.publish = function(doc, opts, callback){
         if (resp.statusCode === 409) {
           callback(this._error((cdoc['@id'] + (('version' in cdoc) ? ('@' + cdoc.version) : '') + ' has already been published'), resp.statusCode));
         } else if (resp.statusCode >= 400) {
-          callback(this._error(body), resp.statusCode);
+          callback(this._error(body, resp.statusCode), resp.statusCode);
         } else {
           callback(null, cdoc, resp.statusCode);
         }
@@ -918,6 +918,7 @@ Dcat.prototype._mstream = function(mnode){
     mstream = zlib.createGzip();
 
     var pack = tar.pack();
+    pack.pipe(mstream); //we need to have pack being drained right away see https://github.com/mafintosh/tar-stream/issues/9
 
     var parts = Array.isArray(mnode.node.hasPart)? mnode.node.hasPart : [mnode.node.hasPart];
     var absPaths = parts
@@ -929,7 +930,7 @@ Dcat.prototype._mstream = function(mnode){
         if (err) return cb(err);
         var s = pack.entry({
           name: path.relative(this.root, absPath),
-          size:stats.size,
+          size: stats.size,
           mtime: stats.mtime }, cb);
         fs.createReadStream(absPath).pipe(s);
       }.bind(this));
@@ -938,7 +939,6 @@ Dcat.prototype._mstream = function(mnode){
         process.nextTick(function(){ pack.emit('error', err); });
       } else {
         pack.finalize();
-        pack.pipe(mstream);
       }
     });
 

@@ -46,7 +46,7 @@ e.g:
       "@id": "mydoc"
     }
 
-To publish this document, create a file named ```JSONLD`` and, in the
+To publish this document, create a file named ```JSONLD``` and, in the
 directory containing it run:
 
     dcat publish
@@ -159,7 +159,7 @@ For all the subclasses of
 [Dataset](http://schema.org/Dataset), [Code](http://schema.org/Code),
 [SoftwareApplication](http://schema.org/SoftwareApplication),
 [Article](http://schema.org/Article), [Book](http://schema.org/Book),
-[ImageObject](http://schema.org/ImageObject)),
+[ImageObject](http://schema.org/ImageObject),
 [VideoObject](http://schema.org/VideoObject),
 [AudioObject](http://schema.org/AudioObject), ...) ```dcat``` allows
 to publish raw data from files (dataset, binaries, images, media...)
@@ -251,7 +251,7 @@ To delete all versions of a document of ```"@id": "mydoc"``` run:
 Document containing [keywords](http://schema.org/keywords),
 [name](http://schema.org/name) or
 [description](http://schema.org/description) properties can be
-searched by keyword with ```dcat search`` followed by a list of
+searched by keyword with ```dcat search``` followed by a list of
 keywords.
 
 For more powerful search, all data published on

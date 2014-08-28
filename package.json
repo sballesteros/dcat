@@ -1,6 +1,6 @@
 {
   "name": "dcat",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Archive and make discoverable data and links with schema.org metadata.",
   "main": "index.js",
   "bin": {

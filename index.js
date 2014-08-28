@@ -31,7 +31,7 @@ var crypto = require('crypto')
 
 request = request.defaults({json:true, strictSSL: false});
 
-var conf = require('rc')('dcat', {protocol: 'https:', port: 443, hostname: 'registry.standardanalytics.io', strictSSL: false});
+var conf = require('rc')('dcat', {protocol: 'https:', port: 443, hostname: 'dcat.io', strictSSL: false});
 
 mime.define({
   'application/ld+json': ['jsonld'],
@@ -155,7 +155,7 @@ Dcat.prototype.log = function(verbOrstatusCode, pathnameOrUrl, protocol){
 Dcat.prototype.addUser = function(callback){
   //chech that we need to add a user
   request.get({url: this.url('session'), auth: this._auth()}, function(err, respCheck, body){
-    if (err) return callback(err, respCheck && respCheck.headers);
+    if (err) return callback(err);
 
     if (respCheck.statusCode === 200) {
       return callback(null, body);

@@ -268,7 +268,7 @@ if (argv._[0] === 'init') {
       opts.profile = 'compacted';
     }
 
-    dcat.show(curie, opts, function(err, doc){
+    dcat.get(curie, opts, function(err, doc){
       if (err) return _fail(err);
       console.log((opts.normalize)? doc : JSON.stringify(doc, null, 2));
     });

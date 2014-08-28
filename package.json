@@ -27,8 +27,7 @@
     "registry",
     "schema.org",
     "CreativeWork",
-    "JSON-LD",
-    "schema.org"
+    "JSON-LD"
   ],
   "author": "Sebastien Ballesteros",
   "license": "Apache-2.0",

@@ -394,7 +394,7 @@ if (argv._[0] === 'init') {
 
       dcat[action + 'Maintainer']({username: username, namespace: namespace}, function(err){
         if (err) return _fail(err);
-        console.log(((action === 'add') ? '+ '.green : '- '.red) + 'io:user/' + username);
+        console.log(((action === 'add') ? '+ '.green : '- '.red) + 'ldr:user/' + username);
       });
 
     } else if (action === 'ls'){

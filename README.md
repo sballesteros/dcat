@@ -230,18 +230,21 @@ or repeat ```--part``` (or the shorter ```-p```) if you need more complex matchi
     dcat init --m article.pdf -p *.csv -p *.jpg
 
 
+TODO describe directories
+
+
 ## Unpublishing (```unpublish```)
 
 To delete a specific version of a document of ```"@id": "mydoc"`` run:
 
-    dcat unpublish io:mydoc?version=0.1.1
+    dcat unpublish ldr:mydoc?version=0.1.1
 
-```io``` is the prefix used for ```https://dcat.io``` (defined in the
+```ldr``` is the prefix used for ```https://dcat.io``` (defined in the
 dcat.io ```@context```).
 
 To delete all versions of a document of ```"@id": "mydoc"``` run:
 
-    dcat unpublish io:mydoc
+    dcat unpublish ldr:mydoc
 
 
 ## Retrieving documents and raw data (```search```, ```show```, ```clone```)
@@ -261,7 +264,8 @@ queried using [SPARQL](http://www.w3.org/TR/rdf-sparql-query/).
 
 ### Show (expanded, compacted, flattened, normalized )
 
-```dcat show``` followed by a CURIE allows to display on
+```dcat show``` followed by a [CURIE](http://www.w3.org/TR/curie/)
+allows to display on
 [stdout](http://en.wikipedia.org/wiki/Standard_streams) the latest
 JSON-LD document corresponding to the CURIE.
 
@@ -269,7 +273,7 @@ Different options (```-e, --expand```, ```-f, --flatten```, ```-c,
 --compact```, ```-n, --normalize```) allow to have different
 representation of the document. For instance,
 
-```dcat show io:mydoc?version=<2.1.0 --normalize```
+```dcat show ldr:mydoc?version=<2.1.0 --normalize```
 
 will serialize the latest version smaller than 2.1.0 of the document
 of ```"@id": "mydoc"``` to [N-Quads](http://www.w3.org/TR/n-quads/)
@@ -277,9 +281,9 @@ of ```"@id": "mydoc"``` to [N-Quads](http://www.w3.org/TR/n-quads/)
 
 ### Clone
 
-```dcat clone``` followed by a CURIE allows to download the raw data associated with a
-document and store it on disk at the paths specified by ```filepath```
-properties.
+```dcat clone``` followed by a [CURIE](http://www.w3.org/TR/curie/) allows to download the raw data
+associated with a document and store them along with the document on
+disk at the paths specified by the ```filepath``` properties.
 
 
 ## Listing / Adding / Removing maintainers (```maintainer```)
@@ -293,7 +297,7 @@ Maintainers can give users maintainer rights by running:
 
     dcat maintainer add <user CURIE> <doc CURIE>
 
-Note: all user of [dcat.io](https://dcat.io) of a CURI of io:users/{username}
+Note: all user of [dcat.io](https://dcat.io) of a CURI of ldr:users/{username}
 
 Maintainers can remove maintainer rights by running:
 
@@ -303,7 +307,7 @@ Maintainers can remove maintainer rights by running:
 API
 ===
 
-You can also use ```dcat``` programmatically.
+```dcat``` can also be used programmatically.
 
     var Dcat = require('dcat');
     var dcat = new Dcat();

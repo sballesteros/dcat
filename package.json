@@ -1,6 +1,6 @@
 {
   "name": "dcat",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Archive and make discoverable data and links with schema.org metadata.",
   "main": "index.js",
   "bin": {
@@ -37,7 +37,7 @@
   },
   "homepage": "https://github.com/standard-analytics/dcat",
   "dependencies": {
-    "schema-org-io": "0.0.1",
+    "schema-org-io": "0.1.0",
     "colors": "~0.6.2",
     "concat-stream": "^1.4.5",
     "cookie": "^0.1.2",

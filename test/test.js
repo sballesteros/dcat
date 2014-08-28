@@ -42,7 +42,7 @@ describe('dcat', function(){
 
     it('should return auth token if user already registered but addUser is called with correct username and password', function(done){
       dcat.addUser(function(err, auth){
-        assert(auth['@id'], 'io:users/' + conf.name);
+        assert(auth['@id'], 'ldr:users/' + conf.name);
         done()
       });
     });
@@ -143,7 +143,7 @@ describe('dcat', function(){
           { node: { hasPart: [ { filePath: 'src/lib.h' }, { filePath: 'src/main.c' } ] }, type: 'MediaObject' },
           { node: { filePath: 'article/pone.pdf' }, type: 'MediaObject' },
           { node: { filePath: 'img/daftpunk.jpg' }, type: 'MediaObject' },
-          { node: { '@id': 'io:cw-test/app', '@type': 'SoftwareApplication', filePath: 'app/app.zip' }, type: 'SoftwareApplication' },
+          { node: { '@id': 'ldr:cw-test/app', '@type': 'SoftwareApplication', filePath: 'app/app.zip' }, type: 'SoftwareApplication' },
           { node: { filePath: 'data.csv' }, type: 'DataDownload' }
         ];
 
@@ -169,13 +169,12 @@ describe('dcat', function(){
 
   describe('cat', function(){
     var dcat;
+    var doc = {
+      '@context': SchemaOrgIo.contextUrl,
+      '@id': 'show-test',
+      name:'show'
+    };
     before(function(done){
-      var doc = {
-        '@context': SchemaOrgIo.contextUrl,
-        '@id': 'cat-test',
-        name:'cat'
-      };
-
       dcat = new Dcat(conf);
       dcat.addUser(function(){
         dcat.publish(doc, done);
@@ -183,29 +182,29 @@ describe('dcat', function(){
     });
 
     it('should show a document as compacted JSON-LD', function(done){
-      dcat.get('show-test', function(err, doc){
-        assert.deepEqual(doc, { '@context': SchemaOrgIo.contextUrl, '@id': 'io:show-test', name: 'show' });
+      dcat.get(doc['@id'], function(err, doc){
+        assert.deepEqual(doc, { '@context': SchemaOrgIo.contextUrl, '@id': 'ldr:show-test', name: 'show' });
         done();
       });
     });
 
     it('should show a document as flattened JSON-LD', function(done){
-      dcat.get('show-test', {profile:'flattened'}, function(err, doc){
-        assert.deepEqual(doc, { '@context': SchemaOrgIo.contextUrl, '@graph': [ { '@id': 'io:show-test', name: 'show' } ] });
+      dcat.get(doc['@id'], {profile:'flattened'}, function(err, doc){
+        assert.deepEqual(doc, { '@context': SchemaOrgIo.contextUrl, '@graph': [ { '@id': 'ldr:show-test', name: 'show' } ] });
         done();
       });
     });
 
     it('should show a document as expanded JSON-LD', function(done){
-      dcat.get('show-test', {profile:'expanded'}, function(err, doc){
-        assert.deepEqual(doc, [ { '@id': 'https://registry.standardanalytics.io/show-test', 'http://schema.org/name': [ { '@value': 'show' } ] } ]);
+      dcat.get(doc['@id'], {profile:'expanded'}, function(err, doc){
+        assert.deepEqual(doc, [ { '@id': 'https://dcat.io/show-test', 'http://schema.org/name': [ { '@value': 'show' } ] } ]);
         done();
       });
     });
 
     it('should show a document as normalized JSON-LD', function(done){
-      dcat.get('show-test', {normalize: true}, function(err, doc){
-        assert.equal(doc, '<https://registry.standardanalytics.io/show-test> <http://schema.org/name> "show" .\n');
+      dcat.get(doc['@id'], {normalize: true}, function(err, doc){
+        assert.equal(doc, '<https://dcat.io/show-test> <http://schema.org/name> "show" .\n');
         done();
       });
     });
@@ -218,7 +217,7 @@ describe('dcat', function(){
     });
 
     after(function(done){
-      dcat.unpublish('cat-test', function(){
+      dcat.unpublish(doc['@id'], function(){
         request.del({ url: rurl('users/' + conf.name), auth: {user: conf.name, pass: conf.password} }, done);
       });
     });
@@ -265,8 +264,8 @@ describe('dcat', function(){
   describe('maintainers', function(){
 
     var accountablePersons =  [
-      { '@id': 'io:users/user_a', '@type': 'Person', email: 'mailto:user@domain.com' },
-      { '@id': 'io:users/user_b', '@type': 'Person', email: 'mailto:user@domain.com' }
+      { '@id': 'ldr:users/user_a', '@type': 'Person', email: 'mailto:user@domain.com' },
+      { '@id': 'ldr:users/user_b', '@type': 'Person', email: 'mailto:user@domain.com' }
     ];
 
     var doc = { '@context': SchemaOrgIo.contextUrl, '@id': 'maintainer-test', name:'maintainer' };

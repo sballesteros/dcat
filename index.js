@@ -104,7 +104,7 @@ Dcat.prototype.url = function(pathnameOrCurie){
   if (splt.length === 2) { // CURIE
     var ctx = SchemaOrgIo.context()['@context'][1];
     if (splt[0] in ctx) {
-      if (splt[0] === 'io') {
+      if (splt[0] === 'ldr') {
         protocol = this.rc.protocol;
         hostname = this.rc.hostname;
         port = this.rc.port;
@@ -164,7 +164,7 @@ Dcat.prototype.addUser = function(callback){
     //From here: auth failed: invalid name or password or user does not exists we try to create it
     var userdata = {
       '@context': SchemaOrgIo.contextUrl,
-      '@id': 'io:users/' + this.rc.name,
+      '@id': 'ldr:users/' + this.rc.name,
       '@type': ['Person', 'Role'],
       email: 'mailto:' + this.rc.email,
       password: this.rc.password
@@ -569,7 +569,7 @@ Dcat.prototype.add = function(doc, tGlobsOrTurls, opts, callback){
 
     var ioIds = fdoc['@graph']
       .filter(function(x){
-        return x['@id'] && x['@id'].split(':')[0] === 'io';
+        return x['@id'] && x['@id'].split(':')[0] === 'ldr';
       })
       .map(function(x){
         return x['@id'].split(':')[1]
@@ -611,8 +611,7 @@ Dcat.prototype.cdoc = function(doc, callback){
     doc = undefined;
   }
 
-  var ctxUrl = this.url('context.jsonld');
-
+  var ctxUrl = this.url('');
   function _next(doc){
     var ctx;
     if (doc['@context'] === SchemaOrgIo.contextUrl) {//help for testing
@@ -1028,7 +1027,7 @@ Dcat.prototype.get = function(docUri, opts, callback){
       return callback(this._error(doc, resp.statusCode));
     }
 
-    var ctxUrl = this.url('context.jsonld');
+    var ctxUrl = this.url('');
 
     //check if the server could satisfy the option and if so return
     if ( ((opts.profile === 'expanded') && Array.isArray(doc)) ||

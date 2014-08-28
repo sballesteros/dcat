@@ -1,5 +1,5 @@
 {
-  "@context": "https://registry.standardanalytics.io/context.jsonld",
+  "@context": "https://dcat.io",
   "@id": "cw-test",
   "@type": "Dataset",
   "distribution": { "filePath": "data.csv" },

@@ -26,12 +26,12 @@ var crypto = require('crypto')
   , clone = require('clone')
   , githubUrlToObject = require('github-url-to-object')
   , bitbucketUrlToObject = require('bitbucket-url-to-object')
-  , SaSchemaOrg = require('sa-schema-org')
+  , SchemaOrgIo = require('schema-org-io')
   , os = require('os');
 
 request = request.defaults({json:true, strictSSL: false});
 
-var conf = require('rc')('ldpm', {protocol: 'https:', port: 443, hostname: 'registry.standardanalytics.io', strictSSL: false});
+var conf = require('rc')('dcat', {protocol: 'https:', port: 443, hostname: 'registry.standardanalytics.io', strictSSL: false});
 
 mime.define({
   'application/ld+json': ['jsonld'],
@@ -53,18 +53,18 @@ mime.define({
   'text/x-java': ['java']
 });
 
-var Ldpm = module.exports = function(rc, root, packager){
+var Dcat = module.exports = function(rc, root, packager){
   EventEmitter.call(this);
 
   this.root = root || process.cwd();
   this.rc = rc || conf;
 
-  this.packager = packager || new SaSchemaOrg();
+  this.packager = packager || new SchemaOrgIo();
 };
 
-util.inherits(Ldpm, EventEmitter);
+util.inherits(Dcat, EventEmitter);
 
-Ldpm.type = function(mimetype){
+Dcat.type = function(mimetype){
   if (!mimetype || mimetype === 'application/octet-stream') return;
 
   mimetype = mimetype.split(';')[0].trim();
@@ -89,11 +89,11 @@ Ldpm.type = function(mimetype){
 };
 
 
-Ldpm.prototype._auth = function(){
+Dcat.prototype._auth = function(){
   return {user: this.rc.name, pass: this.rc.password};
 };
 
-Ldpm.prototype.url = function(pathnameOrCurie){
+Dcat.prototype.url = function(pathnameOrCurie){
   if (isUrl(pathnameOrCurie)) {
     return pathnameOrCurie;
   }
@@ -102,9 +102,9 @@ Ldpm.prototype.url = function(pathnameOrCurie){
   var splt = pathnameOrCurie.split(':');
 
   if (splt.length === 2) { // CURIE
-    var ctx = SaSchemaOrg.context()['@context'][1];
+    var ctx = SchemaOrgIo.context()['@context'][1];
     if (splt[0] in ctx) {
-      if (splt[0] === 'sa') {
+      if (splt[0] === 'io') {
         protocol = this.rc.protocol;
         hostname = this.rc.hostname;
         port = this.rc.port;
@@ -128,14 +128,14 @@ Ldpm.prototype.url = function(pathnameOrCurie){
   return protocol + '//'  + hostname + ((port && (port !== 80 && port !== 443)) ? (':' + port) : '') + '/' + pathname.replace(/^\/|\/$/g, '');
 };
 
-Ldpm.prototype.namespace = function(curie){
+Dcat.prototype.namespace = function(curie){
   var purl = url.parse(this.url(curie));
-  if ((purl.hostname === url.parse(SaSchemaOrg.contextUrl).hostname) || (purl.hostname === this.rc.hostname)) {
+  if ((purl.hostname === url.parse(SchemaOrgIo.contextUrl).hostname) || (purl.hostname === this.rc.hostname)) {
     return purl.pathname.replace(/^\/|\/$/g, '').split('/')[0];
   }
 }
 
-Ldpm.prototype._error = function(msg, code){
+Dcat.prototype._error = function(msg, code){
   if (typeof msg === 'object') {
     msg = msg.description || msg.reason || msg.error || 'error';
   }
@@ -145,14 +145,14 @@ Ldpm.prototype._error = function(msg, code){
   return err;
 };
 
-Ldpm.prototype.log = function(verbOrstatusCode, pathnameOrUrl, protocol){
+Dcat.prototype.log = function(verbOrstatusCode, pathnameOrUrl, protocol){
   var uri = this.url(pathnameOrUrl);
   protocol = protocol || url.parse(uri).protocol;
 
-  this.emit('log', 'ldpm'.grey + ' ' + protocol.split(':')[0].green + ' ' + verbOrstatusCode.toString().magenta + ' ' + uri.replace(/:80\/|:443\//, '/'));
+  this.emit('log', 'dcat'.grey + ' ' + protocol.split(':')[0].green + ' ' + verbOrstatusCode.toString().magenta + ' ' + uri.replace(/:80\/|:443\//, '/'));
 };
 
-Ldpm.prototype.addUser = function(callback){
+Dcat.prototype.addUser = function(callback){
   //chech that we need to add a user
   request.get({url: this.url('session'), auth: this._auth()}, function(err, respCheck, body){
     if (err) return callback(err, respCheck && respCheck.headers);
@@ -163,8 +163,8 @@ Ldpm.prototype.addUser = function(callback){
 
     //From here: auth failed: invalid name or password or user does not exists we try to create it
     var userdata = {
-      '@context': SaSchemaOrg.contextUrl,
-      '@id': 'sa:users/' + this.rc.name,
+      '@context': SchemaOrgIo.contextUrl,
+      '@id': 'io:users/' + this.rc.name,
       '@type': ['Person', 'Role'],
       email: 'mailto:' + this.rc.email,
       password: this.rc.password
@@ -194,7 +194,7 @@ Ldpm.prototype.addUser = function(callback){
 
 };
 
-Ldpm.prototype.wrap = function(tGlobsOrTurls, opts, callback){
+Dcat.prototype.wrap = function(tGlobsOrTurls, opts, callback){
   if (arguments.length === 2) {
     callback = opts;
     opts = {};
@@ -221,7 +221,7 @@ Ldpm.prototype.wrap = function(tGlobsOrTurls, opts, callback){
 
 };
 
-Ldpm.prototype._pathToResource = function(globs, opts, callback){
+Dcat.prototype._pathToResource = function(globs, opts, callback){
   if (arguments.length === 2) {
     callback = opts;
     opts = {};
@@ -331,7 +331,7 @@ Ldpm.prototype._pathToResource = function(globs, opts, callback){
 
         var r = {
           '@id': uid,
-          '@type': tp.type || Ldpm.type(mymime) || 'CreativeWork'
+          '@type': tp.type || Dcat.type(mymime) || 'CreativeWork'
         };
 
         if (this.packager.isClassOrSubClassOf(r['@type'], 'SoftwareApplication')) { //special case
@@ -405,7 +405,7 @@ Ldpm.prototype._pathToResource = function(globs, opts, callback){
 };
 
 
-Ldpm.prototype._urlToResource = function(turls, opts, callback){
+Dcat.prototype._urlToResource = function(turls, opts, callback){
   if (arguments.length === 2) {
     callback = opts;
     opts = {};
@@ -447,7 +447,7 @@ Ldpm.prototype._urlToResource = function(turls, opts, callback){
 
       this.log('HEAD', repo.tarball_url);
       //see https://developer.github.com/v3/#user-agent-required
-      request.head({url:repo.tarball_url, followAllRedirects:true, headers: {'User-Agent': 'ldpm'}}, function(err, resp){
+      request.head({url:repo.tarball_url, followAllRedirects:true, headers: {'User-Agent': 'dcat'}}, function(err, resp){
         if (err) return cb(err);
         this.log(resp.statusCode, repo.tarball_url);
         if (resp.statusCode >= 400) {
@@ -487,7 +487,7 @@ Ldpm.prototype._urlToResource = function(turls, opts, callback){
         while (uid in reservedIds) { uid = myid + '-' + i++; }
         reservedIds[uid] = true;
 
-        var r = { '@id': uid, '@type': myturi.type || Ldpm.type(mymime) || 'CreativeWork' };
+        var r = { '@id': uid, '@type': myturi.type || Dcat.type(mymime) || 'CreativeWork' };
 
         var contentSize;
         if ('content-length' in resp.headers) {
@@ -525,7 +525,7 @@ Ldpm.prototype._urlToResource = function(turls, opts, callback){
           } else if (this.packager.isClassOrSubClassOf(r['@type'], 'Code')) {
             r.encoding = _.extend({'@type': 'MediaObject'}, encoding);
             //try to get programming language for MIME
-            var inferedType = Ldpm.type(mymine);
+            var inferedType = Dcat.type(mymine);
             if (inferedType === 'Code') {
               var m2 = mymime.split('/')[1];
               if (m2 !== 'plain' && m2 !== 'octet-stream') {
@@ -547,7 +547,7 @@ Ldpm.prototype._urlToResource = function(turls, opts, callback){
   });
 };
 
-Ldpm.prototype.add = function(doc, tGlobsOrTurls, opts, callback){
+Dcat.prototype.add = function(doc, tGlobsOrTurls, opts, callback){
 
   if (arguments.length === 3) {
     callback = opts;
@@ -559,24 +559,24 @@ Ldpm.prototype.add = function(doc, tGlobsOrTurls, opts, callback){
   //flatten the doc to get all the @id and generate opts.reservedIds
   var tdoc = clone(doc);
   var ctx;
-  if (tdoc['@context'] === SaSchemaOrg.contextUrl) {
-    tdoc['@context'] = SaSchemaOrg.context()['@context']; //offline
+  if (tdoc['@context'] === SchemaOrgIo.contextUrl) {
+    tdoc['@context'] = SchemaOrgIo.context()['@context']; //offline
     ctx = tdoc['@context'];
   }
 
   jsonld.flatten(tdoc, ctx || tdoc['@context'], function(err, fdoc){
     if (err) return callback(err);
 
-    var saIds = fdoc['@graph']
+    var ioIds = fdoc['@graph']
       .filter(function(x){
-        return x['@id'] && x['@id'].split(':')[0] === 'sa';
+        return x['@id'] && x['@id'].split(':')[0] === 'io';
       })
       .map(function(x){
         return x['@id'].split(':')[1]
       });
 
     opts.reservedIds = opts.reservedIds || {};
-    saIds.forEach(function(id){ opts.reservedIds[id] = true; });
+    ioIds.forEach(function(id){ opts.reservedIds[id] = true; });
 
     //get namespace
     if (doc['@id']) {
@@ -605,7 +605,7 @@ Ldpm.prototype.add = function(doc, tGlobsOrTurls, opts, callback){
  * if no doc is provided, will be read from JSONLD
  * resolve all the CURIES and take into account any potential nested @context
  */
-Ldpm.prototype.cdoc = function(doc, callback){
+Dcat.prototype.cdoc = function(doc, callback){
   if (arguments.length === 1) {
     callback = doc;
     doc = undefined;
@@ -615,7 +615,7 @@ Ldpm.prototype.cdoc = function(doc, callback){
 
   function _next(doc){
     var ctx;
-    if (doc['@context'] === SaSchemaOrg.contextUrl) {//help for testing
+    if (doc['@context'] === SchemaOrgIo.contextUrl) {//help for testing
       ctx = doc['@context'];
       doc['@context'] = ctxUrl;
     }
@@ -646,7 +646,7 @@ Ldpm.prototype.cdoc = function(doc, callback){
 
 };
 
-Ldpm.prototype.publish = function(doc, opts, callback){
+Dcat.prototype.publish = function(doc, opts, callback){
 
   if (arguments.length === 1) {
     callback = doc;
@@ -700,7 +700,7 @@ Ldpm.prototype.publish = function(doc, opts, callback){
 };
 
 
-Ldpm.prototype._mnodes = function(cdoc){
+Dcat.prototype._mnodes = function(cdoc){
   var mnodes = [];
   var mprops = ['filePath', 'contentUrl', 'downloadUrl'];
 
@@ -753,7 +753,7 @@ Ldpm.prototype._mnodes = function(cdoc){
 };
 
 
-Ldpm.prototype._archiveFile = function(mnode, callback){
+Dcat.prototype._archiveFile = function(mnode, callback){
   var root = this.root;
 
   var isSoftwareApplication = this.packager.isClassOrSubClassOf(mnode.type, 'SoftwareApplication');
@@ -849,7 +849,7 @@ Ldpm.prototype._archiveFile = function(mnode, callback){
         headers['Content-Encoding'] =  'gzip';
       }
 
-      //PUT resource on S3 via SA registry (the registry will check if it exists already)
+      //PUT resource on S3 via dcat.io registry (the registry will check if it exists already)
       var rurl = this.url('r/' + sha1Hex);
       this.log('PUT', rurl);
       var r = request.put({url: rurl, headers: headers, json:true, auth: this._auth()}, function(err, resp, body){
@@ -876,7 +876,7 @@ Ldpm.prototype._archiveFile = function(mnode, callback){
 };
 
 
-Ldpm.prototype._checkMnodeUrl = function(mnode, callback) {
+Dcat.prototype._checkMnodeUrl = function(mnode, callback) {
   var murl = mnode.node.contentUrl || mnode.node.downloadUrl;
   if (!murl) {
     return callback(new Error('could not find the resource to publish (no file and no valid URL)'));
@@ -885,7 +885,7 @@ Ldpm.prototype._checkMnodeUrl = function(mnode, callback) {
   murl = this.url(murl);
   this.log('HEAD', murl);
   //see https://developer.github.com/v3/#user-agent-required
-  request.head({url:murl, followAllRedirects:true, headers: {'User-Agent': 'ldpm'}}, function(err, resp){
+  request.head({url:murl, followAllRedirects:true, headers: {'User-Agent': 'dcat'}}, function(err, resp){
     if (err) return callback(err);
     this.log(resp.statusCode, murl);
     if (resp.statusCode >= 400) {
@@ -897,7 +897,7 @@ Ldpm.prototype._checkMnodeUrl = function(mnode, callback) {
 };
 
 
-Ldpm.prototype._mstream = function(mnode){
+Dcat.prototype._mstream = function(mnode){
 
   var mymime = mnode.node.encodingFormat || mnode.node.fileFormat;
   if (mnode.node.filePath) {
@@ -959,7 +959,7 @@ Ldpm.prototype._mstream = function(mnode){
 };
 
 
-Ldpm.prototype.checksum = function(s, callback){
+Dcat.prototype.checksum = function(s, callback){
   callback = once(callback);
 
   var sha1 = crypto.createHash('sha1');
@@ -985,12 +985,12 @@ Ldpm.prototype.checksum = function(s, callback){
 };
 
 //TODO: implement (or not) ???
-Ldpm.prototype._archiveUrl = function(mnode, callback){
+Dcat.prototype._archiveUrl = function(mnode, callback){
   callback(null);
 };
 
 
-Ldpm.prototype.unpublish = function(docUri, callback){
+Dcat.prototype.unpublish = function(docUri, callback){
 
   var rurl = this.url(docUri);
   this.log('DELETE', rurl);
@@ -1006,7 +1006,7 @@ Ldpm.prototype.unpublish = function(docUri, callback){
 };
 
 
-Ldpm.prototype.cat = function(docUri, opts, callback){
+Dcat.prototype.get = function(docUri, opts, callback){
   if (arguments.length === 2){
     callback = opts;
     opts = {};
@@ -1037,7 +1037,7 @@ Ldpm.prototype.cat = function(docUri, opts, callback){
        ) {
 
       if (opts.normalize) {
-        if (doc['@context'] === SaSchemaOrg.contextUrl) {
+        if (doc['@context'] === SchemaOrgIo.contextUrl) {
           doc['@context'] = ctxUrl;
         }
         jsonld.normalize(doc, {format: 'application/nquads'}, callback);
@@ -1063,7 +1063,7 @@ Ldpm.prototype.cat = function(docUri, opts, callback){
     }
 
     var ctx;
-    if (doc['@context'] === SaSchemaOrg.contextUrl) {//context transfo to help for testing
+    if (doc['@context'] === SchemaOrgIo.contextUrl) {//context transfo to help for testing
       ctx = doc['@context'];
       doc['@context'] = ctxUrl;
     }
@@ -1096,18 +1096,18 @@ Ldpm.prototype.cat = function(docUri, opts, callback){
 /**
  * abs path where a document at the CURIE is being stored
  */
-Ldpm.prototype.docRoot = function(curie){
+Dcat.prototype.docRoot = function(curie){
   var purl = url.parse(this.url(curie));
   return path.join(this.root, purl.hostname, purl.pathname);
 };
 
-Ldpm.prototype.clone = function(docUri, opts, callback){
+Dcat.prototype.clone = function(docUri, opts, callback){
   if (arguments.length === 2){
     callback = opts;
     opts = {};
   }
 
-  this.cat(docUri, opts, function(err, doc){
+  this.get(docUri, opts, function(err, doc){
     if (err) return callback(err);
 
     var root = this.docRoot(doc['@id']);
@@ -1140,7 +1140,7 @@ Ldpm.prototype.clone = function(docUri, opts, callback){
 /**
  * download and write raw data of mnode on disk
  */
-Ldpm.prototype._mdl = function(mnode, root, opts, callback){
+Dcat.prototype._mdl = function(mnode, root, opts, callback){
   callback = once(callback);
   var uri = this.url(mnode.node.contentUrl || mnode.node.downloadUrl);
   var ropts = {url: uri, json: null, encoding: null};
@@ -1209,7 +1209,7 @@ Ldpm.prototype._mdl = function(mnode, root, opts, callback){
 
 };
 
-Ldpm.prototype.lsMaintainer = function(curie, callback){
+Dcat.prototype.lsMaintainer = function(curie, callback){
   var namespace = this.namespace(curie);
   var rurl = this.url('maintainers/ls/' + namespace);
   this.log('GET', rurl);
@@ -1225,7 +1225,7 @@ Ldpm.prototype.lsMaintainer = function(curie, callback){
   }.bind(this));
 };
 
-Ldpm.prototype.addMaintainer = function(data, callback){
+Dcat.prototype.addMaintainer = function(data, callback){
   data = clone(data);
   data.namespace = this.namespace(data.namespace); //if CURIE was provided
   if (!data.username && !data.namespace) {
@@ -1244,7 +1244,7 @@ Ldpm.prototype.addMaintainer = function(data, callback){
   }.bind(this));
 };
 
-Ldpm.prototype.rmMaintainer = function(data, callback){
+Dcat.prototype.rmMaintainer = function(data, callback){
   data = clone(data);
   data.namespace = this.namespace(data.namespace); //if CURIE was provided
   if (!data.username && !data.namespace) {

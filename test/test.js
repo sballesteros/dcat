@@ -4,11 +4,11 @@ var util = require('util')
   , temp = require('temp')
   , assert = require('assert')
   , request = require('request')
-  , Ldpm = require('..')
+  , Dcat = require('..')
   , readdirpSync = require('fs-readdir-recursive')
   , _ = require('underscore')
   , exec = require('child_process').exec
-  , SaSchemaOrg = require('sa-schema-org')
+  , SchemaOrgIo = require('schema-org-io')
   , path = require('path');
 
 temp.track();
@@ -30,27 +30,27 @@ function rurl(path){
   return conf.protocol + '//' + conf.hostname + ((conf.port !== 80) ? ':' + conf.port: '') + '/' + path;
 };
 
-describe('ldpm', function(){
+describe('dcat', function(){
   this.timeout(100000);
 
   describe('addUser', function(){
-    var ldpm = new Ldpm(conf);
+    var dcat = new Dcat(conf);
 
     before(function(done){
-      ldpm.addUser(done);
+      dcat.addUser(done);
     });
 
     it('should return auth token if user already registered but addUser is called with correct username and password', function(done){
-      ldpm.addUser(function(err, auth){
-        assert(auth['@id'], 'sa:users/' + conf.name);
+      dcat.addUser(function(err, auth){
+        assert(auth['@id'], 'io:users/' + conf.name);
         done()
       });
     });
 
     it('should err if already registered user addUser with same name but invalid password', function(done){
       var myc = clone(conf); myc.password = 'wrong'
-      var ldpmWrong = new Ldpm(myc);
-      ldpmWrong.addUser(function(err, auth){
+      var dcatWrong = new Dcat(myc);
+      dcatWrong.addUser(function(err, auth){
         assert(err.message, '․invalid password for user: user_a');
         done()
       });
@@ -63,9 +63,9 @@ describe('ldpm', function(){
   });
 
   describe('paths and URLs to resources', function(){
-    var ldpm = new Ldpm(conf, path.join(root, 'fixtures', 'cw-test'));
+    var dcat = new Dcat(conf, path.join(root, 'fixtures', 'cw-test'));
     it('should convert paths to resources', function(done){
-      ldpm.wrap(['**/*.csv', {id:'src', type:'Code'}], function(err, resources){
+      dcat.wrap(['**/*.csv', {id:'src', type:'Code'}], function(err, resources){
 
         var expected = [
           {
@@ -109,15 +109,15 @@ describe('ldpm', function(){
     });
 
     it('should convert URLs to resources', function(done){
-      ldpm.wrap("https://github.com/standard-analytics/ldpm.git", function(err, resources){
+      dcat.wrap("https://github.com/standard-analytics/dcat.git", function(err, resources){
         if(err) console.error(err);
         var expected = [{
-          '@id': 'ldpm',
+          '@id': 'dcat',
           '@type': 'Code',
-          codeRepository: 'https://github.com/standard-analytics/ldpm',
+          codeRepository: 'https://github.com/standard-analytics/dcat',
           encoding:  {
             '@type': 'MediaObject',
-            contentUrl: 'https://api.github.com/repos/standard-analytics/ldpm/tarball/master',
+            contentUrl: 'https://api.github.com/repos/standard-analytics/dcat/tarball/master',
             encodingFormat: 'application/x-gzip',
             //contentSize: 690980
           }
@@ -131,36 +131,36 @@ describe('ldpm', function(){
   });
 
   describe('publish', function(){
-    var ldpm;
+    var dcat;
     before(function(done){
-      ldpm = new Ldpm(conf, path.join(root, 'fixtures', 'cw-test'));
-      ldpm.addUser(done);
+      dcat = new Dcat(conf, path.join(root, 'fixtures', 'cw-test'));
+      dcat.addUser(done);
     });
 
     it('should get mnodes', function(done){
-      ldpm.cdoc(function(err, cdoc){
+      dcat.cdoc(function(err, cdoc){
         var expected =  [
           { node: { hasPart: [ { filePath: 'src/lib.h' }, { filePath: 'src/main.c' } ] }, type: 'MediaObject' },
           { node: { filePath: 'article/pone.pdf' }, type: 'MediaObject' },
           { node: { filePath: 'img/daftpunk.jpg' }, type: 'MediaObject' },
-          { node: { '@id': 'sa:cw-test/app', '@type': 'SoftwareApplication', filePath: 'app/app.zip' }, type: 'SoftwareApplication' },
+          { node: { '@id': 'io:cw-test/app', '@type': 'SoftwareApplication', filePath: 'app/app.zip' }, type: 'SoftwareApplication' },
           { node: { filePath: 'data.csv' }, type: 'DataDownload' }
         ];
 
-        assert.deepEqual(ldpm._mnodes(cdoc), expected);
+        assert.deepEqual(dcat._mnodes(cdoc), expected);
         done();
       });
     });
 
     it('should publish a document', function(done){
-      ldpm.publish(function(err, body, statusCode){
+      dcat.publish(function(err, body, statusCode){
         assert.equal(statusCode, 201);
         done();
       });
     });
 
     after(function(done){
-      ldpm.unpublish('cw-test', function(){
+      dcat.unpublish('cw-test', function(){
         request.del({ url: rurl('users/' + conf.name), auth: {user: conf.name, pass: conf.password} }, done);
       });
     });
@@ -168,57 +168,57 @@ describe('ldpm', function(){
   });
 
   describe('cat', function(){
-    var ldpm;
+    var dcat;
     before(function(done){
       var doc = {
-        '@context': SaSchemaOrg.contextUrl,
+        '@context': SchemaOrgIo.contextUrl,
         '@id': 'cat-test',
         name:'cat'
       };
 
-      ldpm = new Ldpm(conf);
-      ldpm.addUser(function(){
-        ldpm.publish(doc, done);
+      dcat = new Dcat(conf);
+      dcat.addUser(function(){
+        dcat.publish(doc, done);
       });
     });
 
-    it('should cat a document as compacted JSON-LD', function(done){
-      ldpm.cat('cat-test', function(err, doc){
-        assert.deepEqual(doc, { '@context': SaSchemaOrg.contextUrl, '@id': 'sa:cat-test', name: 'cat' });
+    it('should show a document as compacted JSON-LD', function(done){
+      dcat.get('show-test', function(err, doc){
+        assert.deepEqual(doc, { '@context': SchemaOrgIo.contextUrl, '@id': 'io:show-test', name: 'show' });
         done();
       });
     });
 
-    it('should cat a document as flattened JSON-LD', function(done){
-      ldpm.cat('cat-test', {profile:'flattened'}, function(err, doc){
-        assert.deepEqual(doc, { '@context': SaSchemaOrg.contextUrl, '@graph': [ { '@id': 'sa:cat-test', name: 'cat' } ] });
+    it('should show a document as flattened JSON-LD', function(done){
+      dcat.get('show-test', {profile:'flattened'}, function(err, doc){
+        assert.deepEqual(doc, { '@context': SchemaOrgIo.contextUrl, '@graph': [ { '@id': 'io:show-test', name: 'show' } ] });
         done();
       });
     });
 
-    it('should cat a document as expanded JSON-LD', function(done){
-      ldpm.cat('cat-test', {profile:'expanded'}, function(err, doc){
-        assert.deepEqual(doc, [ { '@id': 'https://registry.standardanalytics.io/cat-test', 'http://schema.org/name': [ { '@value': 'cat' } ] } ]);
+    it('should show a document as expanded JSON-LD', function(done){
+      dcat.get('show-test', {profile:'expanded'}, function(err, doc){
+        assert.deepEqual(doc, [ { '@id': 'https://registry.standardanalytics.io/show-test', 'http://schema.org/name': [ { '@value': 'show' } ] } ]);
         done();
       });
     });
 
-    it('should cat a document as normalized JSON-LD', function(done){
-      ldpm.cat('cat-test', {normalize: true}, function(err, doc){
-        assert.equal(doc, '<https://registry.standardanalytics.io/cat-test> <http://schema.org/name> "cat" .\n');
+    it('should show a document as normalized JSON-LD', function(done){
+      dcat.get('show-test', {normalize: true}, function(err, doc){
+        assert.equal(doc, '<https://registry.standardanalytics.io/show-test> <http://schema.org/name> "show" .\n');
         done();
       });
     });
 
-    it('should error if we cat unexisting pkg', function(done){
-      ldpm.cat('reqxddwdwdw', function(err, doc){
+    it('should error if we show unexisting pkg', function(done){
+      dcat.get('reqxddwdwdw', function(err, doc){
         assert.equal(err.code, 404);
         done();
       });
     });
 
     after(function(done){
-      ldpm.unpublish('cat-test', function(){
+      dcat.unpublish('cat-test', function(){
         request.del({ url: rurl('users/' + conf.name), auth: {user: conf.name, pass: conf.password} }, done);
       });
     });
@@ -226,18 +226,18 @@ describe('ldpm', function(){
 
 
   describe('clone', function(){
-    var ldpm;
+    var dcat;
     before(function(done){
-      ldpm = new Ldpm(conf, path.join(root, 'fixtures', 'cw-test'));
-      ldpm.addUser(function(){
-        ldpm.publish(done);
+      dcat = new Dcat(conf, path.join(root, 'fixtures', 'cw-test'));
+      dcat.addUser(function(){
+        dcat.publish(done);
       });
     });
 
     it('should clone a document', function(done){
-      temp.mkdir('test-ldpm-', function(err, dirPath) {
-        ldpm = new Ldpm(conf, dirPath);
-        ldpm.clone('cw-test', {force: true}, function(err, doc){
+      temp.mkdir('test-dcat-', function(err, dirPath) {
+        dcat = new Dcat(conf, dirPath);
+        dcat.clone('cw-test', {force: true}, function(err, doc){
           var files = readdirpSync(path.join(dirPath, 'localhost', 'cw-test'));
           var expected =  [
             'JSONLD',
@@ -255,7 +255,7 @@ describe('ldpm', function(){
     });
 
     after(function(done){
-      ldpm.unpublish('cw-test', function(){
+      dcat.unpublish('cw-test', function(){
         request.del({ url: rurl('users/' + conf.name), auth: {user: conf.name, pass: conf.password} }, done);
       });
     });
@@ -265,20 +265,20 @@ describe('ldpm', function(){
   describe('maintainers', function(){
 
     var accountablePersons =  [
-      { '@id': 'sa:users/user_a', '@type': 'Person', email: 'mailto:user@domain.com' },
-      { '@id': 'sa:users/user_b', '@type': 'Person', email: 'mailto:user@domain.com' }
+      { '@id': 'io:users/user_a', '@type': 'Person', email: 'mailto:user@domain.com' },
+      { '@id': 'io:users/user_b', '@type': 'Person', email: 'mailto:user@domain.com' }
     ];
 
-    var doc = { '@context': SaSchemaOrg.contextUrl, '@id': 'maintainer-test', name:'maintainer' };
+    var doc = { '@context': SchemaOrgIo.contextUrl, '@id': 'maintainer-test', name:'maintainer' };
     var conf2 = clone(conf);
     conf2.name = 'user_b';
-    var ldpm1 = new Ldpm(conf);
-    var ldpm2 = new Ldpm(conf2);
+    var dcat1 = new Dcat(conf);
+    var dcat2 = new Dcat(conf2);
 
     before(function(done){
-      ldpm1.addUser(function(err, body){
-        ldpm2.addUser(function(err, body){
-          ldpm1.publish(doc, function(err, body){
+      dcat1.addUser(function(err, body){
+        dcat2.addUser(function(err, body){
+          dcat1.publish(doc, function(err, body){
             done();
           });
         });
@@ -286,18 +286,18 @@ describe('ldpm', function(){
     });
 
     it('should list the maintainers', function(done){
-      ldpm1.lsMaintainer(doc['@id'], function(err, body){
+      dcat1.lsMaintainer(doc['@id'], function(err, body){
         assert.deepEqual(body.accountablePerson, accountablePersons.slice(0, 1));
         done();
       });
     });
 
     it('should add a maintainer then remove it', function(done){
-      ldpm1.addMaintainer({username: 'user_b', namespace: doc['@id']}, function(err){
-        ldpm1.lsMaintainer(doc['@id'], function(err, maintainers){
+      dcat1.addMaintainer({username: 'user_b', namespace: doc['@id']}, function(err){
+        dcat1.lsMaintainer(doc['@id'], function(err, maintainers){
           assert.deepEqual(maintainers.accountablePerson, accountablePersons);
-          ldpm1.rmMaintainer({username: 'user_b', namespace: doc['@id']}, function(err){
-            ldpm1.lsMaintainer(doc['@id'], function(err, maintainers){
+          dcat1.rmMaintainer({username: 'user_b', namespace: doc['@id']}, function(err){
+            dcat1.lsMaintainer(doc['@id'], function(err, maintainers){
               assert.deepEqual(maintainers.accountablePerson, accountablePersons.slice(0, 1));
               done();
             });
@@ -307,14 +307,14 @@ describe('ldpm', function(){
     });
 
     it("should err if a non registered user is added as a maintainer", function(done){
-      ldpm1.addMaintainer({username: 'user_c', namespace: doc['@id']}, function(err){
+      dcat1.addMaintainer({username: 'user_c', namespace: doc['@id']}, function(err){
         assert.equal(err.code, 404);
         done();
       })
     });
 
     after(function(done){
-      ldpm1.unpublish(doc['@id'], function(){
+      dcat1.unpublish(doc['@id'], function(){
         request.del({ url: rurl('users/' + conf.name), auth: {user: conf.name, pass: conf.password} }, function(){
           request.del({ url: rurl('users/' + conf2.name), auth: {user: conf2.name, pass: conf2.password} }, done);
         });

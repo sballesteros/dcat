@@ -1,10 +1,10 @@
 {
-  "name": "ldpm",
-  "version": "0.10.2",
-  "description": "linked data package manager",
+  "name": "dcat",
+  "version": "0.0.0",
+  "description": "Archive and make discoverable data and links with schema.org metadata.",
   "main": "index.js",
   "bin": {
-    "ldpm": "bin/ldpm"
+    "dcat": "bin/dcat"
   },
   "preferGlobal": true,
   "scripts": {
@@ -12,7 +12,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git://github.com/standard-analytics/ldpm.git"
+    "url": "git://github.com/standard-analytics/dcat.git"
   },
   "keywords": [
     "hypertext",
@@ -33,11 +33,11 @@
   "author": "Sebastien Ballesteros",
   "license": "Apache-2.0",
   "bugs": {
-    "url": "https://github.com/standard-analytics/ldpm/issues"
+    "url": "https://github.com/standard-analytics/dcat/issues"
   },
-  "homepage": "https://github.com/standard-analytics/ldpm",
+  "homepage": "https://github.com/standard-analytics/dcat",
   "dependencies": {
-    "sa-schema-org": "0.1.0",
+    "schema-org-io": "0.0.1",
     "colors": "~0.6.2",
     "concat-stream": "^1.4.5",
     "cookie": "^0.1.2",

@@ -6,7 +6,7 @@ var path = require('path')
   , _ = require('underscore')
   , request = require('request')
   , fs = require('fs')
-  , Ldpm = require('..')
+  , Dcat = require('..')
   , optimist = require('optimist')
   , read = require('read')
   , async = require('async')
@@ -17,7 +17,7 @@ var path = require('path')
   , querystring = require('querystring')
   , tree = require('../lib/tree')
   , readdirpSync = require('fs-readdir-recursive')
-  , SaSchemaOrg = require('sa-schema-org')
+  , SchemaOrgIo = require('schema-org-io')
   , githubUrlToObject = require('github-url-to-object')
   , bitbucketUrlToObject = require('bitbucket-url-to-object')
   , os = require('os')
@@ -27,9 +27,9 @@ var path = require('path')
 var argv = optimist
   .usage(
     [
-      'Usage: ldpm <command> [options] where command is:',
+      'Usage: dcat <command> [options] where command is:',
       '  - init [resource] [-i, --id <namespace>] [-m, --main <resource>[::<type>]] [-p, --part <resource>[::<type>]]',
-      '  - cat <CURIE> [-e, --expand] [-f, --flatten] [-c, --compact] [-n, --normalize]',
+      '  - show <CURIE> [-e, --expand] [-f, --flatten] [-c, --compact] [-n, --normalize]',
       '  - clone <CURIE>',
       '  - publish',
       '  - unpublish <CURIE>',
@@ -66,10 +66,10 @@ if (argv.v) {
   process.exit(0);
 }
 
-var ldpm = new Ldpm(null, process.cwd());
+var dcat = new Dcat(null, process.cwd());
 
 if (!argv.q && (argv._[0] !== 'cat')) {
-  ldpm.on('log', console.log);
+  dcat.on('log', console.log);
 }
 
 if (argv._[0] === 'init') {
@@ -124,7 +124,7 @@ if (argv._[0] === 'init') {
     var defaults = {
       license: 'http://creativecommons.org/publicdomain/zero/1.0/',
       version: '0.0.0',
-      namespace: path.basename(ldpm.root),
+      namespace: path.basename(dcat.root),
       description: description,
       isBasedOnUrl: isBasedOnUrl
     };
@@ -178,13 +178,13 @@ if (argv._[0] === 'init') {
 
       var opts = {namespace: prompted.namespace};
 
-      ldpm.wrap(main, opts, function(err, rmain, reservedIds){
+      dcat.wrap(main, opts, function(err, rmain, reservedIds){
         if (err) _fail(err);
         opts.reservedIds = reservedIds;
-        ldpm.wrap(parts, opts, function(err, rparts, reservedIds){
+        dcat.wrap(parts, opts, function(err, rparts, reservedIds){
           if (err) _fail(err);
 
-          var doc = { '@context': SaSchemaOrg.contextUrl, '@id': prompted.namespace };
+          var doc = { '@context': SchemaOrgIo.contextUrl, '@id': prompted.namespace };
 
           //keep a nice order
           if (argv.m) {
@@ -219,10 +219,10 @@ if (argv._[0] === 'init') {
             doc.keywords = prompted.keywords;
           }
 
-          if (ldpm.rc.name || ldpm.rc.email) {
+          if (dcat.rc.name || dcat.rc.email) {
             doc.accountablePerson = {'@type': 'Person'}; //TODO @id with user profile
-            if (ldpm.rc.name) doc.accountablePerson.name = ldpm.rc.name;
-            if (ldpm.rc.email) doc.accountablePerson.email = 'mailto:' + ldpm.rc.email;
+            if (dcat.rc.name) doc.accountablePerson.name = dcat.rc.name;
+            if (dcat.rc.email) doc.accountablePerson.email = 'mailto:' + dcat.rc.email;
           }
 
           if (prompted.isBasedOnUrl) {
@@ -243,8 +243,8 @@ if (argv._[0] === 'init') {
             doc.hasPart = rparts;
           }
 
-          ldpm.emit('log', '+'.green + ' JSONLD');
-          fs.writeFileSync(path.resolve(ldpm.root, 'JSONLD'), JSON.stringify(doc, null, 2));
+          dcat.emit('log', '+'.green + ' JSONLD');
+          fs.writeFileSync(path.resolve(dcat.root, 'JSONLD'), JSON.stringify(doc, null, 2));
 
         });
       });
@@ -252,7 +252,7 @@ if (argv._[0] === 'init') {
 
   })();
 
-} else if (argv._[0] === 'cat') {
+} else if (argv._[0] === 'show') {
 
   (function(){
     var curie = argv._[1];
@@ -268,7 +268,7 @@ if (argv._[0] === 'init') {
       opts.profile = 'compacted';
     }
 
-    ldpm.cat(curie, opts, function(err, doc){
+    dcat.show(curie, opts, function(err, doc){
       if (err) return _fail(err);
       console.log((opts.normalize)? doc : JSON.stringify(doc, null, 2));
     });
@@ -280,12 +280,12 @@ if (argv._[0] === 'init') {
     var curie = argv._[1];
     if (!curie) _fail(new Error('invalid usage: missing CURIE'));
 
-    ldpm.clone(curie, {force: argv.force}, function(err, doc){
+    dcat.clone(curie, {force: argv.force}, function(err, doc){
       if (err) _fail(err);
       if (doc['@id']) {
-        var root = ldpm.docRoot(doc['@id']);
+        var root = dcat.docRoot(doc['@id']);
         var paths = readdirpSync(root).map(function(p){
-          return path.relative(ldpm.root, path.join(root, p)).replace(/\\/g, '/'); //on windows path.sep is "\\"
+          return path.relative(dcat.root, path.join(root, p)).replace(/\\/g, '/'); //on windows path.sep is "\\"
         });
         if (paths.length) {
           console.log(tree(paths));
@@ -296,11 +296,11 @@ if (argv._[0] === 'init') {
 
 } else if (argv._[0] === 'publish') {
 
-  if (!fs.existsSync(path.resolve(ldpm.root, 'JSONLD'))){
-    _fail(new Error('no JSONLD file in '+ ldpm.root));
+  if (!fs.existsSync(path.resolve(dcat.root, 'JSONLD'))){
+    _fail(new Error('no JSONLD file in '+ dcat.root));
   };
 
-  ldpm.publish(function(err, doc){
+  dcat.publish(function(err, doc){
     if (err) return _fail(err);
     console.log('+ '.green + doc['@id']);
   });
@@ -311,7 +311,7 @@ if (argv._[0] === 'init') {
 
     var curie = argv._[1];
     if (!curie) _fail(new Error('invalid usage: missing CURIE'));
-    ldpm.unpublish(curie, function(err, body){
+    dcat.unpublish(curie, function(err, body){
       if (err) _fail(err);
       console.log('- '.red + curie);
     });
@@ -354,12 +354,12 @@ if (argv._[0] === 'init') {
       if (err) _fail(err);
 
       for (var key in prompted) {
-        ldpm.rc[key] = prompted[key];
+        dcat.rc[key] = prompted[key];
       }
 
       var $HOME = process.env.HOME || process.env.HOMEPATH || process.env.USERPROFILE;
       try {
-        fs.writeFileSync(path.resolve($HOME, '.ldpmrc'), JSON.stringify(ldpm.rc, function(key, value){
+        fs.writeFileSync(path.resolve($HOME, '.dcatrc'), JSON.stringify(dcat.rc, function(key, value){
           if (key.charAt(0) === '_' || key.charAt(0) === '$' || key === 'config') {
             return undefined;
           }
@@ -368,7 +368,7 @@ if (argv._[0] === 'init') {
       } catch (e) {
         _fail(e);
       }
-      ldpm.addUser(function(err, body){
+      dcat.addUser(function(err, body){
         if (err) return _fail(err);
         console.log('+'.green, body.agent || body['@id']);
       });
@@ -384,7 +384,7 @@ if (argv._[0] === 'init') {
 
     var username, namespace;
     if(action === 'add' || action === 'rm'){
-      var msg = 'invalid usage: ldpm maintainer ' + action + ' <username> <CURIE>'
+      var msg = 'invalid usage: dcat maintainer ' + action + ' <username> <CURIE>'
 
       var username = argv._[2];
       if(!username) _fail(new Error(msg));
@@ -392,17 +392,17 @@ if (argv._[0] === 'init') {
       namespace = argv._[3];
       if(!namespace) _fail(new Error(msg));
 
-      ldpm[action + 'Maintainer']({username: username, namespace: namespace}, function(err){
+      dcat[action + 'Maintainer']({username: username, namespace: namespace}, function(err){
         if (err) return _fail(err);
-        console.log(((action === 'add') ? '+ '.green : '- '.red) + 'sa:user/' + username);
+        console.log(((action === 'add') ? '+ '.green : '- '.red) + 'io:user/' + username);
       });
 
     } else if (action === 'ls'){
 
       namespace = argv._[2];
-      if(!namespace) _fail(new Error('invalid usage: ldpm maintainer ls <CURIE>'));
+      if(!namespace) _fail(new Error('invalid usage: dcat maintainer ls <CURIE>'));
 
-      ldpm.lsMaintainer(namespace, function(err, body){
+      dcat.lsMaintainer(namespace, function(err, body){
         if(err) _fail(err);
         if(!body.accountablePerson) _fail(new Error('no maintainers'));
         body.accountablePerson.forEach(function(m){
@@ -426,12 +426,12 @@ if (argv._[0] === 'init') {
       return _fail(new Error('invalid usage: search must be followed by one or several keywords'));
     }
 
-    var rurl = ldpm.url('search?' + querystring.stringify({keywords: keywords}));
-    ldpm.log('GET', rurl);
+    var rurl = dcat.url('search?' + querystring.stringify({keywords: keywords}));
+    dcat.log('GET', rurl);
     var cnt = 0;
     oboe(rurl)
       .start(function(statusCode, headers){
-        ldpm.log(statusCode, rurl);
+        dcat.log(statusCode, rurl);
       })
       .node('itemListElement.*', function(node){
         cnt++;
@@ -452,7 +452,7 @@ if (argv._[0] === 'init') {
         } else if (errorReport.statusCode === 404) {
           console.log(errorReport.jsonBody.error);
         } else {
-          _fail(ldpm._error(errorReport.jsonBody, errorReport.statusCode));
+          _fail(dcat._error(errorReport.jsonBody, errorReport.statusCode));
         }
       });
 
@@ -470,7 +470,7 @@ if (argv._[0] === 'init') {
 
 function _fail(err){
   if (err) {
-    console.error('ldpm'.grey +  ' ERR! '.red + err.message + (('code' in err) ? ' (' + err.code + ')': ''));
+    console.error('dcat'.grey +  ' ERR! '.red + err.message + (('code' in err) ? ' (' + err.code + ')': ''));
     process.exit(1);
   }
 };

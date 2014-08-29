@@ -376,7 +376,7 @@ Dcat.prototype._pathToResource = function(globs, opts, callback){
                 }
 
                 var m2 = m.split('/')[1];
-                if (m2 !== 'plain' && m2 !== 'octet-stream') {
+                if (Dcat.type(m) === 'Code') {
                   langs.push(m2.split('-')[1] || m2);
                 }
               }
@@ -386,7 +386,7 @@ Dcat.prototype._pathToResource = function(globs, opts, callback){
               }
             } else {
               var m2 = mymime.split('/')[1];
-              if (m2 !== 'plain' && m2 !== 'octet-stream') {
+              if (Dcat.type(mymime) === 'Code') {
                 r.programmingLanguage = { name: m2.split('-')[1] || m2 };
               }
             }
@@ -528,9 +528,7 @@ Dcat.prototype._urlToResource = function(turls, opts, callback){
             var inferedType = Dcat.type(mymine);
             if (inferedType === 'Code') {
               var m2 = mymime.split('/')[1];
-              if (m2 !== 'plain' && m2 !== 'octet-stream') {
-                r.programmingLanguage = { name: m2.split('-')[1] || m2 };
-              }
+              r.programmingLanguage = { name: m2.split('-')[1] || m2 };
             }
           } else {
             r.encoding = _.extend({'@type': 'MediaObject'}, encoding);

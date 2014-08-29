@@ -36,8 +36,8 @@ var argv = optimist
       '  - adduser',
       '  - maintainer <subcommand> where subcommand is:',
       '    - ls  <CURIE>',
-      '    - add <user> <CURIE>',
-      '    - rm  <user> <CURIE>',
+      '    - add <user CURIE> <doc CURIE>',
+      '    - rm  <user CURIE> <doc CURIE>',
       '    - search <keywords>',
       '  - help [command] get help on a comand',
     ].join(os.EOL)
@@ -450,7 +450,7 @@ if (argv._[0] === 'init') {
         if (errorReport.thrown) {
           _fail(errorReport.thrown);
         } else if (errorReport.statusCode === 404) {
-          console.log(errorReport.jsonBody.error);
+          console.log(errorReport.jsonBody.description || 'no results');
         } else {
           _fail(dcat._error(errorReport.jsonBody, errorReport.statusCode));
         }
@@ -464,7 +464,8 @@ if (argv._[0] === 'init') {
 
 } else {
 
-  _fail(new Error('invalid command'));
+  console.error('dcat'.grey +  ' ERR! '.red + 'invalid command');
+  console.log(optimist.help());
 
 };
 

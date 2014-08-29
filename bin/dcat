@@ -89,10 +89,10 @@ if (argv._[0] === 'init') {
 
     //inspired from https://github.com/maxogden/datapackage-json/blob/master/prompt.js
     var description;
-    var readme = ['README.md', 'README', 'README.markdown'].filter(fs.existsSync)[0];
+    var readme = ['README.md', 'README', 'README.markdown', 'README.rst'].filter(fs.existsSync)[0];
     if (readme) {
       try {
-        var src = fs.readFileSync('README.md', 'utf8');
+        var src = fs.readFileSync(readme, 'utf8');
         description = src.split('\n').filter(function (line) {
           return /\s+/.test(line) && !line.trim().match(/^#/);
         })[0]

@@ -230,12 +230,49 @@ or repeat ```--part``` (or the shorter ```-p```) if you need more complex matchi
     dcat init --m article.pdf -p *.csv -p *.jpg
 
 
-TODO describe directories
+#### Directories
+
+Directories are published as tarballs. For instance, running
+
+
+    dcat init -m src::Code --id cproject
+
+
+where ```src``` is a directory of source files
+
+
+```
+src
+├── lib.h
+└── main.c
+```
+
+will generate:
+
+    {
+      "@context": "https://dcat.io",
+      "@id": "cproject",
+      "@type": "Code",
+      "programmingLanguage": { "name": "c" },
+      "encoding": {
+        "@type": "MediaObject",
+        "encodingFormat": "application/x-gtar",
+        "hasPart": [
+          { "@type": "MediaObject", "filePath": "src/lib.h" },
+          { "@type": "MediaObject", "filePath": "src/main.c" }
+        ]
+      }
+    }
+
+
+After publication, the MediaObject will have a
+[```contentUrl```](http://www.schema.org/contentUrl) property
+indicating where the tarball can be retrieved.
 
 
 ## Unpublishing (```unpublish```)
 
-To delete a specific version of a document of ```"@id": "mydoc"`` run:
+To delete a specific version of a document of ```"@id": "mydoc"``` run:
 
     dcat unpublish ldr:mydoc?version=0.1.1
 
@@ -297,7 +334,7 @@ Maintainers can give users maintainer rights by running:
 
     dcat maintainer add <user CURIE> <doc CURIE>
 
-Note: all user of [dcat.io](https://dcat.io) of a CURI of ldr:users/{username}
+Note: all user of [dcat.io](https://dcat.io) have a [CURIE](http://www.w3.org/TR/curie/) of ```ldr:users/{username}```
 
 Maintainers can remove maintainer rights by running:
 

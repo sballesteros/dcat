@@ -26,48 +26,47 @@ and follow the prompting wizard.
 
 ### Simple document
 
-```dcat``` allows to publish [JSON-LD](http://www.w3.org/TR/json-ld)
+```dcat``` allows the publication of [JSON-LD](http://www.w3.org/TR/json-ld)
 documents using [dcat.io](https://dcat.io) context. This context
 extends [schema.org](http://schema.org) with terms relevant to do I/O
 and preserve data integrity (like ```filepath``` and ```Checksum```).
 
-A minimum document has to contain
+At the minimum, a document has to contain
 
-- a context (```@context```), set to https://dcat.io,
-- an id (```@id```) used to uniquely identify things published on
-  dcat.io with URLs. All relative URLs will be resolve with a base
+- a context (```@context```) set to https://dcat.io,
+- an id (```@id```) to uniquely identify things published on
+  dcat.io with URLs. All relative URLs will be resolved with a base
   (defined in the [context](https://dcat.io) (```@base```)) of
   ```https://dcat.io```
 
-e.g:
+e.g.
 
     {
       "@context": "https://dcat.io",
       "@id": "mydoc"
     }
 
-To publish this document, create a file named ```JSONLD``` and, in the
-directory containing it run:
+To publish this document (```mydoc```), create a blank file named ```JSONLD``` and in the directory containing ```JSONLD``` run:
 
     dcat publish
 
 After publication the document will be available at ```https://dcat.io/mydoc```.
 
-Documents can contains any properties from
+Documents can contain any properties from
 [schema.org](http://schema.org) or from any other ontologies as long
 as the associated ```@context``` are provided.
 
 ### Versioning
 
 If a [```version```](http://schema.org/version) property is specified
-in the document, the document will be versionned, that is each update
-will require a new version value to be published (preventing to
-overwrite existing versions).
+in the document, the document will be versioned, that is, each update
+will require a new version value in order to be published (this prevents
+existing versions from being overwritten).
 
 When appropriate version number SHOULD follow
-[semantic versionning](http://semver.org/)
+[semantic versioning](http://semver.org/)
 
-e.g:
+e.g.
 
     {
       "@context": "https://dcat.io",
@@ -79,16 +78,18 @@ After publication this document will be available at
 ```https://dcat.io/mydoc?version=0.0.1``` whereas the latest version
 will always be available at ```https://dcat.io/mydoc```.
 
-In case the document is versionned following
-[Semantic Versioning](http://semver.org/), a range (e.g ```<0.0.1```)
+In case the document is versioned following
+[Semantic Versioning](http://semver.org/), a range (e.g. ```<0.0.1```)
 can be specified as ```version``` (e.g. ```https://dcat.io/mydoc?version=<0.0.1```)
 
 ### Nodes
 
 Document can be arbitrarily complex (having multiple nodes) and
-sometimes, it makes sense to want to assign an URL to a node so that
-it can be referred. This is achieved by setting ```@id``` properties
-to the desired nodes e.g:
+sometimes, it makes sense to assign a URL to a node so that
+it can be referenced. This is achieved by setting ```@id``` properties
+to the desired nodes 
+
+e.g.
 
 
     {
@@ -104,7 +105,7 @@ to the desired nodes e.g:
 
 
 The whole document can be retrieved at ```https://dcat.io/mydoc```
-whereas the part can be retrieved at ```https://dcat.io/mydoc/data```
+whereas the node (part) can be retrieved at ```https://dcat.io/mydoc/data```
 
 Note: nodes can be any valid URLs _but_ they have to be namespaced
 within the top level ```@id``` (for a document of ```""@id":
@@ -136,13 +137,12 @@ we get a basic machine readable document:
     }
 
 This document should be extended with more properties (from
-[schema.org](http://schema.org) (such as
+[schema.org](http://schema.org) such as
 [author](http://schema.org/author),
 [contributor](http://schema.org/contributor),
 [about](http://schema.org/about),
 [programmingLanguage](http://schema.org/programmingLanguage),
-[runtime](http://schema.org/runtime)... ) or any other web ontologies
-(taking care to add contexts in the latter case)) to improve the
+[runtime](http://schema.org/runtime)..., or from any other web ontologies, taking care to add contexts in this case) to improve the
 discoverability and reusability of the resource.
 
 Note, in addition to absolute URLs, ```dcat``` supports
@@ -162,18 +162,18 @@ For all the subclasses of
 [ImageObject](http://schema.org/ImageObject),
 [VideoObject](http://schema.org/VideoObject),
 [AudioObject](http://schema.org/AudioObject), ...) ```dcat``` allows
-to publish raw data from files (dataset, binaries, images, media...)
+the publication of raw data from files (including datasets, binaries, images, media, and more...)
 along with documents.
 
 For instance if you have an a
-[PDF](http://en.wikipedia.org/wiki/Portable_Document_Format) of
+[PDF](http://en.wikipedia.org/wiki/Portable_Document_Format) of a
 [MedicalScholarlyArticle](http://schema.org/MedicalScholarlyArticle)
 and an associated [Dataset](http://schema.org/Dataset) in
 [CSV](http://tools.ietf.org/html/rfc4180) you can run:
 
     dcat init --main article.pdf::MedicalScholarlyArticle --part data.csv
 
-Note: ```::MedicalScholarlyArticle``` allows to associate a type
+Note: ```::MedicalScholarlyArticle``` associates a type
 (```@type```) with the resource (```article.pdf```).
 
 This will generate a machine readable document (JSONLD) that you can
@@ -197,7 +197,7 @@ edit to provide additional metadata.
     }
 
 After publication (```dcat publish```) the document will acquire
-additional URLs properties that can be dereferenced to retrieved the
+additional URL properties that can be dereferenced to retrieved the
 original raw data:
 
 
@@ -225,7 +225,7 @@ Note: ```dcat init``` supports [globbing](https://github.com/isaacs/node-glob) s
 
     dcat init --main article.pdf --part *.csv
 
-or repeat ```--part``` (or the shorter ```-p```) if you need more complex matching e.g:
+or repeat ```--part``` (or the shorter ```-p```) if you need more complex matching e.g.
 
     dcat init --m article.pdf -p *.csv -p *.jpg
 
@@ -302,13 +302,13 @@ queried using [SPARQL](http://www.w3.org/TR/rdf-sparql-query/).
 ### Show (expanded, compacted, flattened, normalized )
 
 ```dcat show``` followed by a [CURIE](http://www.w3.org/TR/curie/)
-allows to display on
-[stdout](http://en.wikipedia.org/wiki/Standard_streams) the latest
-JSON-LD document corresponding to the CURIE.
+displays the latest
+JSON-LD document corresponding to the CURIE on
+[stdout](http://en.wikipedia.org/wiki/Standard_streams).
 
 Different options (```-e, --expand```, ```-f, --flatten```, ```-c,
---compact```, ```-n, --normalize```) allow to have different
-representation of the document. For instance,
+--compact```, ```-n, --normalize```) provide alternative
+representations of the document. For instance,
 
 ```dcat show ldr:mydoc?version=<2.1.0 --normalize```
 
@@ -318,8 +318,7 @@ of ```"@id": "mydoc"``` to [N-Quads](http://www.w3.org/TR/n-quads/)
 
 ### Clone
 
-```dcat clone``` followed by a [CURIE](http://www.w3.org/TR/curie/) allows to download the raw data
-associated with a document and store them along with the document on
+```dcat clone``` followed by a [CURIE](http://www.w3.org/TR/curie/) downloads the raw data associated with a document and stores them along with the document on
 disk at the paths specified by the ```filepath``` properties.
 
 
@@ -370,7 +369,7 @@ History
 Registry
 ========
 
-By default, ```dcat``` uses [dcat.io](http://dcat.io)
+By default, ```dcat``` uses [dcat.io](http://dcat.io), a
 [linked data registry](https://github.com/standard-analytics/linked-data-registry)
 hosted on [cloudant](https://standardanalytics.cloudant.com).
 

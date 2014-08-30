@@ -29,7 +29,7 @@ and follow the prompting wizard.
 ```dcat``` allows the publication of [JSON-LD](http://www.w3.org/TR/json-ld)
 documents using [dcat.io](https://dcat.io) context. This context
 extends [schema.org](http://schema.org) with terms relevant to do I/O
-and preserve data integrity (like ```filepath``` and ```Checksum```).
+and preserve data integrity (like ```filePath``` and ```Checksum```).
 
 At the minimum, a document has to contain
 
@@ -46,7 +46,7 @@ e.g.
       "@id": "mydoc"
     }
 
-To publish this document (```mydoc```), create a blank file named ```JSONLD``` and in the directory containing ```JSONLD``` run:
+To publish this document (```mydoc```), create a file named ```JSONLD``` and in the directory containing ```JSONLD``` run:
 
     dcat publish
 
@@ -87,7 +87,7 @@ can be specified as ```version``` (e.g. ```https://dcat.io/mydoc?version=<0.0.1`
 Document can be arbitrarily complex (having multiple nodes) and
 sometimes, it makes sense to assign a URL to a node so that
 it can be referenced. This is achieved by setting ```@id``` properties
-to the desired nodes 
+to the desired nodes
 
 e.g.
 
@@ -105,7 +105,7 @@ e.g.
 
 
 The whole document can be retrieved at ```https://dcat.io/mydoc```
-whereas the node (part) can be retrieved at ```https://dcat.io/mydoc/data```
+whereas the part (node) can be retrieved at ```https://dcat.io/mydoc/data```
 
 Note: nodes can be any valid URLs _but_ they have to be namespaced
 within the top level ```@id``` (for a document of ```""@id":
@@ -319,7 +319,7 @@ of ```"@id": "mydoc"``` to [N-Quads](http://www.w3.org/TR/n-quads/)
 ### Clone
 
 ```dcat clone``` followed by a [CURIE](http://www.w3.org/TR/curie/) downloads the raw data associated with a document and stores them along with the document on
-disk at the paths specified by the ```filepath``` properties.
+disk at the paths specified by the ```filePath``` properties.
 
 
 ## Listing / Adding / Removing maintainers (```maintainer```)

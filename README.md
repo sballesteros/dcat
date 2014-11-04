@@ -36,8 +36,8 @@ At the minimum, a document has to contain
 - a context (```@context```) set to https://dcat.io,
 - an id (```@id```) to uniquely identify things published on
   dcat.io with URLs. All relative URLs will be resolved with a base
-  (defined in the [context](https://dcat.io) (```@base```)) of
-  ```https://dcat.io```
+  (defined in the [context](https://dcat.io) (```@base```)) of ```https://dcat.io```
+
 
 e.g.
 
